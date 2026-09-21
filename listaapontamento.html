@@ -1,0 +1,853 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <title>Apontamentos</title>
+
+    <!-- Configurações PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Apontamento" />
+    <link rel="apple-touch-icon" href="icoapontamento.png" />
+    <link rel="manifest" href="manifest.json" />
+
+    <!-- Supabase JS Client Oficial -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Guardião de Autenticação -->
+    <script>
+        (function verificarAuth() {
+            const token = localStorage.getItem("auth_token");
+            const matricula = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula");
+            if (!token || !matricula) {
+                window.location.replace("login.html");
+            }
+        })();
+    </script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            background: linear-gradient(135deg, #081426 0%, #020912 50%, #0A1D38 100%);
+            color: #FFFFFF;
+            display: flex;
+            justify-content: center;
+            padding-top: calc(15px + env(safe-area-inset-top));
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
+            padding-left: 20px;
+            padding-right: 20px;
+            overflow-x: hidden;
+        }
+
+        .main-layout {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            min-height: calc(100vh - 35px);
+        }
+
+        /* 1. Topo */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            gap: 8px;
+        }
+
+        .action-btn {
+            background-color: #0E223D;
+            border: 1px solid #1F3A60;
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.15s ease, transform 0.12s ease;
+            color: #FFFFFF;
+            flex-shrink: 0;
+        }
+
+            .action-btn:active {
+                transform: scale(0.95);
+                background-color: #173763;
+            }
+
+            .action-btn .chevron {
+                font-size: 28px;
+                margin-top: -4px;
+                line-height: 1;
+            }
+
+        .page-title {
+            flex: 1;
+            font-size: 20px;
+            font-weight: 700;
+            color: #FFFFFF;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .top-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* 2. Barra de Busca */
+        .search-bar {
+            background-color: #0B1C33;
+            border: 1px solid #1F3A60;
+            height: 50px;
+            border-radius: 14px;
+            padding: 0 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+            .search-bar input {
+                width: 100%;
+                height: 100%;
+                background: transparent;
+                border: none;
+                outline: none;
+                color: #FFFFFF;
+                font-size: 14px;
+                user-select: text;
+            }
+
+                .search-bar input::placeholder {
+                    color: #4B6382;
+                }
+
+        /* 3. Contagem Total */
+        .counter-row {
+            margin: 0 4px 8px 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .counter-text {
+            font-size: 13px;
+            font-weight: 700;
+            color: #8FA3BF;
+        }
+
+        /* 4. Lista de Apontamentos */
+        .list-container {
+            flex: 1;
+            overflow-y: auto;
+            scrollbar-width: none;
+            padding-bottom: 90px;
+        }
+
+            .list-container::-webkit-scrollbar {
+                display: none;
+            }
+
+        .apontamento-card {
+            background-color: #0B1C33;
+            border: 1px solid #173154;
+            border-radius: 16px;
+            padding: 14px 12px;
+            margin-bottom: 8px;
+            display: grid;
+            grid-template-columns: 92px 1fr;
+            column-gap: 12px;
+            position: relative;
+        }
+
+        .card-left {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            border-right: 1px solid #173154;
+            padding-right: 12px;
+        }
+
+            .card-left .tool-icon {
+                font-size: 22px;
+            }
+
+            .card-left .data-text {
+                font-size: 13px;
+                font-weight: 700;
+                color: #FFFFFF;
+            }
+
+            .card-left .dia-text {
+                font-size: 11px;
+                color: #8FA3BF;
+                text-transform: capitalize;
+            }
+
+        .status-badge {
+            font-size: 10px;
+            font-weight: 700;
+            margin-top: 2px;
+            text-align: center;
+        }
+
+            .status-badge.pendente {
+                color: #FF9838;
+            }
+
+            .status-badge.enviado {
+                color: #00C48C;
+            }
+
+        .btn-enviar-item {
+            background-color: #1F6FEB;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 6px;
+            font-size: 9px;
+            height: 26px;
+            padding: 0 6px;
+            cursor: pointer;
+            margin-top: 4px;
+            width: 100%;
+            transition: opacity 0.15s ease;
+        }
+
+            .btn-enviar-item:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+
+        .card-right {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .os-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+
+        .os-number {
+            font-size: 16px;
+            font-weight: 700;
+            color: #6CB8FF;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .setor-badge {
+            background-color: #061221;
+            border: 1px solid #1B3352;
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-size: 11px;
+            color: #8FA3BF;
+            white-space: nowrap;
+        }
+
+        .matricula-info {
+            font-size: 14px;
+            color: #D1DCE8;
+        }
+
+            .matricula-info span {
+                color: #8FA3BF;
+            }
+
+            .matricula-info strong {
+                color: #FFFFFF;
+            }
+
+        .horarios-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #FF9838;
+            font-weight: 700;
+        }
+
+        .obs-text {
+            font-size: 11px;
+            color: #5A718F;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px dashed rgba(23, 49, 84, 0.6);
+        }
+
+        .action-chip {
+            border: none;
+            border-radius: 4px;
+            padding: 3px 8px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #FFFFFF;
+        }
+
+        .chip-edit {
+            background-color: #1F6FEB;
+        }
+
+        .chip-delete {
+            background-color: #DA3633;
+        }
+
+        /* Empty State */
+        .empty-view {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-top: 60px;
+            gap: 10px;
+            text-align: center;
+        }
+
+        .empty-icon {
+            font-size: 46px;
+        }
+
+        .empty-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #8FA3BF;
+        }
+
+        .empty-subtitle {
+            font-size: 12px;
+            color: #4B6382;
+        }
+
+        .footer-version {
+            font-size: 11px;
+            color: #3A4D66;
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        /* Botão Flutuante (+) */
+        .btn-fab {
+            position: fixed;
+            bottom: 35px;
+            right: calc(50% - 240px + 24px);
+            width: 60px;
+            height: 60px;
+            background-color: #FF7A00;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+            border: none;
+            z-index: 100;
+            transition: transform 0.12s ease;
+        }
+
+        @media (max-width: 520px) {
+            .btn-fab {
+                right: 24px;
+            }
+        }
+
+        .btn-fab:active {
+            transform: scale(0.92);
+        }
+
+        .btn-fab span {
+            color: #FFFFFF;
+            font-size: 34px;
+            font-weight: bold;
+            margin-top: -3px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-layout">
+
+        <!-- 1. Topo -->
+        <header class="top-bar">
+            <!-- Botão Voltar (Oculto se for apenas Usuário) -->
+            <button id="btnVoltar" class="action-btn hidden" onclick="voltarPagina()" title="Voltar">
+                <span class="chevron">‹</span>
+            </button>
+
+            <h1 class="page-title">Apontamentos</h1>
+
+            <div class="top-actions">
+                <!-- Botão Relatório (Aparece para Admin e Supervisor) -->
+                <button id="btnRelatorio" class="action-btn hidden" onclick="abrirRelatorios()" title="Relatórios">
+                    <span>📊</span>
+                </button>
+
+                <!-- Botão Sair (Aparece para Usuário comum no topo) -->
+                <button id="btnSair" class="action-btn hidden" onclick="sairSessao()" title="Encerrar Sessão">
+                    <span>🚪</span>
+                </button>
+
+                <!-- Botão Enviar Lote -->
+                <button id="btnSyncLote" class="action-btn" onclick="sincronizarLote()" title="Enviar para a nuvem">
+                    <span>☁️</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- 2. Barra de Busca -->
+        <section class="search-bar">
+            <span>🔍</span>
+            <input type="text"
+                   id="txtBusca"
+                   placeholder="Buscar por O.S., setor ou matrícula..."
+                   oninput="filtrarLista()" />
+        </section>
+
+        <!-- 3. Contagem Total e Pendentes -->
+        <div class="counter-row">
+            <span id="lblTotal" class="counter-text">Total: 0 apontamento(s) | 0 pendente(s)</span>
+        </div>
+
+        <!-- 4. Lista de Apontamentos -->
+        <main id="listaApontamentos" class="list-container"></main>
+
+        <!-- View Vazia (EmptyView) -->
+        <div id="emptyView" class="empty-view">
+            <span class="empty-icon">📋</span>
+            <p class="empty-title">Nenhum apontamento encontrado</p>
+            <p class="empty-subtitle">Toque no botão '+' abaixo para cadastrar.</p>
+        </div>
+
+        <!-- 5. Rodapé -->
+        <footer class="footer-version" id="lblVersaoApp">
+            Versão App: 1.1.1 | by Markinho
+        </footer>
+
+        <!-- Botão Flutuante (+) -->
+        <button class="btn-fab" onclick="novoApontamento()" title="Novo Apontamento">
+            <span>+</span>
+        </button>
+
+    </div>
+
+    <script>
+        // =========================================================================
+        // CONFIGURAÇÕES SUPABASE
+        // =========================================================================
+        const SUPABASE_URL = "https://mtlbrhmpiwvzjwbzaywi.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_qilTaEWSiDNr1L-N5uE5gA_NYyLkyBt";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // =========================================================================
+        // BANCO LOCAL INDEXEDDB (Equivalente ao LocalDatabaseService com SQLite)
+        // =========================================================================
+        const DB_NAME = "ApontamentoLocalDB";
+        const DB_VERSION = 1;
+        const STORE_NAME = "apontamentos";
+
+        function abrirDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        const store = db.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
+                        store.createIndex("matricula_executante", "matricula_executante", { unique: false });
+                        store.createIndex("data_sincronizado", "data_sincronizado", { unique: false });
+                    }
+                };
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        const LocalDB = {
+            async obterTodos() {
+                const db = await abrirDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE_NAME, "readonly");
+                    const store = tx.objectStore(STORE_NAME);
+                    const req = store.getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => reject(req.error);
+                });
+            },
+
+            async salvar(item) {
+                const db = await abrirDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE_NAME, "readwrite");
+                    const store = tx.objectStore(STORE_NAME);
+                    const req = store.put(item);
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                });
+            },
+
+            async excluir(id) {
+                const db = await abrirDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE_NAME, "readwrite");
+                    const store = tx.objectStore(STORE_NAME);
+                    const req = store.delete(id);
+                    req.onsuccess = () => resolve(true);
+                    req.onerror = () => reject(req.error);
+                });
+            },
+
+            async obterPendentes() {
+                const todos = await this.obterTodos();
+                return todos.filter(a => !a.data_sincronizado);
+            }
+        };
+
+        // =========================================================================
+        // ESTADO GLOBAL E TRAVA DE SINCRONIZAÇÃO (SemaphoreSlim)
+        // =========================================================================
+        let _listaOriginal = [];
+        let isSyncing = false; // Trava anti-duplicação (_syncLock)
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await validarUsuarioAtivo();
+            configurarPermissoesVisuais();
+            await carregarDadosAsync();
+        });
+
+        // 1. Validar se usuário ainda existe no Supabase (ValidarUsuarioAtivoAsync)
+        async function validarUsuarioAtivo() {
+            if (!navigator.onLine) return; // Sem internet continua trabalhando offline
+
+            const matricula = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula");
+            if (!matricula) return;
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('usuarios')
+                    .select('matricula, nome, grupo')
+                    .eq('matricula', matricula);
+
+                if (!error && (!data || data.length === 0)) {
+                    alert("Este usuário foi removido do sistema pelo administrador.");
+                    desconectar();
+                    window.location.replace("login.html");
+                }
+            } catch (err) {
+                console.warn("Aviso na checagem de usuário:", err);
+            }
+        }
+
+        // 2. Configuração de Permissões Visuais
+        function configurarPermissoesVisuais() {
+            const nivel = (localStorage.getItem("UsuarioNivel") || localStorage.getItem("NivelUsuario") || "Usuario").toLowerCase();
+            const isUsuario = nivel === "usuario" || nivel === "3";
+
+            document.getElementById('btnVoltar').classList.toggle('hidden', isUsuario);
+            document.getElementById('btnSair').classList.toggle('hidden', !isUsuario);
+            document.getElementById('btnRelatorio').classList.toggle('hidden', isUsuario);
+        }
+
+        // 3. Carregar Dados do Banco Local (CarregarDadosAsync)
+        async function carregarDadosAsync() {
+            try {
+                const matricula = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula");
+                const nivel = (localStorage.getItem("UsuarioNivel") || localStorage.getItem("NivelUsuario") || "Usuario").toLowerCase();
+                const isUsuario = nivel === "usuario" || nivel === "3";
+
+                let dados = await LocalDB.obterTodos();
+
+                // Ordena por data decrescente
+                dados.sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0));
+
+                // Se for operador comum, visualiza apenas os registros de sua matrícula
+                if (isUsuario && matricula) {
+                    dados = dados.filter(a => String(a.matricula_executante).trim() === matricula.trim());
+                }
+
+                _listaOriginal = dados;
+                filtrarLista();
+            } catch (err) {
+                console.error("Erro ao carregar dados locais:", err);
+            }
+        }
+
+        // 4. Filtrar Lista em memória
+        function filtrarLista() {
+            const termo = document.getElementById('txtBusca')?.value?.trim().toLowerCase() || "";
+            const container = document.getElementById('listaApontamentos');
+            const emptyView = document.getElementById('emptyView');
+            const lblTotal = document.getElementById('lblTotal');
+
+            const filtrados = !termo
+                ? _listaOriginal
+                : _listaOriginal.filter(a =>
+                    (a.ordem_servico || "").toLowerCase().includes(termo) ||
+                    (a.setor || "").toLowerCase().includes(termo) ||
+                    (a.matricula_executante || "").toLowerCase().includes(termo)
+                );
+
+            const pendentes = _listaOriginal.filter(a => !a.data_sincronizado).length;
+            lblTotal.textContent = `Total: ${filtrados.length} apontamento(s) | ${pendentes} pendente(s)`;
+
+            container.innerHTML = "";
+
+            if (filtrados.length === 0) {
+                emptyView.style.display = "flex";
+                return;
+            }
+
+            emptyView.style.display = "none";
+
+            filtrados.forEach(item => {
+                const dataObj = item.data ? new Date(item.data + "T00:00:00") : new Date();
+                const dataFmt = dataObj.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+                const diaSemana = dataObj.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
+
+                const isSincronizado = !!item.data_sincronizado;
+                const statusTexto = isSincronizado ? "✅ Enviado" : "⏳ Pendente";
+                const statusClass = isSincronizado ? "enviado" : "pendente";
+
+                const card = document.createElement("div");
+                card.className = "apontamento-card";
+                card.innerHTML = `
+                        <div class="card-left">
+                            <span class="tool-icon">🛠️</span>
+                            <span class="data-text">${dataFmt}</span>
+                            <span class="dia-text">${diaSemana}</span>
+                            <span class="status-badge ${statusClass}">${statusTexto}</span>
+                            ${!isSincronizado ? `<button class="btn-enviar-item" onclick="onEnviarItemClicked(${item.id})">Enviar ☁️</button>` : ""}
+                        </div>
+
+                        <div class="card-right">
+                            <div class="os-row">
+                                <span class="os-number">${item.ordem_servico || "Sem O.S."}</span>
+                                <span class="setor-badge">${item.setor || "Geral"}</span>
+                            </div>
+
+                            <div class="matricula-info">
+                                <span>Matrícula: </span><strong>${item.matricula_executante || "---"}</strong>
+                            </div>
+
+                            <div class="horarios-row">
+                                <span>⏱ ${item.hora_inicio || "--:--"} <span style="color:#8FA3BF; font-weight:normal;">➔</span> ${item.hora_fim || "--:--"}</span>
+                            </div>
+
+                            <div class="obs-text" title="${item.observacoes || ""}">
+                                ${item.observacoes || "Sem observações"}
+                            </div>
+
+                            <div class="card-actions">
+                                <button class="action-chip chip-edit" onclick="editarItem(${item.id})">Editar</button>
+                                <button class="action-chip chip-delete" onclick="excluirItem(${item.id})">Excluir</button>
+                            </div>
+                        </div>
+                    `;
+                container.appendChild(card);
+            });
+        }
+
+        // =========================================================================
+        // SINCRONIZAÇÃO INDIVIDUAL (OnEnviarItemClicked)
+        // =========================================================================
+        async function onEnviarItemClicked(id) {
+            if (isSyncing) return;
+            isSyncing = true;
+
+            try {
+                const todos = await LocalDB.obterTodos();
+                const itemAtualizado = todos.find(x => x.id === id);
+
+                if (!itemAtualizado || itemAtualizado.data_sincronizado) {
+                    alert(`A O.S. ${itemAtualizado?.ordem_servico || ''} já foi sincronizada.`);
+                    await carregarDadosAsync();
+                    return;
+                }
+
+                const confirm = window.confirm(`Deseja enviar a O.S. ${itemAtualizado.ordem_servico} para a nuvem?`);
+                if (!confirm) return;
+
+                if (!navigator.onLine) {
+                    alert("Dispositivo sem acesso à internet. O apontamento continuará salvo localmente.");
+                    return;
+                }
+
+                // Payload remoto (ToRemote)
+                const itemRemoto = {
+                    ordem_servico: itemAtualizado.ordem_servico,
+                    setor: itemAtualizado.setor,
+                    matricula_executante: itemAtualizado.matricula_executante,
+                    data: itemAtualizado.data,
+                    hora_inicio: itemAtualizado.hora_inicio,
+                    hora_fim: itemAtualizado.hora_fim,
+                    observacoes: itemAtualizado.observacoes,
+                    criado_em: new Date().toISOString()
+                };
+
+                const { error } = await supabaseClient.from('apontamentos').insert([itemRemoto]);
+                if (error) throw error;
+
+                itemAtualizado.data_sincronizado = new Date().toISOString();
+                await LocalDB.salvar(itemAtualizado);
+
+                alert("Apontamento sincronizado com sucesso!");
+                await carregarDadosAsync();
+
+            } catch (ex) {
+                console.error(ex);
+                alert(`Não foi possível sincronizar: ${ex.message || ex}`);
+            } finally {
+                isSyncing = false;
+            }
+        }
+
+        // =========================================================================
+        // SINCRONIZAÇÃO EM LOTE (OnSincronizarLote_Clicked)
+        // =========================================================================
+        async function sincronizarLote() {
+            if (isSyncing) return;
+            isSyncing = true;
+
+            try {
+                const pendentes = await LocalDB.obterPendentes();
+
+                if (pendentes.length === 0) {
+                    alert("Não há apontamentos pendentes para envio.");
+                    return;
+                }
+
+                if (!navigator.onLine) {
+                    alert("Dispositivo sem acesso à internet no momento.");
+                    return;
+                }
+
+                const confirmar = window.confirm(`Enviar ${pendentes.length} apontamento(s) pendente(s) agora?`);
+                if (!confirmar) return;
+
+                const loteRemoto = pendentes.map(p => ({
+                    ordem_servico: p.ordem_servico,
+                    setor: p.setor,
+                    matricula_executante: p.matricula_executante,
+                    data: p.data,
+                    hora_inicio: p.hora_inicio,
+                    hora_fim: p.hora_fim,
+                    observacoes: p.observacoes,
+                    criado_em: new Date().toISOString()
+                }));
+
+                const { error } = await supabaseClient.from('apontamentos').insert(loteRemoto);
+                if (error) throw error;
+
+                const agora = new Date().toISOString();
+                for (const item of pendentes) {
+                    item.data_sincronizado = agora;
+                    await LocalDB.salvar(item);
+                }
+
+                alert(`${pendentes.length} apontamento(s) sincronizado(s)!`);
+                await carregarDadosAsync();
+
+            } catch (ex) {
+                console.error(ex);
+                alert(`Falha ao enviar lote: ${ex.message || ex}`);
+            } finally {
+                isSyncing = false;
+            }
+        }
+
+        // =========================================================================
+        // AÇÕES DE EDIÇÃO, EXCLUSÃO E NAVEGAÇÃO
+        // =========================================================================
+        function novoApontamento() {
+            window.location.href = "novoapontamento.html";
+        }
+
+        async function editarItem(id) {
+            const todos = await LocalDB.obterTodos();
+            const item = todos.find(x => x.id === id);
+
+            if (item && item.data_sincronizado) {
+                alert(`A O.S. ${item.ordem_servico} já foi transmitida para a nuvem e não pode mais ser editada.`);
+                return;
+            }
+
+            window.location.href = `novoapontamento.html?id=${id}`;
+        }
+
+        async function excluirItem(id) {
+            const todos = await LocalDB.obterTodos();
+            const item = todos.find(x => x.id === id);
+            const os = item ? item.ordem_servico : "";
+
+            if (!window.confirm(`Deseja excluir a O.S. ${os} localmente?`)) return;
+
+            try {
+                await LocalDB.excluir(id);
+                await carregarDadosAsync();
+            } catch (err) {
+                alert(`Erro ao excluir localmente: ${err.message || err}`);
+            }
+        }
+
+        function voltarPagina() {
+            window.location.href = "index.html";
+        }
+
+        function abrirRelatorios() {
+            window.location.href = "relatorios.html";
+        }
+
+        function desconectar() {
+            localStorage.removeItem("auth_token");
+            localStorage.removeItem("UsuarioMatricula");
+            localStorage.removeItem("MatriculaUsuario");
+            localStorage.removeItem("UsuarioNome");
+            localStorage.removeItem("UsuarioGrupo");
+            localStorage.removeItem("UsuarioNivel");
+            localStorage.removeItem("NivelUsuario");
+        }
+
+        function sairSessao() {
+            if (window.confirm("Deseja encerrar a sessão?")) {
+                desconectar();
+                window.location.replace("login.html");
+            }
+        }
+    </script>
+</body>
+</html>

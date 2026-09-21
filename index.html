@@ -1,0 +1,417 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover garante que o gradiente cubra o Notch e a Dynamic Island -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <title>Apontamento</title>
+
+    <!-- Configurações PWA para iOS (Apple Web App) -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Apontamento" />
+    <link rel="apple-touch-icon" href="icoapontamento.png" />
+    <link rel="manifest" href="manifest.json" />
+
+    <!-- Cliente Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Guardião de Rota: Validação imediata antes de pintar a tela -->
+    <script>
+        (function verificarAcessoImediato() {
+            const nivel = localStorage.getItem("NivelUsuario");
+            const matricula = localStorage.getItem("MatriculaUsuario");
+
+            if (!matricula || !nivel) {
+                window.location.replace("login.html");
+                return;
+            }
+
+            const nivelLimpo = nivel.trim().toLowerCase();
+            const isApenasUsuario = nivelLimpo === "usuario" || nivelLimpo === "3";
+
+            if (isApenasUsuario) {
+                window.location.replace("listaapontamento.html");
+            }
+        })();
+    </script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            background: linear-gradient(135deg, #081426 0%, #020912 50%, #0A1D38 100%);
+            color: #FFFFFF;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding-top: calc(15px + env(safe-area-inset-top));
+            padding-bottom: calc(20px + env(safe-area-inset-bottom));
+            padding-left: 24px;
+            padding-right: 24px;
+        }
+
+        /* Dica de instalação no iOS */
+        .ios-tip {
+            display: none;
+            background-color: rgba(14, 34, 61, 0.95);
+            border: 1px solid #1F3A60;
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #CAD8E8;
+            margin-bottom: 12px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+            .ios-tip span strong {
+                color: #00C48C;
+            }
+
+            .ios-tip button {
+                background: transparent;
+                border: none;
+                color: #8FA3BF;
+                font-size: 14px;
+                font-weight: bold;
+                cursor: pointer;
+            }
+
+        .main-container {
+            max-width: 480px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            justify-content: space-between;
+        }
+
+        /* 1. Topo: Logo, Título e Subtítulo */
+        .header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 6px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+            .header .logo-container {
+                width: 68px;
+                height: 68px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+                .header .logo-container img {
+                    width: 68px;
+                    height: 68px;
+                    object-fit: contain;
+                }
+
+            .header h1 {
+                font-size: 26px;
+                font-weight: 700;
+                color: #FFFFFF;
+                margin-top: 2px;
+            }
+
+            .header p {
+                font-size: 13px;
+                color: #8FA3BF;
+            }
+
+        /* 2. Meio: Lista de Cards de Ação */
+        .cards-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin: auto 0;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+
+            .cards-list::-webkit-scrollbar {
+                display: none;
+            }
+
+        .card {
+            height: 84px;
+            border-radius: 18px;
+            padding: 0 16px;
+            display: grid;
+            grid-template-columns: 54px 1fr auto;
+            column-gap: 14px;
+            align-items: center;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.15s ease, filter 0.15s ease;
+        }
+
+            .card:active {
+                transform: scale(0.97);
+                filter: brightness(1.1);
+            }
+
+        .icon-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+
+        .card-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+            .card-text .title {
+                font-size: 16px;
+                font-weight: 700;
+                color: #FFFFFF;
+            }
+
+        .card-chevron {
+            font-size: 28px;
+            color: #FFFFFF;
+            margin-right: 6px;
+            line-height: 1;
+        }
+
+        /* Cores dos Cartões */
+        /* Card 1: Usuários */
+        .card-usuarios {
+            background-color: #0D3559;
+        }
+
+            .card-usuarios .icon-box {
+                background-color: #2F80ED;
+            }
+
+            .card-usuarios .subtitle {
+                font-size: 12px;
+                color: #B0C4DE;
+            }
+
+        /* Card 2: Relatórios */
+        .card-relatorios {
+            background-color: #0B4242;
+        }
+
+            .card-relatorios .icon-box {
+                background-color: #00C48C;
+            }
+
+            .card-relatorios .subtitle {
+                font-size: 12px;
+                color: #A3D9C9;
+            }
+
+        /* Card 3: Apontamento */
+        .card-apontamento {
+            background-color: #5A3518;
+        }
+
+            .card-apontamento .icon-box {
+                background-color: #FF7A00;
+            }
+
+            .card-apontamento .subtitle {
+                font-size: 12px;
+                color: #E2BA9D;
+            }
+
+        /* Card 4: Direct */
+        .card-direct {
+            background-color: #351C5E;
+        }
+
+            .card-direct .icon-box {
+                background-color: #8A2BE2;
+            }
+
+            .card-direct .subtitle {
+                font-size: 12px;
+                color: #D1B3FF;
+            }
+
+        /* Oculta cartões bloqueados por nível */
+        .hidden {
+            display: none !important;
+        }
+
+        /* 3. Rodapé: Linhas e Versão */
+        .footer {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            margin-top: 20px;
+        }
+
+            .footer .divider {
+                flex: 1;
+                height: 1px;
+                background-color: #1F3249;
+            }
+
+            .footer span {
+                font-size: 11px;
+                color: #5A718F;
+                white-space: nowrap;
+            }
+
+        .btn-logout {
+            background: transparent;
+            border: none;
+            color: #5A718F;
+            font-size: 11px;
+            cursor: pointer;
+            text-decoration: underline;
+            padding: 0 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+
+        <!-- Banner com instrução para adicionar à tela de início no iOS -->
+        <div id="iosPrompt" class="ios-tip">
+            <span>Toque em ⎋ (Compartilhar) e depois em <strong>"Adicionar à Tela de Início"</strong> para instalar o app.</span>
+            <button onclick="document.getElementById('iosPrompt').style.display='none'">✕</button>
+        </div>
+
+        <!-- 1. Topo -->
+        <header class="header">
+            <div class="logo-container">
+                <img src="icoapontamento.png" alt="Logo" onerror="this.outerHTML='<span style=\'font-size:42px;\'>📋</span>'" />
+            </div>
+            <h1>Apontamento</h1>
+            <p>Mais organização para o seu dia a dia</p>
+        </header>
+
+        <!-- 2. Meio: Lista de Ações -->
+        <main class="cards-list">
+
+            <!-- Card 1: Cadastro Usuários (Apenas Administrador / Nível 1) -->
+            <a href="usuarios.html" class="card card-usuarios hidden" id="cardCadastroUsuarios">
+                <div class="icon-box">👥</div>
+                <div class="card-text">
+                    <span class="title">Cadastro Usuários</span>
+                    <span class="subtitle">Gerencie os usuários do sistema</span>
+                </div>
+                <span class="card-chevron">›</span>
+            </a>
+
+            <!-- Card 2: Relatórios (Administrador e Supervisor / Níveis 1 e 2) -->
+            <a href="relatorios.html" class="card card-relatorios hidden" id="cardRelatorios">
+                <div class="icon-box">📊</div>
+                <div class="card-text">
+                    <span class="title">Relatórios</span>
+                    <span class="subtitle">Consulte e visualize os relatórios</span>
+                </div>
+                <span class="card-chevron">›</span>
+            </a>
+
+            <!-- Card 3: Apontamento (Todos os perfis) -->
+            <a href="listaapontamento.html" class="card card-apontamento" id="cardApontamento">
+                <div class="icon-box">📝</div>
+                <div class="card-text">
+                    <span class="title">Apontamento</span>
+                    <span class="subtitle">Registre seus apontamentos</span>
+                </div>
+                <span class="card-chevron">›</span>
+            </a>
+
+            <!-- Card 4: Direct (Todos os perfis) -->
+            <a href="direct.html" class="card card-direct" id="cardDirect">
+                <div class="icon-box">💬</div>
+                <div class="card-text">
+                    <span class="title">Direct</span>
+                    <span class="subtitle">Mensagens e avisos entre usuários</span>
+                </div>
+                <span class="card-chevron">›</span>
+            </a>
+
+        </main>
+
+        <!-- 3. Rodapé -->
+        <footer class="footer">
+            <div class="divider"></div>
+            <span id="lblVersaoApp">Versão App: 1.1.1 | by Markinho</span>
+            <button class="btn-logout" onclick="fazerLogout()">[Sair]</button>
+            <div class="divider"></div>
+        </footer>
+
+    </div>
+
+    <script>
+        // 1. Registro de Service Worker PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(console.error);
+            });
+        }
+
+        // 2. Banner de Instalação iOS
+        const isIos = () => /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+        const isStandalone = () => ('standalone' in window.navigator) && window.navigator.standalone;
+
+        if (isIos() && !isStandalone()) {
+            document.getElementById('iosPrompt').style.display = 'flex';
+        }
+
+        // 3. Aplica regras visuais de acesso baseado no NivelUsuario do localStorage
+        document.addEventListener('DOMContentLoaded', () => {
+            const nivelBruto = localStorage.getItem("NivelUsuario") || "";
+            const nivel = nivelBruto.trim().toLowerCase();
+
+            // Administrador: libera Cadastro de Usuários e Relatórios
+            const isAdmin = nivel === "administrador" || nivel === "admin" || nivel === "1";
+
+            // Supervisor: libera apenas Relatórios
+            const isSupervisor = nivel === "supervisor" || nivel === "2";
+
+            if (isAdmin) {
+                document.getElementById('cardCadastroUsuarios')?.classList.remove('hidden');
+                document.getElementById('cardRelatorios')?.classList.remove('hidden');
+            } else if (isSupervisor) {
+                document.getElementById('cardRelatorios')?.classList.remove('hidden');
+            }
+        });
+
+        // 4. Logout limpa a sessão e retorna ao login
+        async function fazerLogout() {
+            try {
+                if (window.supabaseClient) {
+                    await window.supabaseClient.auth.signOut();
+                }
+            } catch (e) {
+                console.warn(e);
+            }
+            localStorage.removeItem("NivelUsuario");
+            localStorage.removeItem("MatriculaUsuario");
+            window.location.replace("login.html");
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,856 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <title>Novo Apontamento</title>
+
+    <!-- Configurações PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Apontamento" />
+    <link rel="apple-touch-icon" href="icoapontamento.png" />
+    <link rel="manifest" href="manifest.json" />
+
+    <!-- Supabase JS Client Oficial -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            background: linear-gradient(135deg, #081426 0%, #020912 50%, #0A1D38 100%);
+            color: #FFFFFF;
+            display: flex;
+            justify-content: center;
+            padding-top: calc(15px + env(safe-area-inset-top));
+            padding-bottom: calc(20px + env(safe-area-inset-bottom));
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+
+        .main-layout {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* 1. Topo */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            padding: 10px 4px;
+            gap: 14px;
+        }
+
+        .btn-voltar {
+            background-color: #0E223D;
+            border: 1px solid #1F3A60;
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #FFFFFF;
+            font-size: 20px;
+            flex-shrink: 0;
+            transition: background 0.15s ease, transform 0.12s ease;
+        }
+
+            .btn-voltar:active {
+                transform: scale(0.95);
+                background-color: #173763;
+            }
+
+        .header-titles {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+            .header-titles h1 {
+                font-size: 22px;
+                font-weight: 700;
+                color: #FFFFFF;
+            }
+
+            .header-titles span {
+                font-size: 12px;
+                font-weight: 700;
+                color: #FF9838;
+            }
+
+        /* 2. Formulário */
+        .form-card {
+            background-color: #0B1C33;
+            border: 1px solid #173154;
+            border-radius: 20px;
+            padding: 22px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+            .input-group label {
+                font-size: 12px;
+                font-weight: 700;
+                color: #8FA3BF;
+            }
+
+        .input-box {
+            background-color: #061221;
+            border: 1px solid #1B3352;
+            border-radius: 12px;
+            height: 50px;
+            padding: 0 14px;
+            display: flex;
+            align-items: center;
+            position: relative;
+            transition: border-color 0.2s ease;
+        }
+
+            .input-box:focus-within {
+                border-color: #FF7A00;
+            }
+
+            .input-box input,
+            .input-box select,
+            .input-box-textarea textarea {
+                width: 100%;
+                height: 100%;
+                background: transparent;
+                border: none;
+                outline: none;
+                color: #FFFFFF;
+                font-size: 14px;
+                user-select: text;
+            }
+
+                .input-box input::placeholder,
+                .input-box-textarea textarea::placeholder {
+                    color: #4B6382;
+                }
+
+                /* Ajustes específicos para o DatePicker nativo */
+                .input-box input[type="date"] {
+                    color-scheme: dark;
+                }
+
+        /* Grid de Horários */
+        .grid-horarios {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .time-box-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        .btn-relogio {
+            position: relative;
+            width: 40px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+            color: #8FA3BF;
+        }
+
+            /* Input nativo de hora invisível sobreposto ao relógio para abrir o seletor nativo */
+            .btn-relogio input[type="time"] {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                opacity: 0.01;
+                cursor: pointer;
+            }
+
+        /* Grid de Setor com Botões (+ / -) */
+        .grid-setor {
+            display: grid;
+            grid-template-columns: 1fr 44px 44px;
+            gap: 8px;
+        }
+
+        .input-box select {
+            appearance: none;
+            cursor: pointer;
+        }
+
+            .input-box select option {
+                background-color: #061221;
+                color: #FFFFFF;
+            }
+
+        .btn-setor-action {
+            background-color: #0E223D;
+            border: 1px solid #1F3A60;
+            border-radius: 12px;
+            height: 50px;
+            width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 22px;
+            font-weight: 700;
+            transition: transform 0.12s ease;
+        }
+
+            .btn-setor-action:active {
+                transform: scale(0.93);
+            }
+
+        .btn-add-setor {
+            color: #34D399;
+        }
+
+        .btn-del-setor {
+            color: #F87171;
+        }
+
+        /* Campo de Observações */
+        .input-box-textarea {
+            background-color: #061221;
+            border: 1px solid #1B3352;
+            border-radius: 12px;
+            height: 90px;
+            padding: 10px 14px;
+            display: flex;
+            transition: border-color 0.2s ease;
+        }
+
+            .input-box-textarea:focus-within {
+                border-color: #FF7A00;
+            }
+
+            .input-box-textarea textarea {
+                resize: none;
+            }
+
+        /* Botão Gravar */
+        .btn-salvar {
+            background-color: #FF7A00;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 14px;
+            height: 52px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: opacity 0.15s ease, transform 0.12s ease;
+        }
+
+            .btn-salvar:active {
+                transform: scale(0.98);
+                opacity: 0.9;
+            }
+
+            .btn-salvar:disabled {
+                background-color: #7A3F0B;
+                cursor: not-allowed;
+                opacity: 0.6;
+            }
+    </style>
+</head>
+<body>
+
+    <div class="main-layout">
+
+        <!-- 1. Topo -->
+        <header class="top-bar">
+            <button class="btn-voltar" onclick="onVoltarTapped()" title="Voltar">
+                ←
+            </button>
+            <div class="header-titles">
+                <h1 id="lblTitulo">Novo Apontamento</h1>
+                <span id="lblMatriculaOperador">Operador: ---</span>
+            </div>
+        </header>
+
+        <!-- 2. Formulário -->
+        <main class="form-card">
+            <form id="formApontamento" onsubmit="onSalvarApontamentoClicked(event)">
+
+                <!-- Data -->
+                <div class="input-group">
+                    <label for="dpData">Data</label>
+                    <div class="input-box">
+                        <input type="date" id="dpData" required />
+                    </div>
+                </div>
+
+                <!-- Ordem de Serviço -->
+                <div class="input-group">
+                    <label for="txtOrdemServico">Ordem de Serviço</label>
+                    <div class="input-box">
+                        <input type="text"
+                               id="txtOrdemServico"
+                               placeholder="Ex: OS-2026-001"
+                               spellcheck="false"
+                               autocomplete="off" />
+                    </div>
+                </div>
+
+                <!-- Matrícula -->
+                <div class="input-group">
+                    <label for="txtMatriculaExecutante">Matrícula</label>
+                    <div class="input-box">
+                        <input type="text"
+                               id="txtMatriculaExecutante"
+                               placeholder="Ex: 1024"
+                               spellcheck="false"
+                               autocomplete="off"
+                               required />
+                    </div>
+                </div>
+
+                <!-- Horas: Inicial e Final -->
+                <div class="grid-horarios">
+
+                    <!-- Hora Inicial -->
+                    <div class="input-group">
+                        <label for="txtHoraInicio">Hora Inicial</label>
+                        <div class="input-box time-box-wrapper">
+                            <input type="text"
+                                   id="txtHoraInicio"
+                                   placeholder="07:10"
+                                   maxlength="5"
+                                   inputmode="numeric"
+                                   oninput="onHoraInput(this)"
+                                   required />
+                            <div class="btn-relogio" title="Selecionar horário">
+                                🕒
+                                <input type="time" onchange="onTimePickerNativo(this, 'txtHoraInicio')" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hora Final -->
+                    <div class="input-group">
+                        <label for="txtHoraFim">Hora Final</label>
+                        <div class="input-box time-box-wrapper">
+                            <input type="text"
+                                   id="txtHoraFim"
+                                   placeholder="16:40"
+                                   maxlength="5"
+                                   inputmode="numeric"
+                                   oninput="onHoraInput(this)"
+                                   required />
+                            <div class="btn-relogio" title="Selecionar horário">
+                                🕒
+                                <input type="time" onchange="onTimePickerNativo(this, 'txtHoraFim')" />
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Setor com Botões (+ / -) -->
+                <div class="input-group">
+                    <label for="pickerSetor">Setor</label>
+                    <div class="grid-setor">
+                        <div class="input-box">
+                            <select id="pickerSetor" required></select>
+                        </div>
+                        <button type="button" class="btn-setor-action btn-add-setor" onclick="onAdicionarSetorClicked()" title="Adicionar Setor">+</button>
+                        <button type="button" class="btn-setor-action btn-del-setor" onclick="onRemoverSetorClicked()" title="Remover Setor">−</button>
+                    </div>
+                </div>
+
+                <!-- Observações -->
+                <div class="input-group">
+                    <label for="txtObservacoes">Observações (Opcional)</label>
+                    <div class="input-box-textarea">
+                        <textarea id="txtObservacoes"
+                                  placeholder="Detalhes, paradas ou ocorrências..."
+                                  spellcheck="false"></textarea>
+                    </div>
+                </div>
+
+                <!-- Botão Gravar -->
+                <button type="submit" id="btnSalvar" class="btn-salvar">
+                    Gravar Apontamento
+                </button>
+
+            </form>
+        </main>
+
+    </div>
+
+    <script>
+        // =========================================================================
+        // CONFIGURAÇÕES SUPABASE
+        // =========================================================================
+        const SUPABASE_URL = "https://mtlbrhmpiwvzjwbzaywi.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_qilTaEWSiDNr1L-N5uE5gA_NYyLkyBt";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const OPCAO_VAZIA = "--- Nenhum ---";
+
+        // =========================================================================
+        // BANCO LOCAL INDEXEDDB (Stores: 'apontamentos' e 'setores')
+        // =========================================================================
+        const DB_NAME = "ApontamentoLocalDB";
+        const DB_VERSION = 1;
+
+        function abrirDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains("apontamentos")) {
+                        const store = db.createObjectStore("apontamentos", { keyPath: "id", autoIncrement: true });
+                        store.createIndex("matricula_executante", "matricula_executante", { unique: false });
+                        store.createIndex("data_sincronizado", "data_sincronizado", { unique: false });
+                    }
+                    if (!db.objectStoreNames.contains("setores")) {
+                        db.createObjectStore("setores", { keyPath: "nome" });
+                    }
+                };
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        const LocalDB = {
+            async obterSetores() {
+                const db = await abrirDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction("setores", "readonly");
+                    const store = tx.objectStore("setores");
+                    const req = store.getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => reject(req.error);
+                });
+            },
+
+            async salvarSetor(nome) {
+                const db = await abrirDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction("setores", "readwrite");
+                    const store = tx.objectStore("setores");
+                    const req = store.put({ nome: nome.trim() });
+                    req.onsuccess = () => resolve(true);
+                    req.onerror = () => reject(req.error);
+                });
+            },
+
+            async excluirSetor(nome) {
+                const db = await abrirDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction("setores", "readwrite");
+                    const store = tx.objectStore("setores");
+                    const req = store.delete(nome);
+                    req.onsuccess = () => resolve(true);
+                    req.onerror = () => reject(req.error);
+                });
+            },
+
+            async obterApontamentoPorId(id) {
+                const db = await abrirDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction("apontamentos", "readonly");
+                    const store = tx.objectStore("apontamentos");
+                    const req = store.get(Number(id));
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                });
+            },
+
+            async salvarApontamento(item) {
+                const db = await abrirDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction("apontamentos", "readwrite");
+                    const store = tx.objectStore("apontamentos");
+                    const req = store.put(item);
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                });
+            }
+        };
+
+        // =========================================================================
+        // ESTADO DE TELA
+        // =========================================================================
+        let _apontamentoEdicao = null;
+        let _apontamentoRemotoEdicao = null;
+        let _setorPendenteSelecao = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            configurarValoresPadrao();
+            await carregarSetoresAsync();
+            await verificarParametrosRota();
+        });
+
+        // 1. Valores Padrão (ConfigurarValoresPadrao)
+        function configurarValoresPadrao() {
+            const hoje = new Date().toISOString().split('T')[0];
+            document.getElementById('dpData').value = hoje;
+
+            document.getElementById('txtHoraInicio').value = "07:10";
+            document.getElementById('txtHoraFim').value = "16:40";
+
+            const matriculaUsuario = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "---";
+            document.getElementById('lblMatriculaOperador').textContent = `Operador: ${matriculaUsuario}`;
+
+            if (matriculaUsuario !== "---") {
+                document.getElementById('txtMatriculaExecutante').value = matriculaUsuario;
+            }
+        }
+
+        // 2. Carregar Setores (CarregarSetoresAsync)
+        async function carregarSetoresAsync() {
+            const setoresBanco = await LocalDB.obterSetores();
+            const select = document.getElementById('pickerSetor');
+            select.innerHTML = '';
+
+            // Opção vazia neutra no topo
+            const optVazia = document.createElement('option');
+            optVazia.value = OPCAO_VAZIA;
+            optVazia.textContent = OPCAO_VAZIA;
+            select.appendChild(optVazia);
+
+            setoresBanco.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.nome;
+                opt.textContent = s.nome;
+                select.appendChild(opt);
+            });
+
+            if (_setorPendenteSelecao) {
+                definirSetorSelecionado(_setorPendenteSelecao);
+                _setorPendenteSelecao = null;
+            } else {
+                select.value = OPCAO_VAZIA;
+            }
+        }
+
+        function definirSetorSelecionado(nomeSetor) {
+            if (!nomeSetor) {
+                document.getElementById('pickerSetor').value = OPCAO_VAZIA;
+                return;
+            }
+
+            const select = document.getElementById('pickerSetor');
+            const setorTrim = nomeSetor.trim();
+
+            let optionFound = false;
+            for (let i = 0; i < select.options.length; i++) {
+                if (select.options[i].value.toLowerCase() === setorTrim.toLowerCase()) {
+                    select.selectedIndex = i;
+                    optionFound = true;
+                    break;
+                }
+            }
+
+            if (!optionFound) {
+                LocalDB.salvarSetor(setorTrim);
+                const opt = document.createElement('option');
+                opt.value = setorTrim;
+                opt.textContent = setorTrim;
+                select.appendChild(opt);
+                select.value = setorTrim;
+            }
+        }
+
+        // 3. Adicionar Setor (+)
+        async function onAdicionarSetorClicked() {
+            const novoSetor = prompt("Informe o nome do novo setor:\n(Ex: Caldeiraria)");
+            if (!novoSetor || !novoSetor.trim()) return;
+
+            const setorTrim = novoSetor.trim();
+            if (setorTrim.toLowerCase() === OPCAO_VAZIA.toLowerCase()) {
+                alert("Nome de setor reservado.");
+                return;
+            }
+
+            const select = document.getElementById('pickerSetor');
+            for (let i = 0; i < select.options.length; i++) {
+                if (select.options[i].value.toLowerCase() === setorTrim.toLowerCase()) {
+                    alert(`O setor '${setorTrim}' já está cadastrado.`);
+                    select.selectedIndex = i;
+                    return;
+                }
+            }
+
+            await LocalDB.salvarSetor(setorTrim);
+            const opt = document.createElement('option');
+            opt.value = setorTrim;
+            opt.textContent = setorTrim;
+            select.appendChild(opt);
+            select.value = setorTrim;
+        }
+
+        // 4. Remover Setor (−)
+        async function onRemoverSetorClicked() {
+            const select = document.getElementById('pickerSetor');
+            const setorSelecionado = select.value;
+
+            if (!setorSelecionado || setorSelecionado === OPCAO_VAZIA) {
+                select.value = OPCAO_VAZIA;
+                return;
+            }
+
+            const confirmacao = confirm(`Deseja realmente remover o setor '${setorSelecionado}' do banco?`);
+            if (confirmacao) {
+                await LocalDB.excluirSetor(setorSelecionado);
+                select.remove(select.selectedIndex);
+                select.value = OPCAO_VAZIA;
+            }
+        }
+
+        // 5. Verificação de Parâmetros de Rota (Edição Local ou Nuvem)
+        async function verificarParametrosRota() {
+            const params = new URLSearchParams(window.location.search);
+            const localId = params.get('id');
+            const remotoId = params.get('remotoId');
+
+            if (remotoId) {
+                // Cenário 1: Edição remota vinda de relatórios
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('apontamentos')
+                        .select('*')
+                        .eq('id', remotoId)
+                        .single();
+
+                    if (!error && data) {
+                        _apontamentoRemotoEdicao = data;
+                        carregarDadosRemotosParaEdicao(data);
+                    }
+                } catch (err) {
+                    console.error("Erro ao carregar dados remotos:", err);
+                }
+                return;
+            }
+
+            if (localId) {
+                // Cenário 2: Edição de apontamento salvo no IndexedDB local
+                const item = await LocalDB.obterApontamentoPorId(localId);
+                if (item) {
+                    _apontamentoEdicao = item;
+                    carregarDadosParaEdicao(item);
+                }
+            }
+        }
+
+        function carregarDadosParaEdicao(item) {
+            document.title = "Editar Apontamento";
+            document.getElementById('lblTitulo').textContent = "Editar Apontamento Local";
+            document.getElementById('btnSalvar').textContent = "Atualizar Apontamento";
+
+            document.getElementById('dpData').value = item.data;
+            document.getElementById('txtOrdemServico').value = item.ordem_servico || '';
+            definirSetorSelecionado(item.setor);
+            document.getElementById('txtMatriculaExecutante').value = item.matricula_executante || '';
+            document.getElementById('txtObservacoes').value = item.observacoes || '';
+
+            document.getElementById('txtHoraInicio').value = item.hora_inicio || '';
+            document.getElementById('txtHoraFim').value = item.hora_fim || '';
+
+            document.getElementById('lblMatriculaOperador').textContent = `Editando Local ID: #${item.id}`;
+        }
+
+        function carregarDadosRemotosParaEdicao(item) {
+            document.title = "Editar na Nuvem";
+            document.getElementById('lblTitulo').textContent = "Editar Apontamento (Nuvem)";
+            document.getElementById('btnSalvar').textContent = "Salvar Dados";
+
+            document.getElementById('dpData').value = item.data ? item.data.split('T')[0] : '';
+            document.getElementById('txtOrdemServico').value = item.ordem_servico || '';
+            definirSetorSelecionado(item.setor);
+            document.getElementById('txtMatriculaExecutante').value = item.matricula_executante || '';
+            document.getElementById('txtObservacoes').value = item.observacoes || '';
+
+            document.getElementById('txtHoraInicio').value = item.hora_inicio || '';
+            document.getElementById('txtHoraFim').value = item.hora_fim || '';
+
+            document.getElementById('lblMatriculaOperador').textContent = `Editando Nuvem ID: #${item.id}`;
+        }
+
+        // 6. Máscara de Hora (OnHoraTextChanged)
+        function onHoraInput(input) {
+            let valor = input.value.replace(/\D/g, '');
+            if (valor.length >= 3) {
+                valor = valor.slice(0, 2) + ':' + valor.slice(2, 4);
+            }
+            input.value = valor;
+        }
+
+        function onTimePickerNativo(timeInput, targetTextId) {
+            if (timeInput.value) {
+                document.getElementById(targetTextId).value = timeInput.value;
+            }
+        }
+
+        // 7. Gravação de Apontamento (OnSalvarApontamentoClicked)
+        async function onSalvarApontamentoClicked(e) {
+            e.preventDefault();
+
+            const executante = document.getElementById('txtMatriculaExecutante').value.trim();
+            const hInicio = document.getElementById('txtHoraInicio').value.trim();
+            const hFim = document.getElementById('txtHoraFim').value.trim();
+            const os = document.getElementById('txtOrdemServico').value.trim();
+            let setor = document.getElementById('pickerSetor').value.trim();
+            const obs = document.getElementById('txtObservacoes').value.trim();
+            const dataSql = document.getElementById('dpData').value;
+
+            const grupoUsuario = localStorage.getItem("UsuarioGrupo") || "Mantenedor";
+            const btnSalvar = document.getElementById('btnSalvar');
+
+            if (setor === OPCAO_VAZIA) {
+                setor = "";
+            }
+
+            // Validações idênticas ao C#
+            if (!executante) {
+                alert("Por favor, informe a Matrícula do Executante.");
+                return;
+            }
+
+            if (!setor) {
+                alert("Por favor, selecione um Setor para o apontamento.");
+                return;
+            }
+
+            if (!hInicio || !hFim) {
+                alert("Os campos Hora Inicial e Hora Final são obrigatórios.");
+                return;
+            }
+
+            const regexHora = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+            if (!regexHora.test(hInicio) || !regexHora.test(hFim)) {
+                alert("Preencha os horários no formato HH:mm (Ex: 07:30).");
+                return;
+            }
+
+            // Validação de Hora Final > Hora Inicial
+            const [hIniH, hIniM] = hInicio.split(':').map(Number);
+            const [hFimH, hFimM] = hFim.split(':').map(Number);
+            const totalMinIni = hIniH * 60 + hIniM;
+            const totalMinFim = hFimH * 60 + hFimM;
+
+            if (totalMinFim <= totalMinIni) {
+                alert("A Hora Final deve ser posterior à Hora Inicial.");
+                return;
+            }
+
+            btnSalvar.disabled = true;
+
+            try {
+                // -----------------------------------------------------------
+                // CENÁRIO 1: EDIÇÃO DIRETA NO SUPABASE (Origem: Relatório)
+                // -----------------------------------------------------------
+                if (_apontamentoRemotoEdicao) {
+                    if (!navigator.onLine) {
+                        alert("Você precisa de conexão à internet para salvar as alterações na nuvem.");
+                        return;
+                    }
+
+                    const { error } = await supabaseClient
+                        .from('apontamentos')
+                        .update({
+                            ordem_servico: os,
+                            setor: setor,
+                            grupo: grupoUsuario,
+                            matricula_executante: executante,
+                            data: dataSql,
+                            hora_inicio: hInicio,
+                            hora_fim: hFim,
+                            observacoes: obs
+                        })
+                        .eq('id', _apontamentoRemotoEdicao.id);
+
+                    if (error) throw error;
+
+                    alert("Apontamento atualizado na nuvem com sucesso!");
+                    window.location.href = "listapontamento.html";
+                    return;
+                }
+
+                // -----------------------------------------------------------
+                // CENÁRIO 2: BANCO LOCAL INDEXEDDB (Novo ou Edição Local)
+                // -----------------------------------------------------------
+                const matriculaLogada = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "---";
+
+                if (!_apontamentoEdicao) {
+                    // Novo Apontamento
+                    const novoItem = {
+                        ordem_servico: os,
+                        setor: setor,
+                        grupo: grupoUsuario,
+                        matricula_executante: executante,
+                        matricula_usuario: matriculaLogada,
+                        data: dataSql,
+                        hora_inicio: hInicio,
+                        hora_fim: hFim,
+                        observacoes: obs,
+                        data_sincronizado: null
+                    };
+
+                    await LocalDB.salvarApontamento(novoItem);
+                    alert("Apontamento gravado com sucesso!");
+                } else {
+                    // Edição Local
+                    _apontamentoEdicao.ordem_servico = os;
+                    _apontamentoEdicao.setor = setor;
+                    _apontamentoEdicao.grupo = grupoUsuario;
+                    _apontamentoEdicao.matricula_executante = executante;
+                    _apontamentoEdicao.data = dataSql;
+                    _apontamentoEdicao.hora_inicio = hInicio;
+                    _apontamentoEdicao.hora_fim = hFim;
+                    _apontamentoEdicao.observacoes = obs;
+                    _apontamentoEdicao.data_sincronizado = null; // Reseta o status para pendente caso editado
+
+                    await LocalDB.salvarApontamento(_apontamentoEdicao);
+                    alert("Apontamento atualizado com sucesso!");
+                }
+
+                window.location.href = "listapontamento.html";
+
+            } catch (ex) {
+                console.error(ex);
+                alert(`Falha ao salvar dados: ${ex.message || ex}`);
+            } finally {
+                btnSalvar.disabled = false;
+            }
+        }
+
+        // 8. Voltar
+        function onVoltarTapped() {
+            window.location.href = "listapontamento.html";
+        }
+    </script>
+</body>
+</html>

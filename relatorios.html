@@ -1,0 +1,725 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <title>Relatório de Apontamentos</title>
+
+    <!-- PWA & Mobile Meta Tags Atualizadas -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Apontamento" />
+    <link rel="apple-touch-icon" href="icoapontamento.png" />
+    <link rel="manifest" href="manifest.json" />
+
+    <!-- SDK oficial do Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        input {
+            user-select: text;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            background: linear-gradient(135deg, #081426 0%, #020912 50%, #0A1D38 100%);
+            color: #FFFFFF;
+            display: flex;
+            flex-direction: column;
+            padding-top: calc(35px + env(safe-area-inset-top));
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
+            padding-left: 20px;
+            padding-right: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 500px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            height: 100%;
+        }
+
+        /* 1. Topo */
+        .top-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .btn-voltar {
+            width: 42px;
+            height: 42px;
+            background-color: #0E223D;
+            border: 1px solid #1F3A60;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #FFFFFF;
+            font-size: 20px;
+            cursor: pointer;
+            text-decoration: none;
+            flex-shrink: 0;
+        }
+
+            .btn-voltar:active {
+                background-color: #163660;
+            }
+
+        .header-titles {
+            margin-left: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+            .header-titles h1 {
+                font-size: 20px;
+                font-weight: 700;
+                color: #FFFFFF;
+                line-height: 1.2;
+            }
+
+            .header-titles p {
+                font-size: 12px;
+                color: #8FA3BF;
+            }
+
+        /* 2. Filtros */
+        .filter-panel {
+            background-color: #0B1C33;
+            border: 1px solid #173154;
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .filter-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #00C48C;
+            letter-spacing: 0.5px;
+        }
+
+        .search-box {
+            background-color: #061221;
+            border: 1px solid #1B3352;
+            border-radius: 10px;
+            height: 44px;
+            padding: 0 10px;
+            display: flex;
+            align-items: center;
+        }
+
+            .search-box input {
+                width: 100%;
+                background: transparent;
+                border: none;
+                outline: none;
+                color: #FFFFFF;
+                font-size: 13px;
+            }
+
+                .search-box input::placeholder {
+                    color: #475C75;
+                }
+
+        .date-filters {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            column-gap: 10px;
+        }
+
+        .date-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+            .date-group label {
+                font-size: 11px;
+                font-weight: 700;
+                color: #CAD8E8;
+            }
+
+        .date-box {
+            background-color: #061221;
+            border: 1px solid #1B3352;
+            border-radius: 8px;
+            height: 40px;
+            padding: 0 8px;
+            display: flex;
+            align-items: center;
+        }
+
+            .date-box input {
+                width: 100%;
+                background: transparent;
+                border: none;
+                outline: none;
+                color: #FFFFFF;
+                font-size: 12px;
+                color-scheme: dark;
+            }
+
+        /* 3. Contador */
+        .counter-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 0 4px 8px 4px;
+        }
+
+        .counter-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #8FA3BF;
+        }
+
+        .counter-value {
+            font-size: 11px;
+            font-weight: 700;
+            color: #00C48C;
+        }
+
+        /* 4. Lista e Swipe */
+        .list-container {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-bottom: 20px;
+        }
+
+        .swipe-container {
+            position: relative;
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .swipe-actions {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 140px;
+            display: flex;
+            z-index: 1;
+        }
+
+        .swipe-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #FFFFFF;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-edit {
+            background-color: #1F6FEB;
+        }
+
+        .btn-delete {
+            background-color: #DA3633;
+        }
+
+        .item-card {
+            position: relative;
+            background-color: #0D2542;
+            border: 1px solid #17365D;
+            border-radius: 14px;
+            padding: 14px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 2;
+            transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+            touch-action: pan-y;
+        }
+
+        .card-line-1 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tags-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .badge-os {
+            background-color: #0B4242;
+            border-radius: 6px;
+            padding: 3px 8px;
+            color: #00C48C;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .badge-setor {
+            background-color: #162E4A;
+            border-radius: 6px;
+            padding: 3px 8px;
+            color: #CAD8E8;
+            font-size: 11px;
+        }
+
+        .data-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: #8FA3BF;
+        }
+
+        .card-divider {
+            height: 1px;
+            background-color: #162E4E;
+            margin: 2px 0;
+        }
+
+        .card-line-2 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .matricula-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .matricula-label {
+            font-size: 10px;
+            color: #657D99;
+        }
+
+        .matricula-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        .horarios-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .horario-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: #CAD8E8;
+        }
+
+        .ate-text {
+            font-size: 11px;
+            color: #657D99;
+        }
+
+        .card-obs {
+            font-size: 11px;
+            color: #8FA3BF;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-top: 2px;
+        }
+
+        .empty-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 50px;
+            color: #8FA3BF;
+        }
+
+            .empty-view .icon {
+                font-size: 40px;
+            }
+
+            .empty-view p {
+                font-size: 14px;
+            }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+
+        <!-- 1. Topo -->
+        <header class="top-header">
+            <a href="index.html" class="btn-voltar">←</a>
+            <div class="header-titles">
+                <h1>Relatório de Apontamentos</h1>
+                <p>Consulta e gerenciamento na nuvem</p>
+            </div>
+        </header>
+
+        <!-- 2. Filtros de Pesquisa -->
+        <section class="filter-panel">
+            <div class="filter-title">FILTROS DE PESQUISA</div>
+
+            <div class="search-box">
+                <input type="text" id="txtBusca" placeholder="Buscar por O.S., Setor ou Executante..." autocomplete="off" />
+            </div>
+
+            <div class="date-filters">
+                <div class="date-group">
+                    <label>Data Início</label>
+                    <div class="date-box">
+                        <input type="date" id="dpDataInicio" />
+                    </div>
+                </div>
+                <div class="date-group">
+                    <label>Data Fim</label>
+                    <div class="date-box">
+                        <input type="date" id="dpDataFim" />
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Contador -->
+        <div class="counter-bar">
+            <span class="counter-label">APONTAMENTOS ENCONTRADOS</span>
+            <span class="counter-value" id="lblTotalRegistros">Carregando...</span>
+        </div>
+
+        <!-- 4. Lista dos Apontamentos -->
+        <div class="list-container" id="cvApontamentos">
+            <!-- Inserido dinamicamente -->
+        </div>
+
+    </div>
+
+    <script>
+        // ============================================================================
+        // 1. CONFIGURAÇÃO DO CLIENTE SUPABASE
+        // A variável foi renomeada para dbClient para evitar conflito de identificador
+        // ============================================================================
+        const SUPABASE_URL = 'https://mtlbrhmpiwvzjwbzaywi.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_qilTaEWSiDNr1L-N5uE5gA_NYyLkyBt';
+
+        const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const NOME_TABELA = 'apontamentos';
+
+        let todosApontamentos = [];
+
+        // Elementos da UI
+        const txtBusca = document.getElementById('txtBusca');
+        const dpDataInicio = document.getElementById('dpDataInicio');
+        const dpDataFim = document.getElementById('dpDataFim');
+        const lblTotalRegistros = document.getElementById('lblTotalRegistros');
+        const listContainer = document.getElementById('cvApontamentos');
+
+        function obterDataHojeIso() {
+            const hoje = new Date();
+            const ano = hoje.getFullYear();
+            const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+            const dia = String(hoje.getDate()).padStart(2, '0');
+            return `${ano}-${mes}-${dia}`;
+        }
+
+        // Define a Data de Hoje no filtro:
+        const hojeIso = obterDataHojeIso();
+        dpDataFim.value = hojeIso;    // "Data Fim" recebe o dia de hoje
+        dpDataInicio.value = hojeIso; // "Data Início" também recebe hoje (só traz registros de hoje)
+
+
+        // ============================================================================
+        // 2. BUSCA DE REGISTROS NA NUVEM
+        // ============================================================================
+        async function carregarDadosSupabase() {
+            lblTotalRegistros.textContent = 'Buscando na nuvem...';
+
+            try {
+                // Tenta consultar todos os campos da tabela
+                const { data, error } = await dbClient
+                    .from(NOME_TABELA)
+                    .select('*');
+
+                if (error) {
+                    console.error('Erro retornado pelo Supabase:', error);
+                    lblTotalRegistros.textContent = 'Erro ao carregar';
+                    alert(`Erro do Supabase: ${error.message}\nVerifique o RLS da tabela "${NOME_TABELA}".`);
+                    return;
+                }
+
+                console.log('Registros retornados com sucesso:', data);
+                todosApontamentos = data || [];
+                filtrarRegistros();
+            } catch (err) {
+                console.error('Falha geral na requisição:', err);
+                lblTotalRegistros.textContent = 'Falha de conexão';
+            }
+        }
+
+        // ============================================================================
+        // 3. EXCLUSÃO NO BANCO
+        // ============================================================================
+        async function excluirItem(id) {
+            if (!confirm('Deseja excluir este apontamento da nuvem?')) return;
+
+            try {
+                const { error } = await dbClient
+                    .from(NOME_TABELA)
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    alert('Erro ao excluir: ' + error.message);
+                    return;
+                }
+
+                todosApontamentos = todosApontamentos.filter(item => item.id !== id);
+                filtrarRegistros();
+            } catch (err) {
+                alert('Erro de comunicação com o servidor.');
+            }
+        }
+
+        // ============================================================================
+        // 4. FILTRAGEM DINÂMICA
+        // ============================================================================
+        function filtrarRegistros() {
+            const termo = txtBusca.value.trim().toLowerCase();
+            const dtInicio = dpDataInicio.value;
+            const dtFim = dpDataFim.value;
+
+            const filtrados = todosApontamentos.filter(item => {
+                // Tenta todos os nomes possíveis para Ordem de Serviço
+                const os = String(item.ordem_servico || item.OrdemServico || item.ordemservico || item.os || item.OS || '').toLowerCase();
+                const setor = String(item.setor || item.Setor || '').toLowerCase();
+                const mat = String(item.matricula_executante || item.MatriculaExecutante || item.matricula || item.Matricula || '').toLowerCase();
+                const obs = String(item.observacoes || item.Observacoes || '').toLowerCase();
+
+                const bateTexto = !termo || os.includes(termo) || setor.includes(termo) || mat.includes(termo) || obs.includes(termo);
+
+                let bateData = true;
+                const rawData = item.data || item.Data || item.data_registro || item.data_apontamento;
+                if (rawData) {
+                    const dataFormatadaIso = String(rawData).substring(0, 10);
+                    if (dtInicio && dataFormatadaIso < dtInicio) bateData = false;
+                    if (dtFim && dataFormatadaIso > dtFim) bateData = false;
+                }
+
+                return bateTexto && bateData;
+            });
+
+            renderizar(filtrados);
+        }
+
+        // Formata horários que venham completos (ex: 08:30:00 -> 08:30)
+        function formatarHora(h) {
+            if (!h) return '';
+            const s = String(h).trim();
+            // Se vier formato "HH:mm:ss", exibe apenas "HH:mm"
+            if (s.length >= 5 && s.includes(':')) {
+                return s.substring(0, 5);
+            }
+            return s;
+        }
+
+        function formatarData(valorData) {
+            if (!valorData) return '';
+            const dataIso = String(valorData).substring(0, 10);
+            const partes = dataIso.split('-');
+            if (partes.length === 3) {
+                return `${partes[2]}/${partes[1]}/${partes[0]}`;
+            }
+            return valorData;
+        }
+
+        // ============================================================================
+        // 5. RENDERIZAÇÃO NA TELA
+        // ============================================================================
+        function renderizar(itens) {
+            lblTotalRegistros.textContent = `${itens.length} registro(s)`;
+
+            if (itens.length === 0) {
+                listContainer.innerHTML = `
+                  <div class="empty-view">
+                    <span class="icon">📋</span>
+                    <p>Nenhum apontamento encontrado</p>
+                  </div>
+                `;
+                return;
+            }
+
+            listContainer.innerHTML = itens.map(item => {
+                const id = item.id;
+
+                // Mapeamento universal para Ordem de Serviço
+                const os = item.ordem_servico
+                    || item.OrdemServico
+                    || item.ordemservico
+                    || item.os
+                    || item.OS
+                    || item.num_os
+                    || '-';
+
+                const setor = item.setor || item.Setor || '-';
+
+                const dataStr = formatarData(item.data || item.Data || item.data_registro || item.data_apontamento);
+
+                const matricula = item.matricula_executante
+                    || item.MatriculaExecutante
+                    || item.matricula
+                    || item.Matricula
+                    || '-';
+
+                // Mapeamento universal para Hora Início
+                const inicioRaw = item.hora_inicio
+                    || item.HoraInicio
+                    || item.horainicio
+                    || item.hora_inicial
+                    || item.horaInicio
+                    || item.inicio
+                    || '';
+
+                // Mapeamento universal para Hora Fim
+                const fimRaw = item.hora_fim
+                    || item.HoraFim
+                    || item.horafim
+                    || item.hora_final
+                    || item.horaFim
+                    || item.fim
+                    || '';
+
+                const inicio = formatarHora(inicioRaw);
+                const fim = formatarHora(fimRaw);
+                const obs = item.observacoes || item.Observacoes || item.obs || '';
+
+                return `
+                  <div class="swipe-container" id="card-${id}">
+                    <div class="swipe-actions">
+                      <button class="swipe-btn btn-edit" onclick="editarItem('${id}')">Editar</button>
+                      <button class="swipe-btn btn-delete" onclick="excluirItem('${id}')">Excluir</button>
+                    </div>
+                    <div class="item-card">
+                      <!-- Linha 1 -->
+                      <div class="card-line-1">
+                        <div class="tags-group">
+                          <span class="badge-os">${os}</span>
+                          <span class="badge-setor">${setor}</span>
+                        </div>
+                        <span class="data-text">${dataStr}</span>
+                      </div>
+
+                      <div class="card-divider"></div>
+
+                      <!-- Linha 2 -->
+                      <div class="card-line-2">
+                        <div class="matricula-group">
+                          <span class="matricula-label">Matrícula:</span>
+                          <span class="matricula-value">${matricula}</span>
+                        </div>
+                        <div class="horarios-group">
+                          <span style="font-size:12px; color:#8FA3BF;">⏱</span>
+                          <span class="horario-text">${inicio || '--:--'}</span>
+                          <span class="ate-text">até</span>
+                          <span class="horario-text">${fim || '--:--'}</span>
+                        </div>
+                      </div>
+
+                      <!-- Linha 3 -->
+                      ${obs ? `<div class="card-obs">${obs}</div>` : ''}
+                    </div>
+                  </div>
+                `;
+            }).join('');
+
+            configurarGestosSwipe();
+        }
+
+        // ============================================================================
+        // 6. GESTOS DE SWIPE
+        // ============================================================================
+        function configurarGestosSwipe() {
+            const cards = document.querySelectorAll('.item-card');
+            let startX = 0;
+            let currentX = 0;
+            let cardAberto = null;
+
+            cards.forEach(card => {
+                card.addEventListener('touchstart', (e) => {
+                    startX = e.touches[0].clientX;
+                    currentX = startX;
+                    if (cardAberto && cardAberto !== card) {
+                        cardAberto.style.transform = 'translateX(0px)';
+                        cardAberto = null;
+                    }
+                }, { passive: true });
+
+                card.addEventListener('touchmove', (e) => {
+                    currentX = e.touches[0].clientX;
+                    const diff = currentX - startX;
+                    if (diff < 0 && diff > -140) {
+                        card.style.transform = `translateX(${diff}px)`;
+                    }
+                }, { passive: true });
+
+                card.addEventListener('touchend', () => {
+                    const diff = currentX - startX;
+                    if (diff < -50) {
+                        card.style.transform = 'translateX(-140px)';
+                        cardAberto = card;
+                    } else {
+                        card.style.transform = 'translateX(0px)';
+                        if (cardAberto === card) cardAberto = null;
+                    }
+                });
+            });
+
+            document.addEventListener('touchstart', (e) => {
+                if (cardAberto && !e.target.closest('.swipe-container')) {
+                    cardAberto.style.transform = 'translateX(0px)';
+                    cardAberto = null;
+                }
+            });
+        }
+
+        function editarItem(id) {
+            sessionStorage.setItem('apontamento_edit_id', id);
+            window.location.href = 'apontamentos.html';
+        }
+
+        // Ouvintes
+        txtBusca.addEventListener('input', filtrarRegistros);
+        dpDataInicio.addEventListener('change', filtrarRegistros);
+        dpDataFim.addEventListener('change', filtrarRegistros);
+
+        // Dispara busca inicial
+        carregarDadosSupabase();
+    </script>
+</body>
+</html>
