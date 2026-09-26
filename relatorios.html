@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
     <title>Relatório de Apontamentos</title>
 
-    <!-- PWA & Mobile Meta Tags Atualizadas -->
-    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- Configurações PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Apontamento" />
@@ -25,7 +24,7 @@
             user-select: none;
         }
 
-        input {
+        input, select {
             user-select: text;
         }
 
@@ -37,10 +36,7 @@
             color: #FFFFFF;
             display: flex;
             flex-direction: column;
-            padding-top: calc(35px + env(safe-area-inset-top));
-            padding-bottom: calc(12px + env(safe-area-inset-bottom));
-            padding-left: 20px;
-            padding-right: 20px;
+            padding: calc(35px + env(safe-area-inset-top)) 20px calc(12px + env(safe-area-inset-bottom)) 20px;
             overflow-x: hidden;
         }
 
@@ -54,31 +50,33 @@
             height: 100%;
         }
 
-        /* 1. Topo */
-        .top-header {
-            display: flex;
+        /* 1. Topo: Botão Voltar e Cabeçalho */
+        .header-top {
+            display: grid;
+            grid-template-columns: auto 1fr;
             align-items: center;
             margin-bottom: 16px;
         }
 
         .btn-voltar {
-            width: 42px;
-            height: 42px;
             background-color: #0E223D;
             border: 1px solid #1F3A60;
+            width: 42px;
+            height: 42px;
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
+            cursor: pointer;
             color: #FFFFFF;
             font-size: 20px;
-            cursor: pointer;
             text-decoration: none;
-            flex-shrink: 0;
+            transition: background 0.15s ease, transform 0.12s ease;
         }
 
             .btn-voltar:active {
-                background-color: #163660;
+                transform: scale(0.95);
+                background-color: #173763;
             }
 
         .header-titles {
@@ -100,7 +98,7 @@
                 color: #8FA3BF;
             }
 
-        /* 2. Filtros */
+        /* 2. Painel de Filtros e Busca (Borda #173154, Fundo #0B1C33) */
         .filter-panel {
             background-color: #0B1C33;
             border: 1px solid #173154;
@@ -127,7 +125,12 @@
             padding: 0 10px;
             display: flex;
             align-items: center;
+            transition: border-color 0.2s ease;
         }
+
+            .search-box:focus-within {
+                border-color: #00C48C;
+            }
 
             .search-box input {
                 width: 100%;
@@ -142,25 +145,26 @@
                     color: #475C75;
                 }
 
+        /* Datas lado a lado */
         .date-filters {
             display: grid;
             grid-template-columns: 1fr 1fr;
             column-gap: 10px;
         }
 
-        .date-group {
+        .input-group {
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
 
-            .date-group label {
+            .input-group label {
                 font-size: 11px;
                 font-weight: 700;
                 color: #CAD8E8;
             }
 
-        .date-box {
+        .input-box-sm {
             background-color: #061221;
             border: 1px solid #1B3352;
             border-radius: 8px;
@@ -168,19 +172,37 @@
             padding: 0 8px;
             display: flex;
             align-items: center;
+            transition: border-color 0.2s ease;
         }
 
-            .date-box input {
+            .input-box-sm:focus-within {
+                border-color: #00C48C;
+            }
+
+            .input-box-sm input,
+            .input-box-sm select {
                 width: 100%;
                 background: transparent;
                 border: none;
                 outline: none;
                 color: #FFFFFF;
                 font-size: 12px;
-                color-scheme: dark;
             }
 
-        /* 3. Contador */
+                .input-box-sm input[type="date"] {
+                    color-scheme: dark;
+                }
+
+            .input-box-sm select {
+                cursor: pointer;
+            }
+
+                .input-box-sm select option {
+                    background-color: #061221;
+                    color: #FFFFFF;
+                }
+
+        /* 3. Contador de Registros */
         .counter-bar {
             display: flex;
             justify-content: space-between;
@@ -200,7 +222,7 @@
             color: #00C48C;
         }
 
-        /* 4. Lista e Swipe */
+        /* 4. Lista e Swipe View Fiel ao MAUI */
         .list-container {
             flex: 1;
             overflow-y: auto;
@@ -208,12 +230,14 @@
             flex-direction: column;
             gap: 10px;
             padding-bottom: 20px;
+            overscroll-behavior-y: contain;
         }
 
         .swipe-container {
             position: relative;
             border-radius: 14px;
             overflow: hidden;
+            background-color: #081426;
         }
 
         .swipe-actions {
@@ -233,10 +257,15 @@
             justify-content: center;
             color: #FFFFFF;
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
             border: none;
+            transition: opacity 0.15s ease;
         }
+
+            .swipe-btn:active {
+                opacity: 0.8;
+            }
 
         .btn-edit {
             background-color: #1F6FEB;
@@ -256,10 +285,12 @@
             flex-direction: column;
             gap: 8px;
             z-index: 2;
-            transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
             touch-action: pan-y;
+            will-change: transform;
+            backface-visibility: hidden;
         }
 
+        /* Linha 1 */
         .card-line-1 {
             display: flex;
             justify-content: space-between;
@@ -286,7 +317,7 @@
             border-radius: 6px;
             padding: 3px 8px;
             color: #CAD8E8;
-            font-size: 11px;
+            font-size: 14px;
         }
 
         .data-text {
@@ -295,12 +326,14 @@
             color: #8FA3BF;
         }
 
+        /* Divisor Interno Suave */
         .card-divider {
             height: 1px;
             background-color: #162E4E;
             margin: 2px 0;
         }
 
+        /* Linha 2 */
         .card-line-2 {
             display: flex;
             justify-content: space-between;
@@ -324,6 +357,13 @@
             color: #FFFFFF;
         }
 
+        .horarios-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
         .horarios-group {
             display: flex;
             align-items: center;
@@ -341,8 +381,20 @@
             color: #657D99;
         }
 
-        .card-obs {
+        /* Badge do Grupo abaixo dos horários */
+        .badge-grupo {
+            background-color: #1A314E;
+            color: #49B0F3;
+            border-radius: 6px;
+            padding: 2px 8px;
             font-size: 11px;
+            font-weight: 700;
+            width: fit-content;
+        }
+
+        /* Linha 3: Observações */
+        .card-obs {
+            font-size: 14px;
             color: #8FA3BF;
             line-height: 1.3;
             display: -webkit-box;
@@ -352,6 +404,7 @@
             margin-top: 2px;
         }
 
+        /* EmptyView */
         .empty-view {
             display: flex;
             flex-direction: column;
@@ -369,184 +422,208 @@
             .empty-view p {
                 font-size: 14px;
             }
+
+        /* Indicador de Refresh */
+        .refresh-status {
+            text-align: center;
+            font-size: 11px;
+            color: #00C48C;
+            margin-bottom: 6px;
+            display: none;
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
 
-        <!-- 1. Topo -->
-        <header class="top-header">
-            <a href="index.html" class="btn-voltar">←</a>
+        <!-- 1. Topo: Botão Voltar e Cabeçalho -->
+        <header class="header-top">
+            <button type="button" class="btn-voltar" onclick="onVoltarTapped()" title="Voltar">←</button>
             <div class="header-titles">
                 <h1>Relatório de Apontamentos</h1>
                 <p>Consulta e gerenciamento na nuvem</p>
             </div>
         </header>
 
-        <!-- 2. Filtros de Pesquisa -->
+        <!-- 2. Painel de Filtros e Busca -->
         <section class="filter-panel">
             <div class="filter-title">FILTROS DE PESQUISA</div>
 
+            <!-- Campo de Busca por O.S ou Matrícula -->
             <div class="search-box">
-                <input type="text" id="txtBusca" placeholder="Buscar por O.S., Setor ou Executante..." autocomplete="off" />
+                <input type="text"
+                       id="txtBusca"
+                       placeholder="Buscar por O.S., Setor ou Executante..."
+                       autocomplete="off"
+                       spellcheck="false" />
             </div>
 
+            <!-- Filtro de Datas lado a lado -->
             <div class="date-filters">
-                <div class="date-group">
-                    <label>Data Início</label>
-                    <div class="date-box">
+                <div class="input-group">
+                    <label for="dpDataInicio">Data Início</label>
+                    <div class="input-box-sm">
                         <input type="date" id="dpDataInicio" />
                     </div>
                 </div>
-                <div class="date-group">
-                    <label>Data Fim</label>
-                    <div class="date-box">
+                <div class="input-group">
+                    <label for="dpDataFim">Data Fim</label>
+                    <div class="input-box-sm">
                         <input type="date" id="dpDataFim" />
                     </div>
                 </div>
             </div>
+
+            <!-- Filtro por Grupo / Especialidade -->
+            <div class="input-group">
+                <label for="pkrGrupo">Grupo / Especialidade</label>
+                <div class="input-box-sm">
+                    <select id="pkrGrupo">
+                        <option value="Todos os Grupos">Todos os Grupos</option>
+                        <option value="Caldeiraria">Caldeiraria</option>
+                        <option value="Mecânica">Mecânica</option>
+                        <option value="Mantenedor">Mantenedor</option>
+                    </select>
+                </div>
+            </div>
         </section>
 
-        <!-- 3. Contador -->
+        <!-- 3. Contador de Registros -->
         <div class="counter-bar">
             <span class="counter-label">APONTAMENTOS ENCONTRADOS</span>
-            <span class="counter-value" id="lblTotalRegistros">Carregando...</span>
+            <span class="counter-value" id="lblTotalRegistros">0 registro(s)</span>
         </div>
 
-        <!-- 4. Lista dos Apontamentos -->
+        <div id="refreshIndicator" class="refresh-status">Atualizando registros...</div>
+
+        <!-- 4. Lista dos Apontamentos (CollectionView com Pull-to-Refresh) -->
         <div class="list-container" id="cvApontamentos">
-            <!-- Inserido dinamicamente -->
+            <!-- Renderizado dinamicamente -->
         </div>
 
     </div>
 
     <script>
-        // ============================================================================
-        // 1. CONFIGURAÇÃO DO CLIENTE SUPABASE
-        // A variável foi renomeada para dbClient para evitar conflito de identificador
-        // ============================================================================
+        // =========================================================================
+        // 1. CONFIGURAÇÕES SUPABASE
+        // =========================================================================
         const SUPABASE_URL = 'https://mtlbrhmpiwvzjwbzaywi.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_qilTaEWSiDNr1L-N5uE5gA_NYyLkyBt';
-
-        const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const NOME_TABELA = 'apontamentos';
 
-        let todosApontamentos = [];
+        let _listaOriginal = [];
+        let _filtroTimer = null;
 
         // Elementos da UI
         const txtBusca = document.getElementById('txtBusca');
         const dpDataInicio = document.getElementById('dpDataInicio');
         const dpDataFim = document.getElementById('dpDataFim');
+        const pkrGrupo = document.getElementById('pkrGrupo');
         const lblTotalRegistros = document.getElementById('lblTotalRegistros');
         const listContainer = document.getElementById('cvApontamentos');
+        const refreshIndicator = document.getElementById('refreshIndicator');
 
-        function obterDataHojeIso() {
-            const hoje = new Date();
-            const ano = hoje.getFullYear();
-            const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-            const dia = String(hoje.getDate()).padStart(2, '0');
-            return `${ano}-${mes}-${dia}`;
+        document.addEventListener('DOMContentLoaded', async () => {
+            configurarValoresPadrao();
+            await onAppearing();
+        });
+
+        function configurarValoresPadrao() {
+            const hoje = new Date().toISOString().split('T')[0];
+            dpDataInicio.value = hoje;
+            dpDataFim.value = hoje;
+            pkrGrupo.selectedIndex = 0;
         }
 
-        // Define a Data de Hoje no filtro:
-        const hojeIso = obterDataHojeIso();
-        dpDataFim.value = hojeIso;    // "Data Fim" recebe o dia de hoje
-        dpDataInicio.value = hojeIso; // "Data Início" também recebe hoje (só traz registros de hoje)
+        // =========================================================================
+        // 2. CICLO DE VIDA (OnAppearing)
+        // =========================================================================
+        async function onAppearing() {
+            if (navigator.onLine) {
+                const matriculaLogada = localStorage.getItem("MatriculaUsuario") || "";
+                if (matriculaLogada && matriculaLogada !== "---") {
+                    try {
+                        const { data, error } = await supabaseClient
+                            .from('usuarios')
+                            .select('id')
+                            .eq('matricula', matriculaLogada)
+                            .maybeSingle();
 
+                        if (error || !data) {
+                            alert("Acesso Revogado: Sessão encerrada: usuário não encontrado no servidor.");
+                            localStorage.removeItem("MatriculaUsuario");
+                            localStorage.removeItem("NivelUsuario");
+                            window.location.replace("login.html");
+                            return;
+                        }
+                    } catch (e) {
+                        console.warn("Validação de usuário offline ou indisponível:", e);
+                    }
+                }
+            }
 
-        // ============================================================================
-        // 2. BUSCA DE REGISTROS NA NUVEM
-        // ============================================================================
-        async function carregarDadosSupabase() {
-            lblTotalRegistros.textContent = 'Buscando na nuvem...';
+            await carregarApontamentosAsync();
+        }
 
+        // =========================================================================
+        // 3. CONSULTA NA NUVEM (CarregarApontamentosAsync)
+        // =========================================================================
+        async function carregarApontamentosAsync() {
             try {
-                // Tenta consultar todos os campos da tabela
-                const { data, error } = await dbClient
+                refreshIndicator.style.display = 'block';
+                lblTotalRegistros.textContent = 'Buscando...';
+
+                const { data, error } = await supabaseClient
                     .from(NOME_TABELA)
-                    .select('*');
+                    .select('*')
+                    .order('data', { ascending: false })
+                    .order('id', { ascending: false });
 
-                if (error) {
-                    console.error('Erro retornado pelo Supabase:', error);
-                    lblTotalRegistros.textContent = 'Erro ao carregar';
-                    alert(`Erro do Supabase: ${error.message}\nVerifique o RLS da tabela "${NOME_TABELA}".`);
-                    return;
-                }
+                if (error) throw error;
 
-                console.log('Registros retornados com sucesso:', data);
-                todosApontamentos = data || [];
-                filtrarRegistros();
-            } catch (err) {
-                console.error('Falha geral na requisição:', err);
-                lblTotalRegistros.textContent = 'Falha de conexão';
+                _listaOriginal = data || [];
+                aplicarFiltrosEmMemoria();
+            } catch (ex) {
+                console.error(ex);
+                alert(`Erro: Falha ao buscar apontamentos: ${ex.message || ex}`);
+                lblTotalRegistros.textContent = 'Erro ao carregar';
+            } finally {
+                refreshIndicator.style.display = 'none';
             }
         }
 
-        // ============================================================================
-        // 3. EXCLUSÃO NO BANCO
-        // ============================================================================
-        async function excluirItem(id) {
-            if (!confirm('Deseja excluir este apontamento da nuvem?')) return;
-
-            try {
-                const { error } = await dbClient
-                    .from(NOME_TABELA)
-                    .delete()
-                    .eq('id', id);
-
-                if (error) {
-                    alert('Erro ao excluir: ' + error.message);
-                    return;
-                }
-
-                todosApontamentos = todosApontamentos.filter(item => item.id !== id);
-                filtrarRegistros();
-            } catch (err) {
-                alert('Erro de comunicação com o servidor.');
-            }
+        // =========================================================================
+        // 4. PARSERS E NORMALIZADORES AUXILIARES
+        // =========================================================================
+        function normalizarTexto(txt) {
+            if (!txt && txt !== 0) return '';
+            return String(txt)
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim()
+                .toLowerCase();
         }
 
-        // ============================================================================
-        // 4. FILTRAGEM DINÂMICA
-        // ============================================================================
-        function filtrarRegistros() {
-            const termo = txtBusca.value.trim().toLowerCase();
-            const dtInicio = dpDataInicio.value;
-            const dtFim = dpDataFim.value;
+        function extrairOrdemServico(item) {
+            if (!item) return '-';
+            const candidatos = [
+                item.ordem_servico,
+                item.OrdemServico,
+                item.ordemservico,
+                item.numero_os,
+                item.num_os,
+                item.os,
+                item.OS
+            ];
 
-            const filtrados = todosApontamentos.filter(item => {
-                // Tenta todos os nomes possíveis para Ordem de Serviço
-                const os = String(item.ordem_servico || item.OrdemServico || item.ordemservico || item.os || item.OS || '').toLowerCase();
-                const setor = String(item.setor || item.Setor || '').toLowerCase();
-                const mat = String(item.matricula_executante || item.MatriculaExecutante || item.matricula || item.Matricula || '').toLowerCase();
-                const obs = String(item.observacoes || item.Observacoes || '').toLowerCase();
-
-                const bateTexto = !termo || os.includes(termo) || setor.includes(termo) || mat.includes(termo) || obs.includes(termo);
-
-                let bateData = true;
-                const rawData = item.data || item.Data || item.data_registro || item.data_apontamento;
-                if (rawData) {
-                    const dataFormatadaIso = String(rawData).substring(0, 10);
-                    if (dtInicio && dataFormatadaIso < dtInicio) bateData = false;
-                    if (dtFim && dataFormatadaIso > dtFim) bateData = false;
+            for (const val of candidatos) {
+                if (val !== undefined && val !== null && String(val).trim() !== '') {
+                    return String(val).trim();
                 }
-
-                return bateTexto && bateData;
-            });
-
-            renderizar(filtrados);
-        }
-
-        // Formata horários que venham completos (ex: 08:30:00 -> 08:30)
-        function formatarHora(h) {
-            if (!h) return '';
-            const s = String(h).trim();
-            // Se vier formato "HH:mm:ss", exibe apenas "HH:mm"
-            if (s.length >= 5 && s.includes(':')) {
-                return s.substring(0, 5);
             }
-            return s;
+            return '-';
         }
 
         function formatarData(valorData) {
@@ -559,167 +636,332 @@
             return valorData;
         }
 
-        // ============================================================================
-        // 5. RENDERIZAÇÃO NA TELA
-        // ============================================================================
+        function formatarHora(h) {
+            if (!h) return '';
+            const s = String(h).trim();
+            if (!s) return '';
+
+            if (s.includes('T')) {
+                const parteTempo = s.split('T')[1];
+                if (parteTempo && parteTempo.includes(':')) {
+                    const subPartes = parteTempo.split(':');
+                    return `${subPartes[0].padStart(2, '0')}:${subPartes[1].padStart(2, '0')}`;
+                }
+            }
+
+            if (s.includes(':')) {
+                const partes = s.split(':');
+                const hora = partes[0].padStart(2, '0');
+                const minuto = (partes[1] || '00').substring(0, 2).padStart(2, '0');
+                return `${hora}:${minuto}`;
+            }
+
+            const apenasDigitos = s.replace(/\D/g, '');
+            if (apenasDigitos.length >= 4) {
+                return `${apenasDigitos.slice(0, 2)}:${apenasDigitos.slice(2, 4)}`;
+            }
+
+            return s;
+        }
+
+        // =========================================================================
+        // 5. FILTRAGEM EM MEMÓRIA (AplicarFiltrosEmMemoria)
+        // =========================================================================
+        function aplicarFiltrosEmMemoria() {
+            const dataInicio = dpDataInicio.value;
+            const dataFim = dpDataFim.value;
+            const textoBusca = normalizarTexto(txtBusca.value);
+            const temTextoBusca = textoBusca.length > 0;
+
+            const grupoSelecionado = pkrGrupo.value;
+            const filtrarPorGrupo = grupoSelecionado && grupoSelecionado.toLowerCase() !== 'todos os grupos';
+
+            const filtrados = _listaOriginal.filter(a => {
+                if (filtrarPorGrupo) {
+                    const grupoItem = (a.grupo || a.Grupo || '').trim();
+                    if (grupoItem.toLowerCase() !== grupoSelecionado.toLowerCase()) {
+                        return false;
+                    }
+                }
+
+                if (temTextoBusca) {
+                    const os = normalizarTexto(extrairOrdemServico(a));
+                    const setor = normalizarTexto(a.setor || a.Setor);
+                    const matExec = normalizarTexto(a.matricula_executante || a.MatriculaExecutante);
+                    const matUser = normalizarTexto(a.matricula_usuario || a.MatriculaUsuario);
+                    const obs = normalizarTexto(a.observacoes || a.Observacoes);
+                    const grupo = normalizarTexto(a.grupo || a.Grupo);
+
+                    return os.includes(textoBusca) ||
+                        setor.includes(textoBusca) ||
+                        matExec.includes(textoBusca) ||
+                        matUser.includes(textoBusca) ||
+                        grupo.includes(textoBusca) ||
+                        obs.includes(textoBusca);
+                }
+
+                const rawData = a.data || a.Data;
+                if (!rawData) return true;
+
+                const dataFormatadaIso = String(rawData).substring(0, 10);
+                if (dataInicio && dataFormatadaIso < dataInicio) return false;
+                if (dataFim && dataFormatadaIso > dataFim) return false;
+
+                return true;
+            });
+
+            renderizar(filtrados);
+        }
+
+        // =========================================================================
+        // 6. RENDERIZAÇÃO NA TELA (ItemTemplate)
+        // =========================================================================
         function renderizar(itens) {
             lblTotalRegistros.textContent = `${itens.length} registro(s)`;
 
             if (itens.length === 0) {
                 listContainer.innerHTML = `
-                  <div class="empty-view">
-                    <span class="icon">📋</span>
-                    <p>Nenhum apontamento encontrado</p>
-                  </div>
-                `;
+                        <div class="empty-view">
+                            <span class="icon">📋</span>
+                            <p>Nenhum apontamento encontrado</p>
+                        </div>
+                    `;
                 return;
             }
 
             listContainer.innerHTML = itens.map(item => {
                 const id = item.id;
-
-                // Mapeamento universal para Ordem de Serviço
-                const os = item.ordem_servico
-                    || item.OrdemServico
-                    || item.ordemservico
-                    || item.os
-                    || item.OS
-                    || item.num_os
-                    || '-';
-
+                const os = extrairOrdemServico(item);
                 const setor = item.setor || item.Setor || '-';
+                const grupo = item.grupo || item.Grupo || '-';
+                const dataStr = formatarData(item.data || item.Data);
+                const matricula = item.matricula_executante || item.MatriculaExecutante || '-';
 
-                const dataStr = formatarData(item.data || item.Data || item.data_registro || item.data_apontamento);
-
-                const matricula = item.matricula_executante
-                    || item.MatriculaExecutante
-                    || item.matricula
-                    || item.Matricula
-                    || '-';
-
-                // Mapeamento universal para Hora Início
                 const inicioRaw = item.hora_inicio
-                    || item.HoraInicio
-                    || item.horainicio
-                    || item.hora_inicial
-                    || item.horaInicio
-                    || item.inicio
-                    || '';
+                    ?? item.HoraInicio
+                    ?? item.hora_inicial
+                    ?? item.horainicio
+                    ?? item.horaInicio
+                    ?? item.inicio
+                    ?? '';
 
-                // Mapeamento universal para Hora Fim
                 const fimRaw = item.hora_fim
-                    || item.HoraFim
-                    || item.horafim
-                    || item.hora_final
-                    || item.horaFim
-                    || item.fim
-                    || '';
+                    ?? item.HoraFim
+                    ?? item.hora_final
+                    ?? item.horafim
+                    ?? item.horaFim
+                    ?? item.fim
+                    ?? '';
 
                 const inicio = formatarHora(inicioRaw);
                 const fim = formatarHora(fimRaw);
-                const obs = item.observacoes || item.Observacoes || item.obs || '';
+                const obs = item.observacoes || item.Observacoes || '';
 
                 return `
-                  <div class="swipe-container" id="card-${id}">
-                    <div class="swipe-actions">
-                      <button class="swipe-btn btn-edit" onclick="editarItem('${id}')">Editar</button>
-                      <button class="swipe-btn btn-delete" onclick="excluirItem('${id}')">Excluir</button>
-                    </div>
-                    <div class="item-card">
-                      <!-- Linha 1 -->
-                      <div class="card-line-1">
-                        <div class="tags-group">
-                          <span class="badge-os">${os}</span>
-                          <span class="badge-setor">${setor}</span>
-                        </div>
-                        <span class="data-text">${dataStr}</span>
-                      </div>
+                        <div class="swipe-container" id="card-${id}">
+                            <div class="swipe-actions">
+                                <button class="swipe-btn btn-edit" onclick="onEditarItemInvoked('${id}')">Editar</button>
+                                <button class="swipe-btn btn-delete" onclick="onExcluirItemInvoked('${id}', '${os}')">Excluir</button>
+                            </div>
+                            <div class="item-card" data-open="false">
+                                <!-- Linha 1: Tag de O.S e DataFormatada -->
+                                <div class="card-line-1">
+                                    <div class="tags-group">
+                                        <span class="badge-os">${os}</span>
+                                        <span class="badge-setor">${setor}</span>
+                                    </div>
+                                    <span class="data-text">${dataStr}</span>
+                                </div>
 
-                      <div class="card-divider"></div>
+                                <!-- Divisor Interno Suave -->
+                                <div class="card-divider"></div>
 
-                      <!-- Linha 2 -->
-                      <div class="card-line-2">
-                        <div class="matricula-group">
-                          <span class="matricula-label">Matrícula:</span>
-                          <span class="matricula-value">${matricula}</span>
-                        </div>
-                        <div class="horarios-group">
-                          <span style="font-size:12px; color:#8FA3BF;">⏱</span>
-                          <span class="horario-text">${inicio || '--:--'}</span>
-                          <span class="ate-text">até</span>
-                          <span class="horario-text">${fim || '--:--'}</span>
-                        </div>
-                      </div>
+                                <!-- Linha 2: Executante e Horários + Grupo -->
+                                <div class="card-line-2">
+                                    <div class="matricula-group">
+                                        <span class="matricula-label">Matrícula:</span>
+                                        <span class="matricula-value">${matricula}</span>
+                                    </div>
 
-                      <!-- Linha 3 -->
-                      ${obs ? `<div class="card-obs">${obs}</div>` : ''}
-                    </div>
-                  </div>
-                `;
+                                    <div class="horarios-wrapper">
+                                        <div class="horarios-group">
+                                            <span style="font-size:12px; color:#8FA3BF;">⏱</span>
+                                            <span class="horario-text">${inicio || '--:--'}</span>
+                                            <span class="ate-text">até</span>
+                                            <span class="horario-text">${fim || '--:--'}</span>
+                                        </div>
+                                        <span class="badge-grupo">${grupo}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Linha 3: Observações -->
+                                ${obs ? `<div class="card-obs">${obs}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
             }).join('');
 
             configurarGestosSwipe();
         }
 
-        // ============================================================================
-        // 6. GESTOS DE SWIPE
-        // ============================================================================
+        // =========================================================================
+        // 7. EXCLUSÃO E EDIÇÃO
+        // =========================================================================
+        async function onExcluirItemInvoked(id, os) {
+            if (!navigator.onLine) {
+                alert("Sem Conexão: Você precisa de conexão à internet para excluir registros no Banco Dados.");
+                return;
+            }
+
+            const confirmar = confirm(`Excluir do Banco Dados: Deseja excluir permanentemente a O.S. ${os} do Banco Dados?`);
+            if (!confirmar) return;
+
+            try {
+                const { error } = await supabaseClient
+                    .from(NOME_TABELA)
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                _listaOriginal = _listaOriginal.filter(item => String(item.id) !== String(id));
+                aplicarFiltrosEmMemoria();
+                alert("Sucesso: Registro excluído do Banco Dados com sucesso!");
+            } catch (ex) {
+                alert(`Erro: Falha ao excluir registro: ${ex.message || ex}`);
+            }
+        }
+
+        function onEditarItemInvoked(id) {
+            if (!navigator.onLine) {
+                alert("Sem Conexão: Você precisa de conexão à internet para editar registros no Banco Dados.");
+                return;
+            }
+
+            window.location.href = `novoapontamento.html?remotoId=${id}`;
+        }
+
+        // =========================================================================
+        // 8. GESTOS DE SWIPE (COM SUPORTE A FECHAMENTO AO PUXAR PARA A DIREITA)
+        // =========================================================================
         function configurarGestosSwipe() {
             const cards = document.querySelectorAll('.item-card');
+            const LARGURA_BOTOES = 140;
+            const GATILHO_ABERTURA = 50;
+
             let startX = 0;
+            let startY = 0;
             let currentX = 0;
+            let initialOffset = 0;
+            let movendoHorizontal = false;
             let cardAberto = null;
 
             cards.forEach(card => {
                 card.addEventListener('touchstart', (e) => {
                     startX = e.touches[0].clientX;
+                    startY = e.touches[0].clientY;
                     currentX = startX;
+                    movendoHorizontal = false;
+
+                    // Verifica se este card já estava aberto
+                    const isAberto = card.getAttribute('data-open') === 'true';
+                    initialOffset = isAberto ? -LARGURA_BOTOES : 0;
+
+                    // Se tocar em outro card, fecha o que estiver aberto
                     if (cardAberto && cardAberto !== card) {
+                        cardAberto.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
                         cardAberto.style.transform = 'translateX(0px)';
+                        cardAberto.setAttribute('data-open', 'false');
                         cardAberto = null;
                     }
+
+                    card.style.transition = 'none';
                 }, { passive: true });
 
                 card.addEventListener('touchmove', (e) => {
                     currentX = e.touches[0].clientX;
-                    const diff = currentX - startX;
-                    if (diff < 0 && diff > -140) {
-                        card.style.transform = `translateX(${diff}px)`;
+                    const currentY = e.touches[0].clientY;
+                    const diffX = currentX - startX;
+                    const diffY = currentY - startY;
+
+                    // Trava de rolagem vertical: detecta a direção principal do movimento
+                    if (!movendoHorizontal && Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 8) {
+                        movendoHorizontal = true;
+                    }
+
+                    if (movendoHorizontal) {
+                        let novaPosicao = initialOffset + diffX;
+
+                        // Limita o arraste para não ultrapassar o início (0px) nem passar muito de -140px
+                        if (novaPosicao > 0) novaPosicao = 0;
+                        if (novaPosicao < -LARGURA_BOTOES) {
+                            // Efeito elástico
+                            novaPosicao = -LARGURA_BOTOES + (novaPosicao + LARGURA_BOTOES) * 0.2;
+                        }
+
+                        card.style.transform = `translateX(${novaPosicao}px)`;
                     }
                 }, { passive: true });
 
                 card.addEventListener('touchend', () => {
-                    const diff = currentX - startX;
-                    if (diff < -50) {
-                        card.style.transform = 'translateX(-140px)';
-                        cardAberto = card;
+                    card.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)';
+                    const diffX = currentX - startX;
+                    const isAberto = card.getAttribute('data-open') === 'true';
+
+                    if (!isAberto) {
+                        // Card fechado sendo arrastado para a esquerda
+                        if (diffX < -GATILHO_ABERTURA) {
+                            card.style.transform = `translateX(-${LARGURA_BOTOES}px)`;
+                            card.setAttribute('data-open', 'true');
+                            cardAberto = card;
+                        } else {
+                            card.style.transform = 'translateX(0px)';
+                            card.setAttribute('data-open', 'false');
+                        }
                     } else {
-                        card.style.transform = 'translateX(0px)';
-                        if (cardAberto === card) cardAberto = null;
+                        // Card aberto sendo arrastado de volta para a direita
+                        if (diffX > GATILHO_ABERTURA) {
+                            card.style.transform = 'translateX(0px)';
+                            card.setAttribute('data-open', 'false');
+                            if (cardAberto === card) cardAberto = null;
+                        } else {
+                            card.style.transform = `translateX(-${LARGURA_BOTOES}px)`;
+                            card.setAttribute('data-open', 'true');
+                        }
                     }
                 });
             });
 
+            // Toque em qualquer área vazia fecha o menu aberto
             document.addEventListener('touchstart', (e) => {
                 if (cardAberto && !e.target.closest('.swipe-container')) {
+                    cardAberto.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
                     cardAberto.style.transform = 'translateX(0px)';
+                    cardAberto.setAttribute('data-open', 'false');
                     cardAberto = null;
                 }
             });
         }
 
-        function editarItem(id) {
-            sessionStorage.setItem('apontamento_edit_id', id);
-            window.location.href = 'apontamentos.html';
+        // =========================================================================
+        // 9. EVENTOS DE ENTRADA COM DEBOUNCE
+        // =========================================================================
+        txtBusca.addEventListener('input', () => {
+            clearTimeout(_filtroTimer);
+            _filtroTimer = setTimeout(aplicarFiltrosEmMemoria, 300);
+        });
+
+        dpDataInicio.addEventListener('change', aplicarFiltrosEmMemoria);
+        dpDataFim.addEventListener('change', aplicarFiltrosEmMemoria);
+        pkrGrupo.addEventListener('change', aplicarFiltrosEmMemoria);
+
+        function onVoltarTapped() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = "index.html";
+            }
         }
-
-        // Ouvintes
-        txtBusca.addEventListener('input', filtrarRegistros);
-        dpDataInicio.addEventListener('change', filtrarRegistros);
-        dpDataFim.addEventListener('change', filtrarRegistros);
-
-        // Dispara busca inicial
-        carregarDadosSupabase();
     </script>
 </body>
 </html>

@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
-    <title>Login - Apontamento</title>
+    <title>Apontamento - Login</title>
 
-    <!-- Configurações PWA para iOS -->
+    <!-- Configurações PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Apontamento" />
@@ -24,6 +24,10 @@
             user-select: none;
         }
 
+        input {
+            user-select: text;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             min-height: 100vh;
@@ -33,69 +37,74 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding-top: calc(15px + env(safe-area-inset-top));
-            padding-bottom: calc(20px + env(safe-area-inset-bottom));
-            padding-left: 28px;
-            padding-right: 28px;
+            padding: 24px;
         }
 
-        .main-container {
+        .login-card {
             width: 100%;
-            max-width: 440px;
+            max-width: 420px;
+            background-color: #0B1C33;
+            border: 1px solid #173154;
+            border-radius: 20px;
+            padding: 32px 24px;
             display: flex;
             flex-direction: column;
-            gap: 24px;
-            margin: auto 0;
+            gap: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            position: relative;
         }
 
-        /* Topo: Logo e Títulos */
-        .header {
+        .header-logo {
             display: flex;
             flex-direction: column;
             align-items: center;
             text-align: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         .logo-box {
-            width: 72px;
-            height: 72px;
+            width: 64px;
+            height: 64px;
             display: flex;
             align-items: center;
             justify-content: center;
+            margin-bottom: 4px;
         }
 
             .logo-box img {
-                width: 72px;
-                height: 72px;
+                width: 100%;
+                height: 100%;
                 object-fit: contain;
             }
 
-        .header h1 {
-            font-size: 28px;
+        .header-logo h1 {
+            font-size: 24px;
             font-weight: 700;
             color: #FFFFFF;
         }
 
-        .header p {
+        .header-logo p {
             font-size: 13px;
             color: #8FA3BF;
         }
 
-        /* Card de Login */
-        .login-card {
-            background-color: #0B1C33;
-            border: 1px solid #173154;
-            border-radius: 20px;
-            padding: 24px 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        /* Banner de Atualização Disponível (UpdateService) */
+        .update-banner {
+            display: none;
+            background: linear-gradient(90deg, #103328 0%, #0A221C 100%);
+            border: 1px solid #00C48C;
+            border-radius: 12px;
+            padding: 10px 14px;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
         }
 
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
+            .update-banner a {
+                color: #00C48C;
+                font-weight: bold;
+                text-decoration: underline;
+            }
 
         .input-group {
             display: flex;
@@ -104,7 +113,7 @@
         }
 
             .input-group label {
-                font-size: 13px;
+                font-size: 12px;
                 font-weight: 700;
                 color: #8FA3BF;
             }
@@ -121,7 +130,7 @@
         }
 
             .input-box:focus-within {
-                border-color: #2F80ED;
+                border-color: #00C48C;
             }
 
             .input-box input {
@@ -131,277 +140,316 @@
                 border: none;
                 outline: none;
                 color: #FFFFFF;
-                font-size: 15px;
-                user-select: text;
+                font-size: 14px;
             }
 
                 .input-box input::placeholder {
                     color: #4B6382;
                 }
 
+        /* Botão Alternar Visibilidade da Senha */
         .btn-toggle-senha {
             background: transparent;
             border: none;
             color: #8FA3BF;
             font-size: 18px;
             cursor: pointer;
-            margin-left: 6px;
+            padding: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: color 0.15s ease;
         }
 
-        .loading-container {
-            display: none;
-            justify-content: center;
-            align-items: center;
-            height: 24px;
-        }
-
-        .spinner {
-            width: 24px;
-            height: 24px;
-            border: 3px solid rgba(47, 128, 237, 0.2);
-            border-top-color: #2F80ED;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
         .btn-entrar {
-            height: 52px;
-            background-color: #2F80ED;
-            color: #FFFFFF;
+            background-color: #00C48C;
+            color: #020912;
             border: none;
             border-radius: 14px;
+            height: 52px;
             font-size: 15px;
             font-weight: 700;
             cursor: pointer;
-            margin-top: 10px;
-            transition: opacity 0.15s ease, transform 0.15s ease;
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: transform 0.12s ease, opacity 0.15s ease;
         }
 
             .btn-entrar:active {
                 transform: scale(0.98);
-                opacity: 0.9;
             }
 
             .btn-entrar:disabled {
-                background-color: #1a4985;
+                background-color: #0B4232;
+                color: #5A7B70;
                 cursor: not-allowed;
                 opacity: 0.7;
             }
+
+        /* Spinner (LoadingIndicator) */
+        .spinner {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid #020912;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: girar 0.7s linear infinite;
+        }
+
+        @keyframes girar {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 <body>
 
-    <div class="main-container">
+    <div class="login-card">
 
-        <header class="header">
+        <!-- Banner de Atualização Encontrada (Simulando o UpdateService do MAUI) -->
+        <div id="updateBanner" class="update-banner">
+            <span id="updateMsg">Nova versão encontrada!</span>
+            <a href="distribuicao/com.companyname.apontamento-Signed.apk" download>Atualizar</a>
+        </div>
+
+        <!-- Cabeçalho -->
+        <header class="header-logo">
             <div class="logo-box">
-                <img src="icoapontamento.png" alt="Logo" onerror="this.outerHTML='<span style=\'font-size:46px;\'>📋</span>'" />
+                <img src="icoapontamento.png" alt="Logo" onerror="this.outerHTML='<span style=\'font-size:42px;\'>📋</span>'" />
             </div>
             <h1>Apontamento</h1>
-            <p>Informe suas credenciais para acessar</p>
+            <p>Mais organização para o seu dia a dia</p>
         </header>
 
-        <main class="login-card">
-            <form id="loginForm" onsubmit="onEntrarClicked(event)">
+        <!-- Formulário -->
+        <form onsubmit="onEntrarClicked(event)" style="display:flex; flex-direction:column; gap:16px;">
 
-                <!-- Matrícula -->
-                <div class="input-group">
-                    <label for="txtMatricula">Matrícula</label>
-                    <div class="input-box">
-                        <input type="tel"
-                               id="txtMatricula"
-                               inputmode="numeric"
-                               pattern="[0-9]*"
-                               placeholder="Digite sua matrícula"
-                               autocomplete="username"
-                               required />
-                    </div>
+            <!-- Campo Matrícula -->
+            <div class="input-group">
+                <label for="txtMatricula">Matrícula</label>
+                <div class="input-box">
+                    <input type="text"
+                           id="txtMatricula"
+                           placeholder="Ex: 1024"
+                           inputmode="numeric"
+                           autocomplete="username"
+                           spellcheck="false"
+                           required />
                 </div>
+            </div>
 
-                <!-- Senha -->
-                <div class="input-group">
-                    <label for="txtSenha">Senha</label>
-                    <div class="input-box">
-                        <input type="password"
-                               id="txtSenha"
-                               placeholder="Digite sua senha"
-                               autocomplete="current-password"
-                               required />
-                        <button type="button" id="lblOlhoSenha" class="btn-toggle-senha" onclick="onAlternarSenhaTapped()">
-                            👁
-                        </button>
-                    </div>
+            <!-- Campo Senha com Alternância de Visibilidade -->
+            <div class="input-group">
+                <label for="txtSenha">Senha</label>
+                <div class="input-box">
+                    <input type="password"
+                           id="txtSenha"
+                           placeholder="••••••••"
+                           autocomplete="current-password"
+                           spellcheck="false"
+                           required />
+                    <button type="button"
+                            id="btnToggleSenha"
+                            class="btn-toggle-senha"
+                            onclick="onAlternarSenhaTapped()"
+                            title="Mostrar/Ocultar Senha">
+                        👁
+                    </button>
                 </div>
+            </div>
 
-                <!-- Indicador de Carregamento -->
-                <div id="loadingIndicator" class="loading-container">
-                    <div class="spinner"></div>
-                </div>
+            <!-- Botão Entrar com Spinner Integrado -->
+            <button type="submit" id="btnEntrar" class="btn-entrar">
+                <div id="loadingIndicator" class="spinner"></div>
+                <span id="lblBtnEntrar">Acessar</span>
+            </button>
 
-                <!-- Botão Entrar -->
-                <button type="submit" id="btnEntrar" class="btn-entrar">
-                    Entrar no Sistema
-                </button>
-
-            </form>
-        </main>
+        </form>
 
     </div>
 
     <script>
-        // Credenciais extraídas do seu AuthService.cs
+        // =========================================================================
+        // 1. CONFIGURAÇÕES SUPABASE
+        // =========================================================================
         const SUPABASE_URL = "https://mtlbrhmpiwvzjwbzaywi.supabase.co";
         const SUPABASE_KEY = "sb_publishable_qilTaEWSiDNr1L-N5uE5gA_NYyLkyBt";
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        const VERSAO_LOCAL_APP = "1.0.5";
         let _senhaOculta = true;
 
-        // Auto-login: se já estiver autenticado (equivalente ao EstaAutenticadoAsync)
         document.addEventListener('DOMContentLoaded', async () => {
-            const token = localStorage.getItem("auth_token");
-            const nivel = localStorage.getItem("UsuarioNivel") || localStorage.getItem("NivelUsuario");
-
-            if (token && nivel) {
-                redirecionarPorNivel(nivel);
-            }
+            // Executa equivalente ao OnAppearing()
+            await checarAtualizacaoAsync();
         });
 
-        // Alterna cor e visibilidade do campo de senha
+        // =========================================================================
+        // 2. ALTERNAR VISIBILIDADE DA SENHA (OnAlternarSenhaTapped)
+        // =========================================================================
         function onAlternarSenhaTapped() {
             _senhaOculta = !_senhaOculta;
             const txtSenha = document.getElementById('txtSenha');
-            const lblOlhoSenha = document.getElementById('lblOlhoSenha');
+            const btnOlho = document.getElementById('btnToggleSenha');
 
-            txtSenha.type = _senhaOculta ? 'password' : 'text';
-            lblOlhoSenha.style.color = _senhaOculta ? '#8FA3BF' : '#2F80ED';
+            txtSenha.type = _senhaOculta ? "password" : "text";
+            // Cor #8FA3BF quando oculta, #2F80ED quando visível (exatamente como no C#)
+            btnOlho.style.color = _senhaOculta ? "#8FA3BF" : "#2F80ED";
         }
 
-        // Equivalente a OnEntrarClicked + AuthService.AutenticarAsync
+        // =========================================================================
+        // 3. FLUXO DE AUTENTICAÇÃO (OnEntrarClicked)
+        // =========================================================================
         async function onEntrarClicked(e) {
             e.preventDefault();
 
-            const txtMatricula = document.getElementById('txtMatricula');
-            const txtSenha = document.getElementById('txtSenha');
-            const btnEntrar = document.getElementById('btnEntrar');
-            const loadingIndicator = document.getElementById('loadingIndicator');
-
-            const matricula = txtMatricula.value?.trim() || '';
-            const senha = txtSenha.value?.trim() || '';
+            const matricula = document.getElementById('txtMatricula').value.trim();
+            const senha = document.getElementById('txtSenha').value.trim();
 
             if (!matricula || !senha) {
-                alert("Preencha matrícula e senha.");
+                alert("Atenção: Preencha matrícula e senha.");
                 return;
             }
 
-            try {
-                btnEntrar.disabled = true;
-                loadingIndicator.style.display = 'flex';
+            const btnEntrar = document.getElementById('btnEntrar');
+            const lblBtnEntrar = document.getElementById('lblBtnEntrar');
+            const loadingIndicator = document.getElementById('loadingIndicator');
 
-                // =========================================================================
-                // 1. CONSULTA DIRETA NA TABELA 'usuarios' (IGUAL AO SEU MAUI)
-                // =========================================================================
-                const { data: listaUsuarios, error: erroConsulta } = await supabaseClient
+            try {
+                // Ativa estado de carregamento
+                btnEntrar.disabled = true;
+                loadingIndicator.style.display = "block";
+                lblBtnEntrar.textContent = "Conectando...";
+
+                // Consulta a tabela usuarios
+                const { data: usuario, error } = await supabaseClient
                     .from('usuarios')
                     .select('*')
                     .eq('matricula', matricula)
-                    .eq('senha', senha);
+                    .eq('senha', senha)
+                    .single();
 
-                if (erroConsulta) {
-                    throw new Error(`Erro ao conectar ao servidor: ${erroConsulta.message}`);
-                }
-
-                const usuario = (listaUsuarios && listaUsuarios.length > 0) ? listaUsuarios[0] : null;
-
-                // Falha de autenticação
-                if (!usuario) {
-                    alert("Matrícula ou senha incorretos.");
+                if (error || !usuario) {
+                    alert("Falha: Matrícula ou senha incorretos.");
                     return;
                 }
 
-                // =========================================================================
-                // 2. EXTRAÇÃO DOS DADOS (IGUAL AO SEU AuthService.cs)
-                // =========================================================================
-                const nomeFinal = (usuario.nome && usuario.nome.trim().length > 0)
-                    ? usuario.nome.trim()
-                    : usuario.matricula;
+                // Salva credenciais (equivalente às Preferences no .NET MAUI)
+                localStorage.setItem("MatriculaUsuario", usuario.matricula);
+                localStorage.setItem("NivelUsuario", usuario.nivel || "Usuario");
+                localStorage.setItem("UsuarioGrupo", usuario.grupo || "Mantenedor");
 
-                const grupoFinal = (usuario.grupo && usuario.grupo.trim().length > 0)
-                    ? usuario.grupo.trim()
-                    : "Mantenedor";
+                // =================================================================
+                // REGISTRO DE NOTIFICAÇÕES (RegistrarDispositivoFcmAsync)
+                // =================================================================
+                await registrarDispositivoFcmAsync(matricula);
 
-                const nivelFinal = usuario.nivel ? usuario.nivel : "Usuario";
+                // Redirecionamento por Nível
+                const nivel = (usuario.nivel || "Usuario").trim().toLowerCase();
+                const isApenasUsuario = nivel === "usuario" || nivel === "3";
 
-                // Salva no localStorage (equivalente a SecureStorage e Preferences.Default)
-                localStorage.setItem("auth_token", String(usuario.id));
-                localStorage.setItem("UsuarioMatricula", String(usuario.matricula));
-                localStorage.setItem("MatriculaUsuario", String(usuario.matricula)); // Retrocompatibilidade
-                localStorage.setItem("UsuarioNome", nomeFinal);
-                localStorage.setItem("UsuarioGrupo", grupoFinal);
-                localStorage.setItem("UsuarioNivel", nivelFinal);
-                localStorage.setItem("NivelUsuario", nivelFinal); // Retrocompatibilidade
-
-                // =========================================================================
-                // 3. REGISTRO FCM TOKEN
-                // =========================================================================
-                await registrarDispositivoFcmAsync(usuario.matricula);
-
-                // =========================================================================
-                // 4. NAVEGAÇÃO BASEADA NO NÍVEL (Shell Routing)
-                // =========================================================================
-                redirecionarPorNivel(nivelFinal);
+                if (isApenasUsuario) {
+                    window.location.replace("listaapontamento.html");
+                } else {
+                    window.location.replace("index.html");
+                }
 
             } catch (ex) {
                 console.error(ex);
-                alert(`Não foi possível conectar ao servidor: ${ex.message || ex}`);
+                alert(`Erro de Conexão: Não foi possível conectar ao servidor: ${ex.message || ex}`);
             } finally {
-                loadingIndicator.style.display = 'none';
+                loadingIndicator.style.display = "none";
+                lblBtnEntrar.textContent = "Acessar";
                 btnEntrar.disabled = false;
             }
         }
 
-        function redirecionarPorNivel(nivel) {
-            const nivelLimpo = String(nivel).trim().toLowerCase();
-            const isApenasUsuario = nivelLimpo === "usuario" || nivelLimpo === "3";
+        // =========================================================================
+        // 4. REGISTRO DE DISPOSITIVO PUSH / FCM (RegistrarDispositivoFcmAsync)
+        // =========================================================================
+        async function registrarDispositivoFcmAsync(matricula) {
+            try {
+                if (!("Notification" in window)) return;
 
-            if (isApenasUsuario) {
-                window.location.replace("listaapontamento.html");
-            } else {
-                window.location.replace("index.html");
+                // Solicita permissão se ainda não foi concedida
+                let permission = Notification.permission;
+                if (permission !== "granted" && permission !== "denied") {
+                    permission = await Notification.requestPermission();
+                }
+
+                let pushToken = localStorage.getItem("WebPush_Token") || "";
+
+                // Se houver suporte a Service Worker e PushManager, captura a subscription
+                if ('serviceWorker' in navigator && permission === "granted") {
+                    const reg = await navigator.serviceWorker.ready;
+                    let sub = await reg.pushManager.getSubscription();
+
+                    if (!sub && reg.pushManager) {
+                        try {
+                            sub = await reg.pushManager.subscribe({
+                                userVisibleOnly: true,
+                                applicationServerKey: null // Caso utilize VAPID público, inclua aqui
+                            });
+                        } catch (e) {
+                            console.warn("Inscrição push sem VAPID:", e);
+                        }
+                    }
+
+                    if (sub) {
+                        pushToken = JSON.stringify(sub);
+                        localStorage.setItem("WebPush_Token", pushToken);
+                    }
+                }
+
+                // Persiste na tabela usuario_dispositivos do Supabase
+                const tokenFinal = pushToken || `web-client-${navigator.userAgent.slice(0, 50)}`;
+
+                await supabaseClient.from('usuario_dispositivos').upsert({
+                    matricula: matricula.trim(),
+                    fcm_token: tokenFinal,
+                    atualizado_em: new Date().toISOString()
+                });
+
+                console.log(`[FCM_LOGIN] Dispositivo registrado com sucesso para: ${matricula}`);
+
+            } catch (exPush) {
+                console.warn(`[FCM_LOGIN] Erro ao registrar dispositivo no Supabase: ${exPush.message || exPush}`);
             }
         }
 
-        async function registrarDispositivoFcmAsync(matricula) {
+        // =========================================================================
+        // 5. CHECAR ATUALIZAÇÕES DO APP (UpdateService)
+        // =========================================================================
+        async function checarAtualizacaoAsync() {
+            if (!navigator.onLine) return;
+
             try {
-                let fcmToken = localStorage.getItem("FCM_Token") || "";
-                let tentativas = 0;
+                const { data, error } = await supabaseClient
+                    .from('versoes_app')
+                    .select('versao, link_download')
+                    .order('id', { ascending: false })
+                    .limit(1)
+                    .single();
 
-                while (!fcmToken && tentativas < 5) {
-                    await new Promise(r => setTimeout(r, 500));
-                    fcmToken = localStorage.getItem("FCM_Token") || "";
-                    tentativas++;
+                if (!error && data && data.versao) {
+                    if (data.versao.trim() !== VERSAO_LOCAL_APP) {
+                        const banner = document.getElementById('updateBanner');
+                        const msg = document.getElementById('updateMsg');
+                        msg.textContent = `Nova versão disponível: v${data.versao}`;
+                        banner.style.display = 'flex';
+                    }
                 }
-
-                if (fcmToken) {
-                    await supabaseClient
-                        .from('usuario_dispositivo')
-                        .upsert({
-                            matricula: String(matricula).trim(),
-                            fcm_token: fcmToken,
-                            atualizado_em: new Date().toISOString()
-                        }, { onConflict: 'matricula' });
-                }
-            } catch (err) {
-                console.warn("[FCM_LOGIN] Aviso ao sincronizar token:", err);
+            } catch (e) {
+                console.warn("Sem verificação de versão no momento:", e);
             }
         }
     </script>

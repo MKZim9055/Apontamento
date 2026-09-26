@@ -60,7 +60,7 @@
             padding-right: 24px;
         }
 
-        /* Dica de instalação no iOS */
+        /* Banner de instalação no iOS */
         .ios-tip {
             display: none;
             background-color: rgba(14, 34, 61, 0.95);
@@ -87,6 +87,56 @@
                 font-weight: bold;
                 cursor: pointer;
             }
+
+        /* Card de Destaque para Download do APK Android */
+        .apk-download-banner {
+            display: none;
+            background: linear-gradient(90deg, #103328 0%, #0A221C 100%);
+            border: 1px solid #00C48C;
+            border-radius: 14px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            text-decoration: none;
+            color: #FFFFFF;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.15s ease;
+        }
+
+            .apk-download-banner:active {
+                transform: scale(0.98);
+            }
+
+        .apk-download-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+            .apk-download-info .apk-icon {
+                font-size: 26px;
+            }
+
+        .apk-download-text h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #00E5A3;
+        }
+
+        .apk-download-text p {
+            font-size: 11px;
+            color: #CAD8E8;
+        }
+
+        .btn-download-tag {
+            background-color: #00C48C;
+            color: #020912;
+            font-weight: bold;
+            font-size: 11px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
 
         .main-container {
             max-width: 480px;
@@ -197,16 +247,16 @@
         }
 
         /* Cores dos Cartões */
-        /* Card 1: Usuários */
-        .card-usuarios {
+        /* Card 1: Configurações (Alinhado com ConfiguracoesPage do MAUI) */
+        .card-configuracoes {
             background-color: #0D3559;
         }
 
-            .card-usuarios .icon-box {
+            .card-configuracoes .icon-box {
                 background-color: #2F80ED;
             }
 
-            .card-usuarios .subtitle {
+            .card-configuracoes .subtitle {
                 font-size: 12px;
                 color: #B0C4DE;
             }
@@ -300,6 +350,18 @@
             <button onclick="document.getElementById('iosPrompt').style.display='none'">✕</button>
         </div>
 
+        <!-- Banner de Download do APK Oficial .NET MAUI -->
+        <a href="distribuicao/com.companyname.apontamento-Signed.apk" id="apkDownloadPrompt" class="apk-download-banner" download>
+            <div class="apk-download-info">
+                <span class="apk-icon">🤖</span>
+                <div class="apk-download-text">
+                    <h4>Instalar App Android (.apk)</h4>
+                    <p>Versão oficial assinada v1.0.5</p>
+                </div>
+            </div>
+            <span class="btn-download-tag">Baixar</span>
+        </a>
+
         <!-- 1. Topo -->
         <header class="header">
             <div class="logo-container">
@@ -312,12 +374,12 @@
         <!-- 2. Meio: Lista de Ações -->
         <main class="cards-list">
 
-            <!-- Card 1: Cadastro Usuários (Apenas Administrador / Nível 1) -->
-            <a href="usuarios.html" class="card card-usuarios hidden" id="cardCadastroUsuarios">
-                <div class="icon-box">👥</div>
+            <!-- Card 1: Configurações (Apenas Administrador / Nível 1 - Igual ao MAUI MainPage) -->
+            <a href="configuracoes.html" class="card card-configuracoes hidden" id="cardConfiguracoes">
+                <div class="icon-box">⚙️</div>
                 <div class="card-text">
-                    <span class="title">Cadastro Usuários</span>
-                    <span class="subtitle">Gerencie os usuários do sistema</span>
+                    <span class="title">Configurações</span>
+                    <span class="subtitle">Gerencie usuários, setores e o sistema</span>
                 </div>
                 <span class="card-chevron">›</span>
             </a>
@@ -357,7 +419,7 @@
         <!-- 3. Rodapé -->
         <footer class="footer">
             <div class="divider"></div>
-            <span id="lblVersaoApp">Versão App: 1.1.1 | by Markinho</span>
+            <span id="lblVersaoApp">Versão App: 1.0.5 | by Markinho</span>
             <button class="btn-logout" onclick="fazerLogout()">[Sair]</button>
             <div class="divider"></div>
         </footer>
@@ -372,27 +434,34 @@
             });
         }
 
-        // 2. Banner de Instalação iOS
+        // 2. Detecção de Plataforma (iOS vs Android)
         const isIos = () => /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
-        const isStandalone = () => ('standalone' in window.navigator) && window.navigator.standalone;
+        const isAndroid = () => /android/.test(window.navigator.userAgent.toLowerCase());
+        const isStandalone = () => ('standalone' in window.navigator) || window.matchMedia('(display-mode: standalone)').matches;
 
+        // Prompt de PWA no iOS
         if (isIos() && !isStandalone()) {
             document.getElementById('iosPrompt').style.display = 'flex';
         }
 
-        // 3. Aplica regras visuais de acesso baseado no NivelUsuario do localStorage
+        // Exibe o botão de Download de APK se o usuário estiver no navegador Android e fora do PWA instalado
+        if (isAndroid() && !isStandalone()) {
+            document.getElementById('apkDownloadPrompt').style.display = 'flex';
+        }
+
+        // 3. Aplica regras visuais de acesso baseado no NivelUsuario (Espelhando a MainPage.xaml.cs)
         document.addEventListener('DOMContentLoaded', () => {
             const nivelBruto = localStorage.getItem("NivelUsuario") || "";
             const nivel = nivelBruto.trim().toLowerCase();
 
-            // Administrador: libera Cadastro de Usuários e Relatórios
-            const isAdmin = nivel === "administrador" || nivel === "admin" || nivel === "1";
+            // Administrador: libera Configurações e Relatórios
+            const isAdministrador = nivel === "administrador" || nivel === "admin" || nivel === "1";
 
             // Supervisor: libera apenas Relatórios
             const isSupervisor = nivel === "supervisor" || nivel === "2";
 
-            if (isAdmin) {
-                document.getElementById('cardCadastroUsuarios')?.classList.remove('hidden');
+            if (isAdministrador) {
+                document.getElementById('cardConfiguracoes')?.classList.remove('hidden');
                 document.getElementById('cardRelatorios')?.classList.remove('hidden');
             } else if (isSupervisor) {
                 document.getElementById('cardRelatorios')?.classList.remove('hidden');

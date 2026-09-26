@@ -1,15 +1,19 @@
 ﻿// Incremente a versão sempre que alterar arquivos do app
-const CACHE_NAME = 'apontamentos-cache-v3';
+const CACHE_NAME = 'apontamentos-cache-v4';
 
 const ASSETS = [
     './',
-    './login.html',           // Tela inicial obrigatória
+    './login.html',
     './index.html',
-    './listaapontamento.html', // Nome alinhado (um 'a')
+    './listaapontamento.html',
     './novoapontamento.html',
     './relatorios.html',
+    './configuracoes.html',
+    './direct.html',
+    './db.js',                       // ESSENCIAL: Camada IndexedDB local
     './manifest.json',
-    './icoapontamento.png'
+    './icoapontamento.png',
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2' // ESSENCIAL: SDK do Supabase offline
 ];
 
 // 1. Instalação e Cache Inicial dos Assets
@@ -38,7 +42,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Ignora chamadas de API do Supabase e CDN externa (deixa trafegar direto pela rede)
+    // Ignora chamadas diretas à API REST do Supabase e métodos que não sejam GET
+    // (O tratamento offline dos dados é feito pelo db.js via IndexedDB)
     if (url.origin.includes('supabase.co') || event.request.method !== 'GET') {
         return;
     }
@@ -48,7 +53,6 @@ self.addEventListener('fetch', (event) => {
         event.respondWith(
             fetch(event.request)
                 .then((networkResponse) => {
-                    // Guarda cópia atualizada no cache se a rede respondeu com sucesso
                     if (networkResponse && networkResponse.status === 200) {
                         const responseClone = networkResponse.clone();
                         caches.open(CACHE_NAME).then((cache) => {
@@ -58,7 +62,7 @@ self.addEventListener('fetch', (event) => {
                     return networkResponse;
                 })
                 .catch(() => {
-                    // Sem internet: entrega a página salva em cache ou redireciona para login
+                    // Sem internet: entrega a página salva em cache ou o fallback para login.html
                     return caches.match(event.request).then((cachedResponse) => {
                         return cachedResponse || caches.match('./login.html');
                     });
@@ -67,7 +71,7 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Estratégia Cache First com fallback de rede para imagens, ícones e assets estáticos
+    // Estratégia Cache First com fallback de rede para scripts, CSS, CDN e imagens
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
             return cachedResponse || fetch(event.request).then((networkResponse) => {
