@@ -16,22 +16,14 @@
     <!-- Cliente Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- Guardião de Rota: Validação imediata antes de pintar a tela -->
+    <!-- Guardião de Rota: Apenas valida se está logado -->
     <script>
         (function verificarAcessoImediato() {
-            const nivel = localStorage.getItem("NivelUsuario");
-            const matricula = localStorage.getItem("MatriculaUsuario");
+            const nivel = localStorage.getItem("NivelUsuario") || localStorage.getItem("UsuarioNivel");
+            const matricula = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula");
 
             if (!matricula || !nivel) {
                 window.location.replace("login.html");
-                return;
-            }
-
-            const nivelLimpo = nivel.trim().toLowerCase();
-            const isApenasUsuario = nivelLimpo === "usuario" || nivelLimpo === "3";
-
-            if (isApenasUsuario) {
-                window.location.replace("listaapontamento.html");
             }
         })();
     </script>
@@ -247,7 +239,7 @@
         }
 
         /* Cores dos Cartões */
-        /* Card 1: Configurações (Alinhado com ConfiguracoesPage do MAUI) */
+        /* Card 1: Configurações */
         .card-configuracoes {
             background-color: #0D3559;
         }
@@ -374,7 +366,7 @@
         <!-- 2. Meio: Lista de Ações -->
         <main class="cards-list">
 
-            <!-- Card 1: Configurações (Apenas Administrador / Nível 1 - Igual ao MAUI MainPage) -->
+            <!-- Card 1: Configurações (Apenas Administrador / Nível 1) -->
             <a href="configuracoes.html" class="card card-configuracoes hidden" id="cardConfiguracoes">
                 <div class="icon-box">⚙️</div>
                 <div class="card-text">
@@ -394,7 +386,7 @@
                 <span class="card-chevron">›</span>
             </a>
 
-            <!-- Card 3: Apontamento (Todos os perfis) -->
+            <!-- Card 3: Apontamento (Disponível para todos os perfis) -->
             <a href="listaapontamento.html" class="card card-apontamento" id="cardApontamento">
                 <div class="icon-box">📝</div>
                 <div class="card-text">
@@ -404,7 +396,7 @@
                 <span class="card-chevron">›</span>
             </a>
 
-            <!-- Card 4: Direct (Todos os perfis) -->
+            <!-- Card 4: Direct (Disponível para todos os perfis) -->
             <a href="direct.html" class="card card-direct" id="cardDirect">
                 <div class="icon-box">💬</div>
                 <div class="card-text">
@@ -439,25 +431,20 @@
         const isAndroid = () => /android/.test(window.navigator.userAgent.toLowerCase());
         const isStandalone = () => ('standalone' in window.navigator) || window.matchMedia('(display-mode: standalone)').matches;
 
-        // Prompt de PWA no iOS
         if (isIos() && !isStandalone()) {
             document.getElementById('iosPrompt').style.display = 'flex';
         }
 
-        // Exibe o botão de Download de APK se o usuário estiver no navegador Android e fora do PWA instalado
         if (isAndroid() && !isStandalone()) {
             document.getElementById('apkDownloadPrompt').style.display = 'flex';
         }
 
-        // 3. Aplica regras visuais de acesso baseado no NivelUsuario (Espelhando a MainPage.xaml.cs)
+        // 3. Aplica regras visuais de acesso baseado no nível
         document.addEventListener('DOMContentLoaded', () => {
-            const nivelBruto = localStorage.getItem("NivelUsuario") || "";
+            const nivelBruto = localStorage.getItem("NivelUsuario") || localStorage.getItem("UsuarioNivel") || "";
             const nivel = nivelBruto.trim().toLowerCase();
 
-            // Administrador: libera Configurações e Relatórios
             const isAdministrador = nivel === "administrador" || nivel === "admin" || nivel === "1";
-
-            // Supervisor: libera apenas Relatórios
             const isSupervisor = nivel === "supervisor" || nivel === "2";
 
             if (isAdministrador) {
@@ -477,8 +464,15 @@
             } catch (e) {
                 console.warn(e);
             }
+
+            localStorage.removeItem("auth_token");
             localStorage.removeItem("NivelUsuario");
+            localStorage.removeItem("UsuarioNivel");
             localStorage.removeItem("MatriculaUsuario");
+            localStorage.removeItem("UsuarioMatricula");
+            localStorage.removeItem("UsuarioNome");
+            localStorage.removeItem("UsuarioGrupo");
+
             window.location.replace("login.html");
         }
     </script>

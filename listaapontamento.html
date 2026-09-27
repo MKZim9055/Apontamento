@@ -12,8 +12,9 @@
     <link rel="apple-touch-icon" href="icoapontamento.png" />
     <link rel="manifest" href="manifest.json" />
 
-    <!-- Supabase JS Client Oficial -->
+    <!-- Supabase JS Client Oficial e Banco Local IndexedDB -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="db.js"></script>
 
     <!-- Guardião de Autenticação -->
     <script>
@@ -35,6 +36,10 @@
             user-select: none;
         }
 
+        input {
+            user-select: text;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             min-height: 100vh;
@@ -42,30 +47,34 @@
             background: linear-gradient(135deg, #081426 0%, #020912 50%, #0A1D38 100%);
             color: #FFFFFF;
             display: flex;
-            justify-content: center;
-            padding-top: calc(15px + env(safe-area-inset-top));
-            padding-bottom: calc(12px + env(safe-area-inset-bottom));
-            padding-left: 20px;
-            padding-right: 20px;
+            flex-direction: column;
+            padding: calc(35px + env(safe-area-inset-top)) 20px calc(12px + env(safe-area-inset-bottom)) 20px;
             overflow-x: hidden;
         }
 
-        .main-layout {
+        .container {
+            max-width: 500px;
             width: 100%;
-            max-width: 480px;
+            margin: 0 auto;
             display: flex;
             flex-direction: column;
-            position: relative;
-            min-height: calc(100vh - 35px);
+            flex: 1;
+            height: 100%;
         }
 
-        /* 1. Topo */
-        .top-bar {
+        /* 1. Topo: Voltar, Título e Ações */
+        .header-top {
             display: flex;
             align-items: center;
             justify-content: space-between;
             margin-bottom: 16px;
-            gap: 8px;
+            gap: 12px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .action-btn {
@@ -78,8 +87,9 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: background 0.15s ease, transform 0.12s ease;
             color: #FFFFFF;
+            font-size: 18px;
+            transition: background 0.15s ease, transform 0.12s ease;
             flex-shrink: 0;
         }
 
@@ -88,20 +98,16 @@
                 background-color: #173763;
             }
 
-            .action-btn .chevron {
-                font-size: 28px;
-                margin-top: -4px;
-                line-height: 1;
-            }
-
-        .page-title {
-            flex: 1;
+        .header-titles h1 {
             font-size: 20px;
             font-weight: 700;
             color: #FFFFFF;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            line-height: 1.2;
+        }
+
+        .header-titles p {
+            font-size: 12px;
+            color: #8FA3BF;
         }
 
         .top-actions {
@@ -111,219 +117,263 @@
         }
 
         /* 2. Barra de Busca */
-        .search-bar {
+        .search-box {
             background-color: #0B1C33;
-            border: 1px solid #1F3A60;
-            height: 50px;
+            border: 1px solid #173154;
             border-radius: 14px;
-            padding: 0 14px;
+            height: 46px;
+            padding: 0 12px;
             display: flex;
             align-items: center;
             gap: 10px;
             margin-bottom: 12px;
+            transition: border-color 0.2s ease;
         }
 
-            .search-bar input {
+            .search-box:focus-within {
+                border-color: #00C48C;
+            }
+
+            .search-box input {
                 width: 100%;
-                height: 100%;
                 background: transparent;
                 border: none;
                 outline: none;
                 color: #FFFFFF;
-                font-size: 14px;
-                user-select: text;
+                font-size: 13px;
             }
 
-                .search-bar input::placeholder {
+                .search-box input::placeholder {
                     color: #4B6382;
                 }
 
-        /* 3. Contagem Total */
-        .counter-row {
-            margin: 0 4px 8px 4px;
+        /* 3. Contador de Registros */
+        .counter-bar {
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
+            margin: 0 4px 8px 4px;
         }
 
-        .counter-text {
-            font-size: 13px;
+        .counter-label {
+            font-size: 11px;
             font-weight: 700;
             color: #8FA3BF;
         }
 
-        /* 4. Lista de Apontamentos */
+        .counter-value {
+            font-size: 11px;
+            font-weight: 700;
+            color: #00C48C;
+        }
+
+        /* 4. Lista e Swipe View */
         .list-container {
             flex: 1;
             overflow-y: auto;
-            scrollbar-width: none;
-            padding-bottom: 90px;
-        }
-
-            .list-container::-webkit-scrollbar {
-                display: none;
-            }
-
-        .apontamento-card {
-            background-color: #0B1C33;
-            border: 1px solid #173154;
-            border-radius: 16px;
-            padding: 14px 12px;
-            margin-bottom: 8px;
-            display: grid;
-            grid-template-columns: 92px 1fr;
-            column-gap: 12px;
-            position: relative;
-        }
-
-        .card-left {
             display: flex;
             flex-direction: column;
+            gap: 10px;
+            padding-bottom: 90px;
+            overscroll-behavior-y: contain;
+        }
+
+        .swipe-container {
+            position: relative;
+            border-radius: 14px;
+            overflow: hidden;
+            background-color: #081426;
+        }
+
+        .swipe-actions {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            z-index: 1;
+        }
+
+        .swipe-btn {
+            display: flex;
             align-items: center;
             justify-content: center;
-            gap: 2px;
-            border-right: 1px solid #173154;
-            padding-right: 12px;
-        }
-
-            .card-left .tool-icon {
-                font-size: 22px;
-            }
-
-            .card-left .data-text {
-                font-size: 13px;
-                font-weight: 700;
-                color: #FFFFFF;
-            }
-
-            .card-left .dia-text {
-                font-size: 11px;
-                color: #8FA3BF;
-                text-transform: capitalize;
-            }
-
-        .status-badge {
-            font-size: 10px;
-            font-weight: 700;
-            margin-top: 2px;
-            text-align: center;
-        }
-
-            .status-badge.pendente {
-                color: #FF9838;
-            }
-
-            .status-badge.enviado {
-                color: #00C48C;
-            }
-
-        .btn-enviar-item {
-            background-color: #1F6FEB;
             color: #FFFFFF;
-            border: none;
-            border-radius: 6px;
-            font-size: 9px;
-            height: 26px;
-            padding: 0 6px;
+            font-size: 12px;
+            font-weight: 700;
             cursor: pointer;
-            margin-top: 4px;
-            width: 100%;
+            border: none;
+            padding: 0 16px;
             transition: opacity 0.15s ease;
         }
 
-            .btn-enviar-item:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
+            .swipe-btn:active {
+                opacity: 0.8;
             }
 
-        .card-right {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            gap: 4px;
-            min-width: 0;
+        .btn-sync {
+            background-color: #00C48C;
         }
 
-        .os-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 6px;
-        }
-
-        .os-number {
-            font-size: 16px;
-            font-weight: 700;
-            color: #6CB8FF;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .setor-badge {
-            background-color: #061221;
-            border: 1px solid #1B3352;
-            border-radius: 6px;
-            padding: 2px 8px;
-            font-size: 11px;
-            color: #8FA3BF;
-            white-space: nowrap;
-        }
-
-        .matricula-info {
-            font-size: 14px;
-            color: #D1DCE8;
-        }
-
-            .matricula-info span {
-                color: #8FA3BF;
-            }
-
-            .matricula-info strong {
-                color: #FFFFFF;
-            }
-
-        .horarios-row {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 12px;
-            color: #FF9838;
-            font-weight: 700;
-        }
-
-        .obs-text {
-            font-size: 11px;
-            color: #5A718F;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .card-actions {
-            display: flex;
-            gap: 6px;
-            margin-top: 6px;
-            padding-top: 6px;
-            border-top: 1px dashed rgba(23, 49, 84, 0.6);
-        }
-
-        .action-chip {
-            border: none;
-            border-radius: 4px;
-            padding: 3px 8px;
-            font-size: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            color: #FFFFFF;
-        }
-
-        .chip-edit {
+        .btn-edit {
             background-color: #1F6FEB;
         }
 
-        .chip-delete {
+        .btn-delete {
             background-color: #DA3633;
+        }
+
+        .item-card {
+            position: relative;
+            background-color: #0D2542;
+            border: 1px solid #17365D;
+            border-radius: 14px;
+            padding: 14px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 2;
+            touch-action: pan-y;
+            will-change: transform;
+            backface-visibility: hidden;
+            cursor: grab;
+            user-select: none;
+        }
+
+            .item-card:active {
+                cursor: grabbing;
+            }
+
+        /* Linha 1 */
+        .card-line-1 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tags-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .badge-os {
+            background-color: #0B4242;
+            border-radius: 6px;
+            padding: 3px 8px;
+            color: #00C48C;
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .badge-setor {
+            background-color: #162E4A;
+            border-radius: 6px;
+            padding: 3px 8px;
+            color: #CAD8E8;
+            font-size: 11px;
+        }
+
+        .badge-status {
+            border-radius: 6px;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+            .badge-status.pendente {
+                background-color: rgba(255, 152, 56, 0.15);
+                color: #FF9838;
+                border: 1px solid rgba(255, 152, 56, 0.3);
+            }
+
+            .badge-status.enviado {
+                background-color: rgba(0, 196, 140, 0.15);
+                color: #00C48C;
+                border: 1px solid rgba(0, 196, 140, 0.3);
+            }
+
+        .data-text {
+            font-size: 14px;
+            font-weight: 700;
+            color: #8FA3BF;
+        }
+
+        /* Divisor Interno Suave */
+        .card-divider {
+            height: 1px;
+            background-color: #162E4E;
+            margin: 2px 0;
+        }
+
+        /* Linha 2 */
+        .card-line-2 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .matricula-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .matricula-label {
+            font-size: 10px;
+            color: #657D99;
+        }
+
+        .matricula-value {
+            font-size: 15px;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        .horarios-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .horarios-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .horario-text {
+            font-size: 15px;
+            font-weight: 700;
+            color: #CAD8E8;
+        }
+
+        .ate-text {
+            font-size: 11px;
+            color: #657D99;
+        }
+
+        .badge-grupo {
+            background-color: #1A314E;
+            color: #49B0F3;
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            width: fit-content;
+        }
+
+        /* Linha 3: Observações */
+        .card-obs {
+            font-size: 12px;
+            color: #8FA3BF;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-top: 2px;
         }
 
         /* Empty State */
@@ -333,45 +383,32 @@
             align-items: center;
             justify-content: center;
             margin-top: 60px;
-            gap: 10px;
+            gap: 8px;
             text-align: center;
-        }
-
-        .empty-icon {
-            font-size: 46px;
-        }
-
-        .empty-title {
-            font-size: 15px;
-            font-weight: 700;
             color: #8FA3BF;
         }
 
-        .empty-subtitle {
-            font-size: 12px;
-            color: #4B6382;
-        }
+            .empty-view .icon {
+                font-size: 40px;
+            }
 
-        .footer-version {
-            font-size: 11px;
-            color: #3A4D66;
-            text-align: center;
-            margin-top: 8px;
-        }
+            .empty-view p {
+                font-size: 14px;
+            }
 
         /* Botão Flutuante (+) */
         .btn-fab {
             position: fixed;
-            bottom: 35px;
-            right: calc(50% - 240px + 24px);
-            width: 60px;
-            height: 60px;
+            bottom: 30px;
+            right: calc(50% - 250px + 24px);
+            width: 58px;
+            height: 58px;
             background-color: #FF7A00;
-            border-radius: 30px;
+            border-radius: 29px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
             cursor: pointer;
             border: none;
             z-index: 100;
@@ -390,7 +427,7 @@
 
         .btn-fab span {
             color: #FFFFFF;
-            font-size: 34px;
+            font-size: 32px;
             font-weight: bold;
             margin-top: -3px;
         }
@@ -402,58 +439,51 @@
 </head>
 <body>
 
-    <div class="main-layout">
+    <div class="container">
 
         <!-- 1. Topo -->
-        <header class="top-bar">
-            <!-- Botão Voltar (Oculto se for apenas Usuário) -->
-            <button id="btnVoltar" class="action-btn hidden" onclick="voltarPagina()" title="Voltar">
-                <span class="chevron">‹</span>
-            </button>
-
-            <h1 class="page-title">Apontamentos</h1>
+        <header class="header-top">
+            <div class="header-left">
+                <button id="btnVoltar" class="action-btn hidden" onclick="voltarPagina()" title="Voltar">←</button>
+                <div class="header-titles">
+                    <h1>Apontamentos</h1>
+                    <p>Banco de dados local</p>
+                </div>
+            </div>
 
             <div class="top-actions">
-                <!-- Botão Sair (Aparece para Usuário comum no topo) -->
-                <button id="btnSair" class="action-btn hidden" onclick="sairSessao()" title="Encerrar Sessão">
-                    <span>🚪</span>
-                </button>
-
-                <!-- Botão Enviar Lote -->
-                <button id="btnSyncLote" class="action-btn" onclick="sincronizarLote()" title="Enviar para a nuvem">
-                    <span>☁️</span>
-                </button>
+                <button id="btnSair" class="action-btn hidden" onclick="sairSessao()" title="Encerrar Sessão">🚪</button>
+                <button id="btnSyncLote" class="action-btn" onclick="sincronizarLote()" title="Enviar pendentes para nuvem">☁️</button>
             </div>
         </header>
 
         <!-- 2. Barra de Busca -->
-        <section class="search-bar">
-            <span>🔍</span>
+        <div class="search-box">
+            <span style="color:#8FA3BF; font-size:13px;">🔍</span>
             <input type="text"
                    id="txtBusca"
-                   placeholder="Buscar por O.S., setor ou matrícula..."
+                   placeholder="Buscar por O.S., Setor ou Executante..."
+                   autocomplete="off"
+                   spellcheck="false"
                    oninput="filtrarLista()" />
-        </section>
-
-        <!-- 3. Contagem Total e Pendentes -->
-        <div class="counter-row">
-            <span id="lblTotal" class="counter-text">Total: 0 apontamento(s) | 0 pendente(s)</span>
         </div>
 
-        <!-- 4. Lista de Apontamentos -->
-        <main id="listaApontamentos" class="list-container"></main>
+        <!-- 3. Contador de Registros -->
+        <div class="counter-bar">
+            <span class="counter-label">APONTAMENTOS LOCAIS</span>
+            <span class="counter-value" id="lblTotal">0 registro(s)</span>
+        </div>
 
-        <!-- View Vazia (EmptyView) -->
+        <!-- 4. Lista dos Apontamentos com Swipe -->
+        <div class="list-container" id="listaApontamentos">
+            <!-- Renderizado dinamicamente -->
+        </div>
+
+        <!-- View Vazia -->
         <div id="emptyView" class="empty-view">
-            <span class="empty-icon">📋</span>
-            <p class="empty-title">Nenhum apontamento encontrado</p>
-            <p class="empty-subtitle">Toque no botão '+' abaixo para cadastrar.</p>
+            <span class="icon">📋</span>
+            <p>Nenhum apontamento local encontrado</p>
         </div>
-
-        <!-- 5. Rodapé -->
-        <footer class="footer-version" id="lblVersaoApp">
-            Versão App: 1.1.1 | by Markinho
-        </footer>
 
         <!-- Botão Flutuante (+) -->
         <button class="btn-fab" onclick="novoApontamento()" title="Novo Apontamento">
@@ -464,80 +494,14 @@
 
     <script>
         // =========================================================================
-        // CONFIGURAÇÕES SUPABASE
+        // 1. CONFIGURAÇÕES SUPABASE
         // =========================================================================
         const SUPABASE_URL = "https://mtlbrhmpiwvzjwbzaywi.supabase.co";
         const SUPABASE_KEY = "sb_publishable_qilTaEWSiDNr1L-N5uE5gA_NYyLkyBt";
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // =========================================================================
-        // BANCO LOCAL INDEXEDDB (Equivalente ao LocalDatabaseService com SQLite)
-        // =========================================================================
-        const DB_NAME = "ApontamentoLocalDB";
-        const DB_VERSION = 1;
-        const STORE_NAME = "apontamentos";
-
-        function abrirDB() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_NAME, DB_VERSION);
-                request.onupgradeneeded = (e) => {
-                    const db = e.target.result;
-                    if (!db.objectStoreNames.contains(STORE_NAME)) {
-                        const store = db.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
-                        store.createIndex("matricula_executante", "matricula_executante", { unique: false });
-                        store.createIndex("data_sincronizado", "data_sincronizado", { unique: false });
-                    }
-                };
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        const LocalDB = {
-            async obterTodos() {
-                const db = await abrirDB();
-                return new Promise((resolve, reject) => {
-                    const tx = db.transaction(STORE_NAME, "readonly");
-                    const store = tx.objectStore(STORE_NAME);
-                    const req = store.getAll();
-                    req.onsuccess = () => resolve(req.result || []);
-                    req.onerror = () => reject(req.error);
-                });
-            },
-
-            async salvar(item) {
-                const db = await abrirDB();
-                return new Promise((resolve, reject) => {
-                    const tx = db.transaction(STORE_NAME, "readwrite");
-                    const store = tx.objectStore(STORE_NAME);
-                    const req = store.put(item);
-                    req.onsuccess = () => resolve(req.result);
-                    req.onerror = () => reject(req.error);
-                });
-            },
-
-            async excluir(id) {
-                const db = await abrirDB();
-                return new Promise((resolve, reject) => {
-                    const tx = db.transaction(STORE_NAME, "readwrite");
-                    const store = tx.objectStore(STORE_NAME);
-                    const req = store.delete(id);
-                    req.onsuccess = () => resolve(true);
-                    req.onerror = () => reject(req.error);
-                });
-            },
-
-            async obterPendentes() {
-                const todos = await this.obterTodos();
-                return todos.filter(a => !a.data_sincronizado);
-            }
-        };
-
-        // =========================================================================
-        // ESTADO GLOBAL E TRAVA DE SINCRONIZAÇÃO (SemaphoreSlim)
-        // =========================================================================
         let _listaOriginal = [];
-        let isSyncing = false; // Trava anti-duplicação (_syncLock)
+        let isSyncing = false;
 
         document.addEventListener('DOMContentLoaded', async () => {
             await validarUsuarioAtivo();
@@ -545,9 +509,9 @@
             await carregarDadosAsync();
         });
 
-        // 1. Validar se usuário ainda existe no Supabase (ValidarUsuarioAtivoAsync)
+        // 1. Validação do Usuário Ativo
         async function validarUsuarioAtivo() {
-            if (!navigator.onLine) return; // Sem internet continua trabalhando offline
+            if (!navigator.onLine) return;
 
             const matricula = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula");
             if (!matricula) return;
@@ -555,54 +519,94 @@
             try {
                 const { data, error } = await supabaseClient
                     .from('usuarios')
-                    .select('matricula, nome, grupo')
+                    .select('matricula')
                     .eq('matricula', matricula);
 
                 if (!error && (!data || data.length === 0)) {
-                    alert("Este usuário foi removido do sistema pelo administrador.");
+                    alert("Acesso Revogado: Sessão encerrada: usuário não encontrado no servidor.");
                     desconectar();
                     window.location.replace("login.html");
                 }
             } catch (err) {
-                console.warn("Aviso na checagem de usuário:", err);
+                console.warn("Validação offline:", err);
             }
         }
 
-        // 2. Configuração de Permissões Visuais
+        // 2. Permissões de Visibilidade
         function configurarPermissoesVisuais() {
+            // Garante que o botão voltar fique sempre visível para qualquer perfil
+            document.getElementById('btnVoltar').classList.remove('hidden');
+
+            // Mantém o botão de sair visível para controle de sessão
             const nivel = (localStorage.getItem("UsuarioNivel") || localStorage.getItem("NivelUsuario") || "Usuario").toLowerCase();
             const isUsuario = nivel === "usuario" || nivel === "3";
 
-            document.getElementById('btnVoltar').classList.toggle('hidden', isUsuario);
+            // Se quiser exibir o botão sair para todos ou manter a lógica:
             document.getElementById('btnSair').classList.toggle('hidden', !isUsuario);
-            document.getElementById('btnRelatorio').classList.toggle('hidden', isUsuario);
         }
 
-        // 3. Carregar Dados do Banco Local (CarregarDadosAsync)
+        // 3. Consulta de Registros Locais (db.js)
         async function carregarDadosAsync() {
             try {
-                const matricula = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula");
+                if (typeof LocalDB === 'undefined') {
+                    console.error("LocalDB não está carregado. Verifique o db.js.");
+                    return;
+                }
+
+                const matricula = (localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "").trim();
                 const nivel = (localStorage.getItem("UsuarioNivel") || localStorage.getItem("NivelUsuario") || "Usuario").toLowerCase();
                 const isUsuario = nivel === "usuario" || nivel === "3";
 
-                let dados = await LocalDB.obterTodos();
+                let dados = await LocalDB.obterApontamentosLocais();
 
                 // Ordena por data decrescente
                 dados.sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0));
 
-                // Se for operador comum, visualiza apenas os registros de sua matrícula
+                // Restringe para o operador comum
                 if (isUsuario && matricula) {
-                    dados = dados.filter(a => String(a.matricula_executante).trim() === matricula.trim());
+                    dados = dados.filter(a => String(a.matricula_executante || '').trim() === matricula);
                 }
 
                 _listaOriginal = dados;
                 filtrarLista();
             } catch (err) {
-                console.error("Erro ao carregar dados locais:", err);
+                console.error("Erro ao ler banco local:", err);
             }
         }
 
-        // 4. Filtrar Lista em memória
+        // Formatadores auxiliares
+        function formatarData(valorData) {
+            if (!valorData) return '';
+            const dataIso = String(valorData).substring(0, 10);
+            const partes = dataIso.split('-');
+            if (partes.length === 3) {
+                return `${partes[2]}/${partes[1]}/${partes[0]}`;
+            }
+            return valorData;
+        }
+
+        function formatarHora(h) {
+            if (!h) return '';
+            const s = String(h).trim();
+            if (s.includes(':')) {
+                const partes = s.split(':');
+                return `${partes[0].padStart(2, '0')}:${(partes[1] || '00').substring(0, 2).padStart(2, '0')}`;
+            }
+            return s;
+        }
+
+        function extrairOrdemServico(item) {
+            if (!item) return '-';
+            const candidatos = [item.ordemservico, item.ordem_servico, item.OrdemServico, item.numero_os, item.os, item.OS];
+            for (const val of candidatos) {
+                if (val !== undefined && val !== null && String(val).trim() !== '') {
+                    return String(val).trim();
+                }
+            }
+            return '-';
+        }
+
+        // 4. Renderização com Formato Idêntico ao Relatórios
         function filtrarLista() {
             const termo = document.getElementById('txtBusca')?.value?.trim().toLowerCase() || "";
             const container = document.getElementById('listaApontamentos');
@@ -612,157 +616,311 @@
             const filtrados = !termo
                 ? _listaOriginal
                 : _listaOriginal.filter(a =>
-                    (a.ordem_servico || "").toLowerCase().includes(termo) ||
-                    (a.setor || "").toLowerCase().includes(termo) ||
-                    (a.matricula_executante || "").toLowerCase().includes(termo)
+                    extrairOrdemServico(a).toLowerCase().includes(termo) ||
+                    String(a.setor || "").toLowerCase().includes(termo) ||
+                    String(a.grupo || "").toLowerCase().includes(termo) ||
+                    String(a.matricula_executante || "").toLowerCase().includes(termo) ||
+                    String(a.observacoes || "").toLowerCase().includes(termo)
                 );
 
             const pendentes = _listaOriginal.filter(a => !a.data_sincronizado).length;
-            lblTotal.textContent = `Total: ${filtrados.length} apontamento(s) | ${pendentes} pendente(s)`;
-
-            container.innerHTML = "";
+            lblTotal.textContent = `${filtrados.length} registro(s)  /  ${pendentes} pendente(s)`;
 
             if (filtrados.length === 0) {
+                container.innerHTML = "";
                 emptyView.style.display = "flex";
                 return;
             }
 
             emptyView.style.display = "none";
 
-            filtrados.forEach(item => {
-                const dataObj = item.data ? new Date(item.data + "T00:00:00") : new Date();
-                const dataFmt = dataObj.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
-                const diaSemana = dataObj.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
+            container.innerHTML = filtrados.map(item => {
+                const id = item.id;
+                const os = extrairOrdemServico(item);
+                const setor = item.setor || '-';
+                const grupo = item.grupo || 'Mantenedor';
+                const dataStr = formatarData(item.data);
+                const matricula = item.matricula_executante || '-';
+                const inicio = formatarHora(item.horainicio || item.hora_inicio);
+                const fim = formatarHora(item.horafim || item.hora_fim);
+                const obs = item.observacoes || '';
 
                 const isSincronizado = !!item.data_sincronizado;
                 const statusTexto = isSincronizado ? "✅ Enviado" : "⏳ Pendente";
                 const statusClass = isSincronizado ? "enviado" : "pendente";
 
-                const card = document.createElement("div");
-                card.className = "apontamento-card";
-                card.innerHTML = `
-                        <div class="card-left">
-                            <span class="tool-icon">🛠️</span>
-                            <span class="data-text">${dataFmt}</span>
-                            <span class="dia-text">${diaSemana}</span>
-                            <span class="status-badge ${statusClass}">${statusTexto}</span>
-                            ${!isSincronizado ? `<button class="btn-enviar-item" onclick="onEnviarItemClicked(${item.id})">Enviar ☁️</button>` : ""}
-                        </div>
+                const botaoSync = !isSincronizado
+                    ? `<button class="swipe-btn btn-sync" onclick="onEnviarItemClicked(${id})">Enviar ☁️</button>`
+                    : ``;
 
-                        <div class="card-right">
-                            <div class="os-row">
-                                <span class="os-number">${item.ordem_servico || "Sem O.S."}</span>
-                                <span class="setor-badge">${item.setor || "Geral"}</span>
+                return `
+                        <div class="swipe-container" id="card-${id}">
+                            <div class="swipe-actions" data-buttons="${isSincronizado ? 2 : 3}">
+                                ${botaoSync}
+                                <button class="swipe-btn btn-edit" onclick="editarItem(${id})">Editar</button>
+                                <button class="swipe-btn btn-delete" onclick="excluirItem(${id})">Excluir</button>
                             </div>
+                            <div class="item-card" data-open="false">
+                                <!-- Linha 1: O.S, Setor, Status e Data -->
+                                <div class="card-line-1">
+                                    <div class="tags-group">
+                                        <span class="badge-os">${os}</span>
+                                        <span class="badge-setor">${setor}</span>
+                                        <span class="badge-status ${statusClass}">${statusTexto}</span>
+                                    </div>
+                                    <span class="data-text">${dataStr}</span>
+                                </div>
 
-                            <div class="matricula-info">
-                                <span>Matrícula: </span><strong>${item.matricula_executante || "---"}</strong>
-                            </div>
+                                <!-- Divisor Interno Suave -->
+                                <div class="card-divider"></div>
 
-                            <div class="horarios-row">
-                                <span>⏱ ${item.hora_inicio || "--:--"} <span style="color:#8FA3BF; font-weight:normal;">➔</span> ${item.hora_fim || "--:--"}</span>
-                            </div>
+                                <!-- Linha 2: Matrícula e Horários + Grupo -->
+                                <div class="card-line-2">
+                                    <div class="matricula-group">
+                                        <span class="matricula-label">Matrícula:</span>
+                                        <span class="matricula-value">${matricula}</span>
+                                    </div>
 
-                            <div class="obs-text" title="${item.observacoes || ""}">
-                                ${item.observacoes || "Sem observações"}
-                            </div>
+                                    <div class="horarios-wrapper">
+                                        <div class="horarios-group">
+                                            <span style="font-size:12px; color:#8FA3BF;">⏱</span>
+                                            <span class="horario-text">${inicio || '--:--'}</span>
+                                            <span class="ate-text">até</span>
+                                            <span class="horario-text">${fim || '--:--'}</span>
+                                        </div>
+                                        <span class="badge-grupo">${grupo}</span>
+                                    </div>
+                                </div>
 
-                            <div class="card-actions">
-                                <button class="action-chip chip-edit" onclick="editarItem(${item.id})">Editar</button>
-                                <button class="action-chip chip-delete" onclick="excluirItem(${item.id})">Excluir</button>
+                                <!-- Linha 3: Observações -->
+                                ${obs ? `<div class="card-obs">${obs}</div>` : ''}
                             </div>
                         </div>
                     `;
-                container.appendChild(card);
+            }).join('');
+
+            configurarGestosSwipe();
+        }
+
+        // =========================================================================
+        // 5. GESTOS DE SWIPE UNIFICADOS (PC COM MOUSE + CELULAR COM TOQUE)
+        // =========================================================================
+        function configurarGestosSwipe() {
+            const cards = document.querySelectorAll('.item-card');
+            const GATILHO_ABERTURA = 45;
+
+            let isDragging = false;
+            let startX = 0;
+            let startY = 0;
+            let currentX = 0;
+            let initialOffset = 0;
+            let larguraPainel = 140;
+            let movendoHorizontal = false;
+            let cardAberto = null;
+            let activePointerId = null;
+
+            cards.forEach(card => {
+                const container = card.closest('.swipe-container');
+                const actions = container.querySelector('.swipe-actions');
+                const numBotoes = parseInt(actions.getAttribute('data-buttons') || '2', 10);
+                const larguraLimite = numBotoes === 3 ? 210 : 140;
+
+                card.addEventListener('pointerdown', (e) => {
+                    if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+                    isDragging = true;
+                    activePointerId = e.pointerId;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    currentX = startX;
+                    movendoHorizontal = false;
+                    larguraPainel = larguraLimite;
+
+                    const isAberto = card.getAttribute('data-open') === 'true';
+                    initialOffset = isAberto ? -larguraPainel : 0;
+
+                    if (cardAberto && cardAberto !== card) {
+                        cardAberto.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
+                        cardAberto.style.transform = 'translateX(0px)';
+                        cardAberto.setAttribute('data-open', 'false');
+                        cardAberto = null;
+                    }
+
+                    card.style.transition = 'none';
+
+                    try {
+                        card.setPointerCapture(e.pointerId);
+                    } catch (_) { }
+                });
+
+                card.addEventListener('pointermove', (e) => {
+                    if (!isDragging || e.pointerId !== activePointerId) return;
+
+                    currentX = e.clientX;
+                    const diffX = currentX - startX;
+                    const diffY = e.clientY - startY;
+
+                    if (!movendoHorizontal && Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 6) {
+                        movendoHorizontal = true;
+                    }
+
+                    if (movendoHorizontal) {
+                        let novaPosicao = initialOffset + diffX;
+                        if (novaPosicao > 0) novaPosicao = 0;
+                        if (novaPosicao < -larguraPainel) {
+                            novaPosicao = -larguraPainel + (novaPosicao + larguraPainel) * 0.2;
+                        }
+                        card.style.transform = `translateX(${novaPosicao}px)`;
+                    }
+                });
+
+                const finalizarArraste = (e) => {
+                    if (!isDragging || (activePointerId !== null && e.pointerId !== activePointerId)) return;
+
+                    isDragging = false;
+                    try {
+                        card.releasePointerCapture(e.pointerId);
+                    } catch (_) { }
+
+                    card.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)';
+                    const diffX = currentX - startX;
+                    const isAberto = card.getAttribute('data-open') === 'true';
+
+                    if (!movendoHorizontal) {
+                        if (isAberto) {
+                            card.style.transform = 'translateX(0px)';
+                            card.setAttribute('data-open', 'false');
+                            if (cardAberto === card) cardAberto = null;
+                        }
+                        return;
+                    }
+
+                    if (!isAberto) {
+                        if (diffX < -GATILHO_ABERTURA) {
+                            card.style.transform = `translateX(-${larguraPainel}px)`;
+                            card.setAttribute('data-open', 'true');
+                            cardAberto = card;
+                        } else {
+                            card.style.transform = 'translateX(0px)';
+                            card.setAttribute('data-open', 'false');
+                        }
+                    } else {
+                        if (diffX > GATILHO_ABERTURA) {
+                            card.style.transform = 'translateX(0px)';
+                            card.setAttribute('data-open', 'false');
+                            if (cardAberto === card) cardAberto = null;
+                        } else {
+                            card.style.transform = `translateX(-${larguraPainel}px)`;
+                            card.setAttribute('data-open', 'true');
+                        }
+                    }
+
+                    activePointerId = null;
+                };
+
+                card.addEventListener('pointerup', finalizarArraste);
+                card.addEventListener('pointercancel', finalizarArraste);
+            });
+
+            document.addEventListener('pointerdown', (e) => {
+                if (cardAberto && !e.target.closest('.swipe-container')) {
+                    cardAberto.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
+                    cardAberto.style.transform = 'translateX(0px)';
+                    cardAberto.setAttribute('data-open', 'false');
+                    cardAberto = null;
+                }
             });
         }
 
         // =========================================================================
-        // SINCRONIZAÇÃO INDIVIDUAL (OnEnviarItemClicked)
+        // 6. SINCRONIZAÇÃO INDIVIDUAL E EM LOTE (Mapeamento exato da tabela Postgres)
         // =========================================================================
         async function onEnviarItemClicked(id) {
             if (isSyncing) return;
             isSyncing = true;
 
             try {
-                const todos = await LocalDB.obterTodos();
-                const itemAtualizado = todos.find(x => x.id === id);
+                const todos = await LocalDB.obterApontamentosLocais();
+                const item = todos.find(x => x.id === id);
 
-                if (!itemAtualizado || itemAtualizado.data_sincronizado) {
-                    alert(`A O.S. ${itemAtualizado?.ordem_servico || ''} já foi sincronizada.`);
+                if (!item || item.data_sincronizado) {
+                    alert(`A O.S. ${extrairOrdemServico(item)} já foi transmitida.`);
                     await carregarDadosAsync();
                     return;
                 }
 
-                const confirm = window.confirm(`Deseja enviar a O.S. ${itemAtualizado.ordem_servico} para a nuvem?`);
-                if (!confirm) return;
+                if (!confirm(`Deseja transmitir a O.S. ${extrairOrdemServico(item)} para a nuvem?`)) return;
 
                 if (!navigator.onLine) {
-                    alert("Dispositivo sem acesso à internet. O apontamento continuará salvo localmente.");
+                    alert("Sem conexão: O dispositivo está sem internet no momento.");
                     return;
                 }
 
-                // Payload remoto (ToRemote)
+                const matriculaLogada = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "---";
+
+                // Nomes das colunas correspondentes ao DDL da sua tabela apontamentos
                 const itemRemoto = {
-                    ordem_servico: itemAtualizado.ordem_servico,
-                    setor: itemAtualizado.setor,
-                    matricula_executante: itemAtualizado.matricula_executante,
-                    data: itemAtualizado.data,
-                    hora_inicio: itemAtualizado.hora_inicio,
-                    hora_fim: itemAtualizado.hora_fim,
-                    observacoes: itemAtualizado.observacoes,
-                    criado_em: new Date().toISOString()
+                    matricula_usuario: item.matricula_usuario || matriculaLogada,
+                    data: item.data,
+                    ordemservico: extrairOrdemServico(item),
+                    matricula_executante: item.matricula_executante || '',
+                    horainicio: formatarHora(item.horainicio || item.hora_inicio),
+                    horafim: formatarHora(item.horafim || item.hora_fim),
+                    setor: item.setor || '',
+                    observacoes: item.observacoes || '',
+                    grupo: item.grupo || 'Mantenedor'
                 };
 
                 const { error } = await supabaseClient.from('apontamentos').insert([itemRemoto]);
                 if (error) throw error;
 
-                itemAtualizado.data_sincronizado = new Date().toISOString();
-                await LocalDB.salvar(itemAtualizado);
+                item.data_sincronizado = new Date().toISOString();
+                await LocalDB.salvarApontamento(item);
 
-                alert("Apontamento sincronizado com sucesso!");
+                alert("Sucesso: Apontamento sincronizado com sucesso!");
                 await carregarDadosAsync();
 
             } catch (ex) {
                 console.error(ex);
-                alert(`Não foi possível sincronizar: ${ex.message || ex}`);
+                alert(`Erro ao sincronizar: ${ex.message || ex}`);
             } finally {
                 isSyncing = false;
             }
         }
 
-        // =========================================================================
-        // SINCRONIZAÇÃO EM LOTE (OnSincronizarLote_Clicked)
-        // =========================================================================
         async function sincronizarLote() {
             if (isSyncing) return;
             isSyncing = true;
 
             try {
-                const pendentes = await LocalDB.obterPendentes();
+                const todos = await LocalDB.obterApontamentosLocais();
+                const pendentes = todos.filter(a => !a.data_sincronizado);
 
                 if (pendentes.length === 0) {
-                    alert("Não há apontamentos pendentes para envio.");
+                    alert("Não há apontamentos pendentes para transmissão.");
                     return;
                 }
 
                 if (!navigator.onLine) {
-                    alert("Dispositivo sem acesso à internet no momento.");
+                    alert("Sem conexão à internet no momento.");
                     return;
                 }
 
-                const confirmar = window.confirm(`Enviar ${pendentes.length} apontamento(s) pendente(s) agora?`);
-                if (!confirmar) return;
+                if (!confirm(`Transmitir ${pendentes.length} apontamento(s) pendente(s) agora?`)) return;
 
+                const matriculaLogada = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "---";
+
+                // Nomes das colunas correspondentes ao DDL da sua tabela apontamentos
                 const loteRemoto = pendentes.map(p => ({
-                    ordem_servico: p.ordem_servico,
-                    setor: p.setor,
-                    matricula_executante: p.matricula_executante,
+                    matricula_usuario: p.matricula_usuario || matriculaLogada,
                     data: p.data,
-                    hora_inicio: p.hora_inicio,
-                    hora_fim: p.hora_fim,
-                    observacoes: p.observacoes,
-                    criado_em: new Date().toISOString()
+                    ordemservico: extrairOrdemServico(p),
+                    matricula_executante: p.matricula_executante || '',
+                    horainicio: formatarHora(p.horainicio || p.hora_inicio),
+                    horafim: formatarHora(p.horafim || p.hora_fim),
+                    setor: p.setor || '',
+                    observacoes: p.observacoes || '',
+                    grupo: p.grupo || 'Mantenedor'
                 }));
 
                 const { error } = await supabaseClient.from('apontamentos').insert(loteRemoto);
@@ -771,33 +929,33 @@
                 const agora = new Date().toISOString();
                 for (const item of pendentes) {
                     item.data_sincronizado = agora;
-                    await LocalDB.salvar(item);
+                    await LocalDB.salvarApontamento(item);
                 }
 
-                alert(`${pendentes.length} apontamento(s) sincronizado(s)!`);
+                alert(`Sucesso: ${pendentes.length} apontamento(s) sincronizado(s)!`);
                 await carregarDadosAsync();
 
             } catch (ex) {
                 console.error(ex);
-                alert(`Falha ao enviar lote: ${ex.message || ex}`);
+                alert(`Falha ao sincronizar lote: ${ex.message || ex}`);
             } finally {
                 isSyncing = false;
             }
         }
 
         // =========================================================================
-        // AÇÕES DE EDIÇÃO, EXCLUSÃO E NAVEGAÇÃO
+        // 7. AÇÕES E NAVEGAÇÃO
         // =========================================================================
         function novoApontamento() {
             window.location.href = "novoapontamento.html";
         }
 
         async function editarItem(id) {
-            const todos = await LocalDB.obterTodos();
+            const todos = await LocalDB.obterApontamentosLocais();
             const item = todos.find(x => x.id === id);
 
             if (item && item.data_sincronizado) {
-                alert(`A O.S. ${item.ordem_servico} já foi transmitida para a nuvem e não pode mais ser editada.`);
+                alert(`A O.S. ${extrairOrdemServico(item)} já foi transmitida para a nuvem e não pode mais ser editada localmente.`);
                 return;
             }
 
@@ -805,26 +963,22 @@
         }
 
         async function excluirItem(id) {
-            const todos = await LocalDB.obterTodos();
+            const todos = await LocalDB.obterApontamentosLocais();
             const item = todos.find(x => x.id === id);
-            const os = item ? item.ordem_servico : "";
+            const os = item ? extrairOrdemServico(item) : "Sem O.S.";
 
-            if (!window.confirm(`Deseja excluir a O.S. ${os} localmente?`)) return;
+            if (!confirm(`Excluir Localmente: Deseja excluir a O.S. ${os}?`)) return;
 
             try {
-                await LocalDB.excluir(id);
+                await LocalDB.excluirApontamento(id);
                 await carregarDadosAsync();
             } catch (err) {
-                alert(`Erro ao excluir localmente: ${err.message || err}`);
+                alert(`Erro ao excluir: ${err.message || err}`);
             }
         }
 
         function voltarPagina() {
             window.location.href = "index.html";
-        }
-
-        function abrirRelatorios() {
-            window.location.href = "relatorios.html";
         }
 
         function desconectar() {
@@ -838,7 +992,7 @@
         }
 
         function sairSessao() {
-            if (window.confirm("Deseja encerrar a sessão?")) {
+            if (confirm("Deseja encerrar a sessão?")) {
                 desconectar();
                 window.location.replace("login.html");
             }

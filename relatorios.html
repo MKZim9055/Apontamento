@@ -288,7 +288,13 @@
             touch-action: pan-y;
             will-change: transform;
             backface-visibility: hidden;
+            cursor: grab;
+            user-select: none;
         }
+
+            .item-card:active {
+                cursor: grabbing;
+            }
 
         /* Linha 1 */
         .card-line-1 {
@@ -531,7 +537,12 @@
         });
 
         function configurarValoresPadrao() {
-            const hoje = new Date().toISOString().split('T')[0];
+            const agora = new Date();
+            const ano = agora.getFullYear();
+            const mes = String(agora.getMonth() + 1).padStart(2, '0');
+            const dia = String(agora.getDate()).padStart(2, '0');
+            const hoje = `${ano}-${mes}-${dia}`;
+
             dpDataInicio.value = hoje;
             dpDataFim.value = hoje;
             pkrGrupo.selectedIndex = 0;
@@ -842,32 +853,38 @@
         }
 
         // =========================================================================
-        // 8. GESTOS DE SWIPE (COM SUPORTE A FECHAMENTO AO PUXAR PARA A DIREITA)
+        // 8. GESTOS DE SWIPE UNIFICADOS (PC COM MOUSE + CELULAR COM TOQUE)
         // =========================================================================
         function configurarGestosSwipe() {
             const cards = document.querySelectorAll('.item-card');
             const LARGURA_BOTOES = 140;
-            const GATILHO_ABERTURA = 50;
+            const GATILHO_ABERTURA = 45;
 
+            let isDragging = false;
             let startX = 0;
             let startY = 0;
             let currentX = 0;
             let initialOffset = 0;
             let movendoHorizontal = false;
             let cardAberto = null;
+            let activePointerId = null;
 
             cards.forEach(card => {
-                card.addEventListener('touchstart', (e) => {
-                    startX = e.touches[0].clientX;
-                    startY = e.touches[0].clientY;
+                card.addEventListener('pointerdown', (e) => {
+                    // Ignora cliques que não sejam o botão principal do mouse
+                    if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+                    isDragging = true;
+                    activePointerId = e.pointerId;
+                    startX = e.clientX;
+                    startY = e.clientY;
                     currentX = startX;
                     movendoHorizontal = false;
 
-                    // Verifica se este card já estava aberto
                     const isAberto = card.getAttribute('data-open') === 'true';
                     initialOffset = isAberto ? -LARGURA_BOTOES : 0;
 
-                    // Se tocar em outro card, fecha o que estiver aberto
+                    // Se interagir com outro card, fecha o que estiver aberto
                     if (cardAberto && cardAberto !== card) {
                         cardAberto.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
                         cardAberto.style.transform = 'translateX(0px)';
@@ -876,40 +893,62 @@
                     }
 
                     card.style.transition = 'none';
-                }, { passive: true });
 
-                card.addEventListener('touchmove', (e) => {
-                    currentX = e.touches[0].clientX;
-                    const currentY = e.touches[0].clientY;
+                    try {
+                        card.setPointerCapture(e.pointerId);
+                    } catch (_) { }
+                });
+
+                card.addEventListener('pointermove', (e) => {
+                    if (!isDragging || e.pointerId !== activePointerId) return;
+
+                    currentX = e.clientX;
                     const diffX = currentX - startX;
-                    const diffY = currentY - startY;
+                    const diffY = e.clientY - startY;
 
-                    // Trava de rolagem vertical: detecta a direção principal do movimento
-                    if (!movendoHorizontal && Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 8) {
+                    // Detecta se a intenção principal é arraste lateral
+                    if (!movendoHorizontal && Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 6) {
                         movendoHorizontal = true;
                     }
 
                     if (movendoHorizontal) {
                         let novaPosicao = initialOffset + diffX;
 
-                        // Limita o arraste para não ultrapassar o início (0px) nem passar muito de -140px
+                        // Não permite ultrapassar o alinhamento inicial
                         if (novaPosicao > 0) novaPosicao = 0;
+
+                        // Efeito de resistência suave além de 140px
                         if (novaPosicao < -LARGURA_BOTOES) {
-                            // Efeito elástico
                             novaPosicao = -LARGURA_BOTOES + (novaPosicao + LARGURA_BOTOES) * 0.2;
                         }
 
                         card.style.transform = `translateX(${novaPosicao}px)`;
                     }
-                }, { passive: true });
+                });
 
-                card.addEventListener('touchend', () => {
+                const finalizarArraste = (e) => {
+                    if (!isDragging || (activePointerId !== null && e.pointerId !== activePointerId)) return;
+
+                    isDragging = false;
+                    try {
+                        card.releasePointerCapture(e.pointerId);
+                    } catch (_) { }
+
                     card.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)';
                     const diffX = currentX - startX;
                     const isAberto = card.getAttribute('data-open') === 'true';
 
+                    if (!movendoHorizontal) {
+                        if (isAberto) {
+                            card.style.transform = 'translateX(0px)';
+                            card.setAttribute('data-open', 'false');
+                            if (cardAberto === card) cardAberto = null;
+                        }
+                        return;
+                    }
+
                     if (!isAberto) {
-                        // Card fechado sendo arrastado para a esquerda
+                        // Card fechado sendo puxado para a esquerda
                         if (diffX < -GATILHO_ABERTURA) {
                             card.style.transform = `translateX(-${LARGURA_BOTOES}px)`;
                             card.setAttribute('data-open', 'true');
@@ -919,7 +958,7 @@
                             card.setAttribute('data-open', 'false');
                         }
                     } else {
-                        // Card aberto sendo arrastado de volta para a direita
+                        // Card aberto sendo empurrado para a direita
                         if (diffX > GATILHO_ABERTURA) {
                             card.style.transform = 'translateX(0px)';
                             card.setAttribute('data-open', 'false');
@@ -929,11 +968,16 @@
                             card.setAttribute('data-open', 'true');
                         }
                     }
-                });
+
+                    activePointerId = null;
+                };
+
+                card.addEventListener('pointerup', finalizarArraste);
+                card.addEventListener('pointercancel', finalizarArraste);
             });
 
-            // Toque em qualquer área vazia fecha o menu aberto
-            document.addEventListener('touchstart', (e) => {
+            // Clique ou toque em qualquer área fora fecha o card aberto
+            document.addEventListener('pointerdown', (e) => {
                 if (cardAberto && !e.target.closest('.swipe-container')) {
                     cardAberto.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
                     cardAberto.style.transform = 'translateX(0px)';

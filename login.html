@@ -88,7 +88,7 @@
             color: #8FA3BF;
         }
 
-        /* Banner de Atualização Disponível (UpdateService) */
+        /* Banner de Atualização Disponível */
         .update-banner {
             display: none;
             background: linear-gradient(90deg, #103328 0%, #0A221C 100%);
@@ -189,7 +189,7 @@
                 opacity: 0.7;
             }
 
-        /* Spinner (LoadingIndicator) */
+        /* Spinner */
         .spinner {
             display: none;
             width: 18px;
@@ -215,7 +215,7 @@
 
     <div class="login-card">
 
-        <!-- Banner de Atualização Encontrada (Simulando o UpdateService do MAUI) -->
+        <!-- Banner de Atualização Encontrada -->
         <div id="updateBanner" class="update-banner">
             <span id="updateMsg">Nova versão encontrada!</span>
             <a href="distribuicao/com.companyname.apontamento-Signed.apk" download>Atualizar</a>
@@ -247,7 +247,7 @@
                 </div>
             </div>
 
-            <!-- Campo Senha com Alternância de Visibilidade -->
+            <!-- Campo Senha -->
             <div class="input-group">
                 <label for="txtSenha">Senha</label>
                 <div class="input-box">
@@ -267,7 +267,7 @@
                 </div>
             </div>
 
-            <!-- Botão Entrar com Spinner Integrado -->
+            <!-- Botão Entrar -->
             <button type="submit" id="btnEntrar" class="btn-entrar">
                 <div id="loadingIndicator" class="spinner"></div>
                 <span id="lblBtnEntrar">Acessar</span>
@@ -289,26 +289,20 @@
         let _senhaOculta = true;
 
         document.addEventListener('DOMContentLoaded', async () => {
-            // Executa equivalente ao OnAppearing()
             await checarAtualizacaoAsync();
         });
 
-        // =========================================================================
-        // 2. ALTERNAR VISIBILIDADE DA SENHA (OnAlternarSenhaTapped)
-        // =========================================================================
+        // Alternar Visibilidade da Senha
         function onAlternarSenhaTapped() {
             _senhaOculta = !_senhaOculta;
             const txtSenha = document.getElementById('txtSenha');
             const btnOlho = document.getElementById('btnToggleSenha');
 
             txtSenha.type = _senhaOculta ? "password" : "text";
-            // Cor #8FA3BF quando oculta, #2F80ED quando visível (exatamente como no C#)
             btnOlho.style.color = _senhaOculta ? "#8FA3BF" : "#2F80ED";
         }
 
-        // =========================================================================
-        // 3. FLUXO DE AUTENTICAÇÃO (OnEntrarClicked)
-        // =========================================================================
+        // Fluxo de Autenticação
         async function onEntrarClicked(e) {
             e.preventDefault();
 
@@ -325,7 +319,6 @@
             const loadingIndicator = document.getElementById('loadingIndicator');
 
             try {
-                // Ativa estado de carregamento
                 btnEntrar.disabled = true;
                 loadingIndicator.style.display = "block";
                 lblBtnEntrar.textContent = "Conectando...";
@@ -343,25 +336,27 @@
                     return;
                 }
 
-                // Salva credenciais (equivalente às Preferences no .NET MAUI)
-                localStorage.setItem("MatriculaUsuario", usuario.matricula);
-                localStorage.setItem("NivelUsuario", usuario.nivel || "Usuario");
-                localStorage.setItem("UsuarioGrupo", usuario.grupo || "Mantenedor");
+                const matLimpa = String(usuario.matricula).trim();
+                const nivelLimpo = String(usuario.nivel || "Usuario").trim();
+                const grupoLimpo = String(usuario.grupo || "Mantenedor").trim();
+                const nomeLimpo = String(usuario.nome || matLimpa).trim();
 
-                // =================================================================
-                // REGISTRO DE NOTIFICAÇÕES (RegistrarDispositivoFcmAsync)
-                // =================================================================
-                await registrarDispositivoFcmAsync(matricula);
+                // 1. Grava TODAS as chaves de sessão para compatibilidade total entre telas
+                localStorage.setItem("auth_token", "session_" + Date.now());
+                localStorage.setItem("MatriculaUsuario", matLimpa);
+                localStorage.setItem("UsuarioMatricula", matLimpa);
+                localStorage.setItem("NivelUsuario", nivelLimpo);
+                localStorage.setItem("UsuarioNivel", nivelLimpo);
+                localStorage.setItem("UsuarioGrupo", grupoLimpo);
+                localStorage.setItem("UsuarioNome", nomeLimpo);
 
-                // Redirecionamento por Nível
-                const nivel = (usuario.nivel || "Usuario").trim().toLowerCase();
-                const isApenasUsuario = nivel === "usuario" || nivel === "3";
+                // 2. Registro em segundo plano de notificações
+                try {
+                    await registrarDispositivoFcmAsync(matLimpa);
+                } catch (_) { }
 
-                if (isApenasUsuario) {
-                    window.location.replace("listaapontamento.html");
-                } else {
-                    window.location.replace("index.html");
-                }
+                // 3. TODOS os usuários iniciam no Menu Principal (index.html)
+                window.location.replace("index.html");
 
             } catch (ex) {
                 console.error(ex);
@@ -373,14 +368,11 @@
             }
         }
 
-        // =========================================================================
-        // 4. REGISTRO DE DISPOSITIVO PUSH / FCM (RegistrarDispositivoFcmAsync)
-        // =========================================================================
+        // Registro de Dispositivo Push
         async function registrarDispositivoFcmAsync(matricula) {
             try {
                 if (!("Notification" in window)) return;
 
-                // Solicita permissão se ainda não foi concedida
                 let permission = Notification.permission;
                 if (permission !== "granted" && permission !== "denied") {
                     permission = await Notification.requestPermission();
@@ -388,7 +380,6 @@
 
                 let pushToken = localStorage.getItem("WebPush_Token") || "";
 
-                // Se houver suporte a Service Worker e PushManager, captura a subscription
                 if ('serviceWorker' in navigator && permission === "granted") {
                     const reg = await navigator.serviceWorker.ready;
                     let sub = await reg.pushManager.getSubscription();
@@ -397,7 +388,7 @@
                         try {
                             sub = await reg.pushManager.subscribe({
                                 userVisibleOnly: true,
-                                applicationServerKey: null // Caso utilize VAPID público, inclua aqui
+                                applicationServerKey: null
                             });
                         } catch (e) {
                             console.warn("Inscrição push sem VAPID:", e);
@@ -410,7 +401,6 @@
                     }
                 }
 
-                // Persiste na tabela usuario_dispositivos do Supabase
                 const tokenFinal = pushToken || `web-client-${navigator.userAgent.slice(0, 50)}`;
 
                 await supabaseClient.from('usuario_dispositivos').upsert({
@@ -419,16 +409,12 @@
                     atualizado_em: new Date().toISOString()
                 });
 
-                console.log(`[FCM_LOGIN] Dispositivo registrado com sucesso para: ${matricula}`);
-
             } catch (exPush) {
-                console.warn(`[FCM_LOGIN] Erro ao registrar dispositivo no Supabase: ${exPush.message || exPush}`);
+                console.warn(`[FCM_LOGIN] Erro ao registrar dispositivo: ${exPush.message || exPush}`);
             }
         }
 
-        // =========================================================================
-        // 5. CHECAR ATUALIZAÇÕES DO APP (UpdateService)
-        // =========================================================================
+        // Checar Atualizações do App
         async function checarAtualizacaoAsync() {
             if (!navigator.onLine) return;
 

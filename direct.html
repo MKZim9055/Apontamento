@@ -1,0 +1,807 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <title>Direct & Avisos</title>
+
+    <!-- Configurações PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Apontamento" />
+    <link rel="apple-touch-icon" href="icoapontamento.png" />
+    <link rel="manifest" href="manifest.json" />
+
+    <!-- Supabase JS Client Oficial -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Guardião de Autenticação Alinhado com o PWA -->
+    <script>
+        (function verificarAuth() {
+            const matricula = localStorage.getItem("MatriculaUsuario") ||
+                localStorage.getItem("UsuarioMatricula");
+            if (!matricula || matricula.trim() === "" || matricula === "---") {
+                window.location.replace("login.html");
+            }
+        })();
+    </script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        input, textarea, select {
+            user-select: text;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            background: linear-gradient(135deg, #081426 0%, #020912 50%, #0A1D38 100%);
+            color: #FFFFFF;
+            display: flex;
+            flex-direction: column;
+            padding: calc(35px + env(safe-area-inset-top)) 20px calc(12px + env(safe-area-inset-bottom)) 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 500px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            height: 100%;
+        }
+
+        /* 1. Topo: Botão Voltar e Título */
+        .header-top {
+            display: flex;
+            align-items: center;
+            margin-bottom: 14px;
+            gap: 14px;
+        }
+
+        .btn-voltar {
+            background-color: #0E223D;
+            border: 1px solid #1F3A60;
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #FFFFFF;
+            font-size: 20px;
+            text-decoration: none;
+            transition: background 0.15s ease, transform 0.12s ease;
+            flex-shrink: 0;
+        }
+
+            .btn-voltar:active {
+                transform: scale(0.95);
+                background-color: #173763;
+            }
+
+        .header-titles {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+            .header-titles h1 {
+                font-size: 20px;
+                font-weight: 700;
+                color: #FFFFFF;
+                line-height: 1.2;
+            }
+
+            .header-titles p {
+                font-size: 12px;
+                color: #8FA3BF;
+            }
+
+        /* 2. Caixa de Nova Mensagem */
+        .send-card {
+            background-color: #0B1C33;
+            border: 1px solid #173154;
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .card-header-tag {
+            font-size: 11px;
+            font-weight: 700;
+            color: #D1B3FF;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .form-label {
+            font-size: 14px;
+            font-weight: 700;
+            color: #CAD8E8;
+        }
+
+        .input-box {
+            background-color: #061221;
+            border: 1px solid #1B3352;
+            border-radius: 8px;
+            height: 40px;
+            padding: 0 10px;
+            display: flex;
+            align-items: center;
+            position: relative;
+            transition: border-color 0.2s ease;
+        }
+
+            .input-box:focus-within {
+                border-color: #8A2BE2;
+            }
+
+            .input-box select {
+                width: 100%;
+                height: 100%;
+                background: transparent;
+                border: none;
+                outline: none;
+                color: #FFFFFF;
+                font-size: 14px;
+                cursor: pointer;
+                appearance: none;
+            }
+
+                .input-box select option {
+                    background-color: #061221;
+                    color: #FFFFFF;
+                }
+
+        .aviso-todos-txt {
+            font-size: 13px;
+            color: #8FA3BF;
+            margin: 2px 2px 4px 2px;
+        }
+
+        /* Área de Texto da Mensagem */
+        .textarea-box {
+            background-color: #061221;
+            border: 1px solid #1B3352;
+            border-radius: 8px;
+            height: 70px;
+            padding: 8px 10px;
+            display: flex;
+            transition: border-color 0.2s ease;
+        }
+
+            .textarea-box:focus-within {
+                border-color: #8A2BE2;
+            }
+
+            .textarea-box textarea {
+                width: 100%;
+                height: 100%;
+                background: transparent;
+                border: none;
+                outline: none;
+                color: #FFFFFF;
+                font-size: 15px;
+                resize: none;
+            }
+
+                .textarea-box textarea::placeholder {
+                    color: #475C75;
+                }
+
+        /* Botão Enviar Mensagem */
+        .btn-enviar {
+            background-color: #8A2BE2;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 10px;
+            height: 42px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: transform 0.12s ease, opacity 0.15s ease;
+        }
+
+            .btn-enviar:active {
+                transform: scale(0.98);
+                opacity: 0.9;
+            }
+
+            .btn-enviar:disabled {
+                background-color: #4B2078;
+                cursor: not-allowed;
+                opacity: 0.6;
+            }
+
+        /* 3. Título da Lista */
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 0 4px 8px 4px;
+        }
+
+        .list-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #8FA3BF;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-refresh {
+            background: transparent;
+            border: none;
+            color: #8A2BE2;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        /* 4. Lista de Mensagens */
+        .messages-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-bottom: 20px;
+            overscroll-behavior-y: contain;
+        }
+
+        .msg-card {
+            background-color: #0D2542;
+            border: 1px solid #17365D;
+            border-radius: 14px;
+            padding: 14px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .msg-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .remetente-box {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .remetente-nome-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .label-de {
+            font-size: 12px;
+            color: #8FA3BF;
+        }
+
+        .remetente-nome {
+            font-size: 15px;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        .msg-data {
+            font-size: 11px;
+            color: #5A718F;
+        }
+
+        .badge-destino {
+            background-color: #1B3A63;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #6CB8FF;
+            white-space: nowrap;
+        }
+
+            .badge-destino.geral {
+                background-color: #2E1B4E;
+                color: #D1B3FF;
+            }
+
+        .msg-divider {
+            height: 1px;
+            background-color: #132D4E;
+        }
+
+        .msg-conteudo {
+            font-size: 15px;
+            color: #CAD8E8;
+            line-height: 1.35;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        /* Empty State */
+        .empty-view {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-top: 40px;
+            gap: 8px;
+            text-align: center;
+            color: #8FA3BF;
+        }
+
+            .empty-view .icon {
+                font-size: 36px;
+            }
+
+            .empty-view p {
+                font-size: 14px;
+            }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+
+        <!-- 1. Topo: Botão Voltar e Título -->
+        <header class="header-top">
+            <button type="button" class="btn-voltar" onclick="onVoltarTapped()" title="Voltar">←</button>
+            <div class="header-titles">
+                <h1>Direct & Avisos</h1>
+                <p>Mensagens gerais, por grupo ou individuais</p>
+            </div>
+        </header>
+
+        <!-- 2. Caixa de Nova Mensagem -->
+        <section class="send-card">
+            <span class="card-header-tag">ENVIAR MENSAGEM</span>
+
+            <!-- CAMPO 1: Tipo de Destino -->
+            <div class="form-group">
+                <label class="form-label">Enviar para:</label>
+                <div class="input-box">
+                    <select id="pkrTipoDestino" onchange="onTipoDestinoChanged()">
+                        <option value="0" selected>Todos (Aviso Geral)</option>
+                        <option value="1">Grupo</option>
+                        <option value="2">Usuário Individual</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- CAMPO 2: Destino Específico -->
+            <div class="form-group">
+                <label class="form-label" id="lblTituloAlvo">Público:</label>
+
+                <!-- Opção A: Todos -->
+                <p class="aviso-todos-txt" id="lblTodosAviso">Todos receberão este aviso</p>
+
+                <!-- Opção B: Grupo -->
+                <div class="input-box hidden" id="borderPickerGrupo">
+                    <select id="pkrAlvoGrupo">
+                        <option value="" disabled selected hidden>Selecione o Grupo</option>
+                        <option value="Caldeiraria">Caldeiraria</option>
+                        <option value="Mecânica">Mecânica</option>
+                        <option value="Mantenedor">Mantenedor</option>
+                    </select>
+                </div>
+
+                <!-- Opção C: Usuário Individual -->
+                <div class="input-box hidden" id="borderPickerUsuario">
+                    <select id="pkrAlvoUsuario">
+                        <option value="" disabled selected hidden>Selecione o Usuário</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- CAMPO 3: Mensagem -->
+            <div class="textarea-box">
+                <textarea id="txtMensagem"
+                          placeholder="Digite seu recado ou aviso aqui..."
+                          spellcheck="false"></textarea>
+            </div>
+
+            <!-- Botão Enviar -->
+            <button type="button" id="btnEnviar" class="btn-enviar" onclick="onEnviarMensagemClicked()">
+                <span>✈️</span>
+                <span>Enviar Mensagem</span>
+            </button>
+        </section>
+
+        <!-- 3. Título da Lista -->
+        <div class="list-header">
+            <span class="list-title">MENSAGENS RECEBIDAS & ENVIADAS</span>
+            <button class="btn-refresh" onclick="carregarMensagensAsync()">Atualizar ↻</button>
+        </div>
+
+        <!-- 4. Lista de Mensagens -->
+        <main class="messages-list" id="listaMensagens">
+            <!-- Renderizado dinamicamente -->
+        </main>
+
+        <!-- View Vazia -->
+        <div class="empty-view" id="emptyView">
+            <span class="icon">💬</span>
+            <p>Nenhuma mensagem encontrada</p>
+        </div>
+
+    </div>
+
+    <script>
+        // =========================================================================
+        // 1. CONFIGURAÇÕES SUPABASE
+        // =========================================================================
+        const SUPABASE_URL = "https://mtlbrhmpiwvzjwbzaywi.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_qilTaEWSiDNr1L-N5uE5gA_NYyLkyBt";
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let _listaUsuarios = [];
+        let _minhaMatricula = "";
+        let _meuNome = "";
+        let _meuGrupo = "";
+        let _nivelUsuario = "";
+        let _ehAdministrador = false;
+        let isSending = false;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await carregarDadosSessaoAsync();
+            await carregarUsuariosParaPickerAsync();
+            await carregarMensagensAsync();
+            inscreverRealtimeMensagens();
+        });
+
+        // 1. Carrega dados de identificação e define rigorosamente o perfil
+        async function carregarDadosSessaoAsync() {
+            _minhaMatricula = (localStorage.getItem("MatriculaUsuario") ||
+                localStorage.getItem("UsuarioMatricula") || "").trim();
+
+            _meuGrupo = (localStorage.getItem("UsuarioGrupo") || "").trim();
+            _nivelUsuario = (localStorage.getItem("UsuarioNivel") ||
+                localStorage.getItem("NivelUsuario") || "").trim();
+            _meuNome = (localStorage.getItem("UsuarioNome") || "").trim();
+
+            if (_minhaMatricula) {
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('usuarios')
+                        .select('matricula, nome, grupo, nivel')
+                        .ilike('matricula', _minhaMatricula)
+                        .limit(1);
+
+                    if (!error && data && data.length > 0) {
+                        const u = data[0];
+                        if (u.nome) _meuNome = String(u.nome).trim();
+                        if (u.grupo) _meuGrupo = String(u.grupo).trim();
+                        if (u.nivel) _nivelUsuario = String(u.nivel).trim();
+
+                        localStorage.setItem("UsuarioNome", _meuNome);
+                        localStorage.setItem("UsuarioGrupo", _meuGrupo);
+                        localStorage.setItem("UsuarioNivel", _nivelUsuario);
+                        localStorage.setItem("NivelUsuario", _nivelUsuario);
+                    }
+                } catch (err) {
+                    console.warn("Validação remota ignorada:", err);
+                }
+            }
+
+            const nivelLimpo = _nivelUsuario.toLowerCase();
+            const grupoLimpo = _meuGrupo.toLowerCase();
+
+            // Apenas Administrador tem visão total
+            _ehAdministrador = nivelLimpo === "administrador" ||
+                nivelLimpo === "admin" ||
+                nivelLimpo === "1" ||
+                grupoLimpo === "administrador" ||
+                grupoLimpo === "admin";
+        }
+
+        // 2. Preenche lista de usuários para seleção
+        async function carregarUsuariosParaPickerAsync() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('usuarios')
+                    .select('matricula, nome')
+                    .order('nome', { ascending: true });
+
+                if (!error && data) {
+                    _listaUsuarios = data.filter(u =>
+                        u.matricula &&
+                        String(u.matricula).trim().toLowerCase() !== _minhaMatricula.toLowerCase()
+                    );
+
+                    const select = document.getElementById('pkrAlvoUsuario');
+                    select.innerHTML = '<option value="" disabled selected hidden>Selecione o Usuário</option>';
+
+                    _listaUsuarios.forEach(u => {
+                        const opt = document.createElement('option');
+                        opt.value = String(u.matricula).trim();
+                        opt.textContent = `${u.nome || u.matricula} (${u.matricula})`;
+                        select.appendChild(opt);
+                    });
+                }
+            } catch (e) {
+                console.warn("Falha ao listar usuários:", e);
+            }
+        }
+
+        function formatarDataHora(dataString) {
+            if (!dataString) return "";
+            try {
+                const d = new Date(dataString);
+                if (isNaN(d.getTime())) return dataString;
+
+                const dia = String(d.getDate()).padStart(2, '0');
+                const mes = String(d.getMonth() + 1).padStart(2, '0');
+                const ano = d.getFullYear();
+                const horas = String(d.getHours()).padStart(2, '0');
+                const minutos = String(d.getMinutes()).padStart(2, '0');
+
+                return `${dia}/${mes}/${ano} ${horas}:${minutos}`;
+            } catch (_) {
+                return dataString;
+            }
+        }
+
+        // 3. Consulta de mensagens com filtragem local à prova de falhas
+        async function carregarMensagensAsync() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('direct_mensagens')
+                    .select('*')
+                    .order('id', { ascending: false });
+
+                if (error) throw error;
+
+                const todas = data || [];
+                let filtradas = [];
+
+                if (_ehAdministrador) {
+                    filtradas = todas;
+                } else {
+                    const minhaMat = _minhaMatricula.toLowerCase();
+                    const meuNom = _meuNome.toLowerCase();
+
+                    filtradas = todas.filter(m => {
+                        const tipo = String(m.tipo_destino || m.TipoDestino || "").trim().toLowerCase();
+                        const destino = String(m.destino || m.Destino || "").trim().toLowerCase();
+                        const remetenteMat = String(m.remetente_matricula || m.RemetenteMatricula || "").trim().toLowerCase();
+                        const remetenteNom = String(m.remetente_nome || m.RemetenteNome || "").trim().toLowerCase();
+
+                        // 1. Mensagem geral para TODOS
+                        if (tipo === "todos" || destino === "todos") return true;
+
+                        // 2. Mensagens enviadas pelo próprio usuário
+                        if (minhaMat && remetenteMat === minhaMat) return true;
+                        if (meuNom && remetenteNom === meuNom) return true;
+
+                        // 3. Mensagem individual destinada a este usuário
+                        if (tipo === "usuario") {
+                            if (minhaMat && destino === minhaMat) return true;
+                            if (meuNom && destino === meuNom) return true;
+                        }
+
+                        return false;
+                    });
+                }
+
+                renderizarMensagens(filtradas);
+            } catch (ex) {
+                console.error("Falha ao carregar mensagens:", ex);
+            }
+        }
+
+        function renderizarMensagens(mensagens) {
+            const container = document.getElementById('listaMensagens');
+            const emptyView = document.getElementById('emptyView');
+
+            if (!mensagens || mensagens.length === 0) {
+                container.innerHTML = "";
+                emptyView.style.display = "flex";
+                return;
+            }
+
+            emptyView.style.display = "none";
+
+            container.innerHTML = mensagens.map(msg => {
+                const remetenteNome = msg.remetente_nome || msg.RemetenteNome || msg.remetente_matricula || "Desconhecido";
+                const dataEnvio = formatarDataHora(msg.created_at || msg.CreatedAt);
+                const conteudo = msg.conteudo || msg.Conteudo || "";
+                const tipoDestino = String(msg.tipo_destino || msg.TipoDestino || "").toLowerCase().trim();
+                const destinoBruto = String(msg.destino || msg.Destino || "TODOS").trim();
+
+                let destinoExibicao = "";
+                let isGeral = false;
+
+                if (tipoDestino === "usuario") {
+                    if (destinoBruto.toLowerCase() === _minhaMatricula.toLowerCase()) {
+                        destinoExibicao = _meuNome || _minhaMatricula;
+                    } else {
+                        const userAlvo = _listaUsuarios.find(u =>
+                            u.matricula && String(u.matricula).toLowerCase() === destinoBruto.toLowerCase()
+                        );
+                        destinoExibicao = userAlvo && userAlvo.nome ? userAlvo.nome : destinoBruto;
+                    }
+                } else {
+                    destinoExibicao = destinoBruto.toUpperCase();
+                    if (destinoExibicao === "TODOS") isGeral = true;
+                }
+
+                return `
+                        <article class="msg-card">
+                            <div class="msg-card-top">
+                                <div class="remetente-box">
+                                    <div class="remetente-nome-row">
+                                        <span class="label-de">De:</span>
+                                        <span class="remetente-nome">${remetenteNome}</span>
+                                    </div>
+                                    <span class="msg-data">${dataEnvio}</span>
+                                </div>
+
+                                <div class="badge-destino ${isGeral ? 'geral' : ''}">
+                                    Para: ${destinoExibicao}
+                                </div>
+                            </div>
+
+                            <div class="msg-divider"></div>
+
+                            <div class="msg-conteudo">${escaparHtml(conteudo)}</div>
+                        </article>
+                    `;
+            }).join('');
+        }
+
+        function escaparHtml(texto) {
+            const div = document.createElement('div');
+            div.textContent = texto;
+            return div.innerHTML;
+        }
+
+        // 4. Troca dinâmica dos campos de envio
+        function onTipoDestinoChanged() {
+            const index = parseInt(document.getElementById('pkrTipoDestino').value, 10);
+            const borderGrupo = document.getElementById('borderPickerGrupo');
+            const borderUsuario = document.getElementById('borderPickerUsuario');
+            const lblTodos = document.getElementById('lblTodosAviso');
+            const lblTituloAlvo = document.getElementById('lblTituloAlvo');
+
+            lblTodos.classList.toggle('hidden', index !== 0);
+            borderGrupo.classList.toggle('hidden', index !== 1);
+            borderUsuario.classList.toggle('hidden', index !== 2);
+
+            switch (index) {
+                case 1:
+                    lblTituloAlvo.textContent = "Qual grupo?";
+                    break;
+                case 2:
+                    lblTituloAlvo.textContent = "Qual usuário?";
+                    break;
+                default:
+                    lblTituloAlvo.textContent = "Público:";
+                    break;
+            }
+        }
+
+        // 5. Envio de Nova Mensagem
+        async function onEnviarMensagemClicked() {
+            if (isSending) return;
+
+            const txtMensagem = document.getElementById('txtMensagem');
+            const texto = txtMensagem.value.trim();
+
+            if (!texto) {
+                alert("Atenção: Digite o conteúdo da mensagem.");
+                return;
+            }
+
+            if (!_meuNome) {
+                await carregarDadosSessaoAsync();
+            }
+
+            const pkrTipo = parseInt(document.getElementById('pkrTipoDestino').value, 10);
+            let tipoDestino = "todos";
+            let alvoDestino = "TODOS";
+
+            if (pkrTipo === 1) { // Grupo
+                const selGrupo = document.getElementById('pkrAlvoGrupo').value;
+                if (!selGrupo) {
+                    alert("Atenção: Selecione o grupo de destino.");
+                    return;
+                }
+                tipoDestino = "grupo";
+                alvoDestino = selGrupo.trim();
+            } else if (pkrTipo === 2) { // Usuário Individual
+                const selUsuario = document.getElementById('pkrAlvoUsuario').value;
+                if (!selUsuario) {
+                    alert("Atenção: Selecione o usuário destinatário.");
+                    return;
+                }
+                tipoDestino = "usuario";
+                alvoDestino = selUsuario.trim();
+            }
+
+            const btnEnviar = document.getElementById('btnEnviar');
+            btnEnviar.disabled = true;
+            isSending = true;
+
+            try {
+                const novaMsg = {
+                    remetente_matricula: _minhaMatricula,
+                    remetente_nome: _meuNome,
+                    tipo_destino: tipoDestino,
+                    destino: alvoDestino,
+                    conteudo: texto,
+                    created_at: new Date().toISOString()
+                };
+
+                const { error } = await supabaseClient
+                    .from('direct_mensagens')
+                    .insert([novaMsg]);
+
+                if (error) throw error;
+
+                txtMensagem.value = "";
+                await carregarMensagensAsync();
+            } catch (ex) {
+                console.error("Erro ao enviar mensagem:", ex);
+                alert(`Erro: Falha ao enviar mensagem: ${ex.message || ex}`);
+            } finally {
+                btnEnviar.disabled = false;
+                isSending = false;
+            }
+        }
+
+        // 6. Atualização em tempo real via Realtime
+        function inscreverRealtimeMensagens() {
+            try {
+                supabaseClient
+                    .channel('direct_mensagens_realtime')
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_mensagens' }, () => {
+                        carregarMensagensAsync();
+                    })
+                    .subscribe();
+            } catch (e) {
+                console.warn("Realtime não inicializado:", e);
+            }
+        }
+
+        function onVoltarTapped() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = "index.html";
+            }
+        }
+    </script>
+</body>
+</html>

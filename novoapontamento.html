@@ -49,7 +49,7 @@
             flex: 1;
         }
 
-        /* 1. Topo: Botão Voltar e Título (Padding: 24px, 35px, 24px, 14px) */
+        /* 1. Topo: Botão Voltar e Título */
         .header-top {
             display: grid;
             grid-template-columns: auto 1fr;
@@ -98,7 +98,7 @@
                 color: #FF9838;
             }
 
-        /* 2. Formulário com Scroll (Padding: 24px, 10px, 24px, 30px) */
+        /* 2. Formulário com Scroll */
         .content-scroll {
             flex: 1;
             overflow-y: auto;
@@ -172,7 +172,7 @@
                     color: #FFFFFF;
                 }
 
-        /* Grid de Horários lado a lado */
+        /* Grid de Horários */
         .grid-horarios {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -212,7 +212,7 @@
             cursor: pointer;
         }
 
-        /* Observações com altura de 90px */
+        /* Observações */
         .input-box-textarea {
             background-color: #061221;
             border: 1px solid #1B3352;
@@ -242,7 +242,7 @@
                     color: #4B6382;
                 }
 
-        /* Botão Salvar (Cor #FF7A00, Raio 14, Altura 52) */
+        /* Botão Salvar */
         .btn-salvar {
             background-color: #FF7A00;
             color: #FFFFFF;
@@ -293,7 +293,7 @@
                     </div>
                 </div>
 
-                <!-- Ordem de Serviço (Único campo Opcional) -->
+                <!-- Ordem de Serviço (Opcional) -->
                 <div class="input-group">
                     <label for="txtOrdemServico">Ordem de Serviço (Opcional)</label>
                     <div class="input-box">
@@ -376,7 +376,7 @@
                     </div>
                 </div>
 
-                <!-- Observações (Obrigatório conforme C#) -->
+                <!-- Observações -->
                 <div class="input-group">
                     <label for="txtObservacoes">Observações</label>
                     <div class="input-box-textarea">
@@ -416,17 +416,21 @@
             await verificarParametrosRota();
         });
 
-        // ConfigurarValoresPadrao
+        // Configuração com Data Local precisa (fuso horário local)
         function configurarValoresPadrao() {
-            const hoje = new Date().toISOString().split('T')[0];
-            document.getElementById('dpData').value = hoje;
+            const agora = new Date();
+            const ano = agora.getFullYear();
+            const mes = String(agora.getMonth() + 1).padStart(2, '0');
+            const dia = String(agora.getDate()).padStart(2, '0');
+            const hoje = `${ano}-${mes}-${dia}`;
 
+            document.getElementById('dpData').value = hoje;
             document.getElementById('txtHoraInicio').value = "07:10";
             document.getElementById('txtHoraFim').value = "16:40";
             document.getElementById('tpNativoInicio').value = "07:10";
             document.getElementById('tpNativoFim').value = "16:40";
 
-            const matriculaUsuario = localStorage.getItem("MatriculaUsuario") || "---";
+            const matriculaUsuario = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "---";
             document.getElementById('lblMatriculaOperador').textContent = `Operador: ${matriculaUsuario}`;
 
             if (matriculaUsuario !== "---") {
@@ -434,16 +438,60 @@
             }
         }
 
-        // CarregarSetoresAsync corrigido e resiliente
+        // Função de Extração Universal de Ordem de Serviço
+        function extrairOrdemServicoDoObjeto(item) {
+            if (!item) return '';
+            const chaves = ['ordemservico', 'ordem_servico', 'OrdemServico', 'numero_os', 'num_os', 'os', 'OS', 'nr_os'];
+            for (const chave of chaves) {
+                if (item[chave] !== undefined && item[chave] !== null && String(item[chave]).trim() !== '') {
+                    return String(item[chave]).trim();
+                }
+            }
+            return '';
+        }
+
+        // Normalizador de Data para Input HTML (YYYY-MM-DD)
+        function normalizarDataParaInput(valorData) {
+            if (!valorData) return '';
+            const str = String(valorData).trim();
+            if (str.includes('T')) return str.split('T')[0];
+            if (str.includes('-')) return str.substring(0, 10);
+            if (str.includes('/')) {
+                const partes = str.split('/');
+                if (partes.length === 3) return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
+            }
+            return str;
+        }
+
+        // Normalizador Universal de Horários
+        function formatarHora(h) {
+            if (!h) return '';
+            const s = String(h).trim();
+            if (s.includes('T')) {
+                const parteTempo = s.split('T')[1];
+                if (parteTempo && parteTempo.includes(':')) {
+                    const sub = parteTempo.split(':');
+                    return `${sub[0].padStart(2, '0')}:${sub[1].padStart(2, '0')}`;
+                }
+            }
+            if (s.includes(':')) {
+                const partes = s.split(':');
+                return `${partes[0].padStart(2, '0')}:${(partes[1] || '00').substring(0, 2).padStart(2, '0')}`;
+            }
+            const digitos = s.replace(/\D/g, '');
+            if (digitos.length >= 4) {
+                return `${digitos.slice(0, 2)}:${digitos.slice(2, 4)}`;
+            }
+            return s;
+        }
+
+        // Carregar Setores com resiliência
         async function carregarSetoresAsync() {
             const select = document.getElementById('pickerSetor');
 
-            // Função auxiliar interna para pintar o <select>
             function renderizarOpcoes(listaNomes) {
                 Setores.length = 0;
                 select.innerHTML = '<option value="" disabled selected hidden>Selecione o setor...</option>';
-
-                // Ordena em ordem alfabética
                 const ordenados = [...listaNomes].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
 
                 ordenados.forEach(nome => {
@@ -459,64 +507,43 @@
                 }
             }
 
-            // PASSO 1: Lê o que já existe no banco local (IndexedDB) para exibição imediata
             try {
-                const setoresLocais = await LocalDB.obterSetores();
-                if (setoresLocais && setoresLocais.length > 0) {
-                    renderizarOpcoes(setoresLocais.map(s => s.nome));
+                if (typeof LocalDB !== 'undefined' && LocalDB.obterSetores) {
+                    const setoresLocais = await LocalDB.obterSetores();
+                    if (setoresLocais && setoresLocais.length > 0) {
+                        renderizarOpcoes(setoresLocais.map(s => s.nome));
+                    }
                 }
             } catch (eLocal) {
-                console.warn("Aviso ao ler banco local inicialmente:", eLocal);
+                console.warn("Aviso ao ler setores locais:", eLocal);
             }
 
-            // PASSO 2: Busca no Supabase se houver conexão
             if (!navigator.onLine) return;
 
             try {
-                console.log("Buscando setores no Supabase...");
                 const { data: respostaNuvem, error } = await supabaseClient
                     .from('setores')
                     .select('id, nome');
 
-                if (error) {
-                    console.error("Erro retornado pelo Supabase na tabela setores:", error.message);
-                    return;
-                }
+                if (!error && respostaNuvem && respostaNuvem.length > 0) {
+                    const nomesNuvem = respostaNuvem.map(s => (s.nome || '').trim()).filter(n => n.length > 0);
 
-                if (respostaNuvem && respostaNuvem.length > 0) {
-                    console.log("Setores retornados do Supabase:", respostaNuvem);
-
-                    // Coleta os nomes válidos da nuvem
-                    const nomesNuvem = respostaNuvem
-                        .map(s => (s.nome || '').trim())
-                        .filter(n => n.length > 0);
-
-                    // Salva cada setor no banco local sem travar a execução
-                    for (const s of respostaNuvem) {
-                        if (s.nome && s.nome.trim()) {
-                            try {
-                                await LocalDB.salvarSetor(s.nome.trim(), s.id);
-                            } catch (errSave) {
-                                // Ignora erro de duplicidade se já existir
+                    if (typeof LocalDB !== 'undefined' && LocalDB.salvarSetor) {
+                        for (const s of respostaNuvem) {
+                            if (s.nome && s.nome.trim()) {
+                                try { await LocalDB.salvarSetor(s.nome.trim(), s.id); } catch (_) { }
                             }
                         }
                     }
 
-                    // Atualiza a tela com a lista consolidada
                     renderizarOpcoes([...new Set(nomesNuvem)]);
-
-                    if (_setorPendenteSelecao) {
-                        _setorPendenteSelecao = null;
-                    }
-                } else {
-                    console.warn("Supabase retornou lista vazia. Verifique permissões RLS ou registros na tabela 'setores'.");
+                    if (_setorPendenteSelecao) _setorPendenteSelecao = null;
                 }
             } catch (ex) {
-                console.error("Falha geral ao conectar com o Supabase:", ex);
+                console.error("Falha geral ao buscar setores na nuvem:", ex);
             }
         }
 
-        // DefinirSetorSelecionado
         function definirSetorSelecionado(nomeSetor) {
             if (!nomeSetor || !nomeSetor.trim()) {
                 document.getElementById('pickerSetor').value = "";
@@ -531,10 +558,17 @@
             }
 
             const select = document.getElementById('pickerSetor');
-            const encontrado = Setores.find(s => s.toLowerCase() === setorTrim.toLowerCase());
+            let indexEncontrado = -1;
 
-            if (encontrado) {
-                select.value = encontrado;
+            for (let i = 0; i < select.options.length; i++) {
+                if (select.options[i].value.toLowerCase() === setorTrim.toLowerCase()) {
+                    indexEncontrado = i;
+                    break;
+                }
+            }
+
+            if (indexEncontrado >= 0) {
+                select.selectedIndex = indexEncontrado;
             } else {
                 const opt = document.createElement('option');
                 opt.value = setorTrim;
@@ -545,13 +579,28 @@
             }
         }
 
-        // IQueryAttributable: ApplyQueryAttributes
+        // =========================================================================
+        // VERIFICAÇÃO DE ROTA E REGRAS DE PERMISSÃO
+        // =========================================================================
         async function verificarParametrosRota() {
             const params = new URLSearchParams(window.location.search);
             const localId = params.get('id');
             const remotoId = params.get('remotoId');
 
+            // 1. CENÁRIO: EDIÇÃO NA NUVEM (Somente Administrador e Supervisor)
             if (remotoId) {
+                const nivel = (localStorage.getItem("UsuarioNivel") || localStorage.getItem("NivelUsuario") || "Usuario").toLowerCase();
+                const grupo = (localStorage.getItem("UsuarioGrupo") || "").toLowerCase();
+                const temPermissao = nivel.includes("admin") || nivel.includes("supervisor") ||
+                    grupo.includes("admin") || grupo.includes("supervisor") ||
+                    nivel === "1" || nivel === "2";
+
+                if (!temPermissao) {
+                    alert("Acesso Negado: Apenas Administradores e Supervisores podem editar registros diretamente no servidor.");
+                    window.location.replace("listaapontamento.html");
+                    return;
+                }
+
                 try {
                     const { data, error } = await supabaseClient
                         .from('apontamentos')
@@ -562,66 +611,85 @@
                     if (!error && data) {
                         _apontamentoRemotoEdicao = data;
                         carregarDadosRemotosParaEdicao(data);
+                    } else {
+                        alert("Registro não encontrado no servidor.");
+                        window.location.replace("relatorios.html");
                     }
                 } catch (err) {
-                    console.error(`Erro ao carregar dados remotos: ${err.message || err}`);
+                    console.error("Erro ao carregar dados remotos:", err);
+                    alert("Não foi possível carregar os dados da nuvem.");
                 }
                 return;
             }
 
+            // 2. CENÁRIO: EDIÇÃO NO BANCO LOCAL (Antes do envio)
             if (localId) {
-                const item = await LocalDB.obterApontamentoPorId(localId);
-                if (item) {
-                    _apontamentoEdicao = item;
-                    carregarDadosParaEdicao(item);
+                try {
+                    const item = await LocalDB.obterApontamentoPorId(localId);
+                    if (item) {
+                        if (item.data_sincronizado) {
+                            alert("Este apontamento já foi transmitido para a nuvem e não pode mais ser editado no banco local.");
+                            window.location.replace("listaapontamento.html");
+                            return;
+                        }
+                        _apontamentoEdicao = item;
+                        carregarDadosParaEdicao(item);
+                    }
+                } catch (errLocal) {
+                    console.error("Erro ao carregar dados locais:", errLocal);
                 }
             }
         }
 
-        // CarregarDadosParaEdicao (Local)
         function carregarDadosParaEdicao(item) {
             document.title = "Editar Apontamento";
             document.getElementById('lblTitulo').textContent = "Editar Apontamento Local";
             document.getElementById('btnSalvar').textContent = "Atualizar Apontamento";
 
-            document.getElementById('dpData').value = item.data;
-            document.getElementById('txtOrdemServico').value = item.ordem_servico || '';
-            definirSetorSelecionado(item.setor);
-            document.getElementById('txtMatriculaExecutante').value = item.matricula_executante || '';
-            document.getElementById('txtObservacoes').value = item.observacoes || '';
+            document.getElementById('dpData').value = normalizarDataParaInput(item.data);
+            document.getElementById('txtOrdemServico').value = extrairOrdemServicoDoObjeto(item);
+            document.getElementById('txtMatriculaExecutante').value = item.matricula_executante || item.MatriculaExecutante || '';
 
-            document.getElementById('txtHoraInicio').value = item.hora_inicio || '';
-            document.getElementById('txtHoraFim').value = item.hora_fim || '';
-            document.getElementById('tpNativoInicio').value = item.hora_inicio || '';
-            document.getElementById('tpNativoFim').value = item.hora_fim || '';
+            const hInicio = formatarHora(item.horainicio || item.hora_inicio || '');
+            const hFim = formatarHora(item.horafim || item.hora_fim || '');
+
+            document.getElementById('txtHoraInicio').value = hInicio;
+            document.getElementById('txtHoraFim').value = hFim;
+            document.getElementById('tpNativoInicio').value = hInicio;
+            document.getElementById('tpNativoFim').value = hFim;
+
+            definirSetorSelecionado(item.setor || item.Setor || '');
+            document.getElementById('txtObservacoes').value = item.observacoes || item.Observacoes || '';
 
             document.getElementById('lblMatriculaOperador').textContent = `Editando Local ID: #${item.id}`;
         }
 
-        // CarregarDadosRemotosParaEdicao (Nuvem)
         function carregarDadosRemotosParaEdicao(item) {
             document.title = "Editar na Nuvem";
             document.getElementById('lblTitulo').textContent = "Editar Apontamento (Nuvem)";
             document.getElementById('btnSalvar').textContent = "Salvar Dados";
 
-            if (item.data) {
-                document.getElementById('dpData').value = item.data.split('T')[0];
-            }
+            const rawData = item.data || item.Data;
+            document.getElementById('dpData').value = normalizarDataParaInput(rawData);
+            document.getElementById('txtOrdemServico').value = extrairOrdemServicoDoObjeto(item);
 
-            document.getElementById('txtOrdemServico').value = item.ordem_servico || '';
-            definirSetorSelecionado(item.setor);
-            document.getElementById('txtMatriculaExecutante').value = item.matricula_executante || '';
-            document.getElementById('txtObservacoes').value = item.observacoes || '';
+            const executante = item.matricula_executante ?? item.MatriculaExecutante ?? item.matricula ?? '';
+            document.getElementById('txtMatriculaExecutante').value = executante;
 
-            document.getElementById('txtHoraInicio').value = item.hora_inicio || '';
-            document.getElementById('txtHoraFim').value = item.hora_fim || '';
-            document.getElementById('tpNativoInicio').value = item.hora_inicio || '';
-            document.getElementById('tpNativoFim').value = item.hora_fim || '';
+            const hInicio = formatarHora(item.horainicio ?? item.hora_inicio ?? '');
+            const hFim = formatarHora(item.horafim ?? item.hora_fim ?? '');
+
+            document.getElementById('txtHoraInicio').value = hInicio;
+            document.getElementById('txtHoraFim').value = hFim;
+            document.getElementById('tpNativoInicio').value = hInicio;
+            document.getElementById('tpNativoFim').value = hFim;
+
+            definirSetorSelecionado(item.setor || item.Setor || '');
+            document.getElementById('txtObservacoes').value = item.observacoes || item.Observacoes || item.descricao || '';
 
             document.getElementById('lblMatriculaOperador').textContent = `Editando Nuvem ID: #${item.id}`;
         }
 
-        // OnHoraTextChanged com máscara
         function onHoraInput(input) {
             let textoLimpo = input.value.replace(/\D/g, '');
             if (textoLimpo.length >= 3) {
@@ -639,33 +707,32 @@
             }
         }
 
-        // OnSalvarApontamentoClicked
+        // =========================================================================
+        // SALVAMENTO (GRAVAÇÃO LOCAL OU REMOTA COM SINCRONIZAÇÃO LOCAL)
+        // =========================================================================
         async function onSalvarApontamentoClicked(e) {
             e.preventDefault();
 
             const executante = document.getElementById('txtMatriculaExecutante').value.trim();
             const hInicio = document.getElementById('txtHoraInicio').value.trim();
             const hFim = document.getElementById('txtHoraFim').value.trim();
-            const os = document.getElementById('txtOrdemServico').value.trim(); // ÚNICO CAMPO OPCIONAL
+            const os = document.getElementById('txtOrdemServico').value.trim();
             const setor = document.getElementById('pickerSetor').value.trim();
             const obs = document.getElementById('txtObservacoes').value.trim();
             const dataSql = document.getElementById('dpData').value;
             const grupoUsuario = (localStorage.getItem("UsuarioGrupo") || "Mantenedor").trim();
             const btnSalvar = document.getElementById('btnSalvar');
 
-            // 1. Validação de Setor Obrigatório
             if (!setor) {
                 alert("Campo Obrigatório: Por favor, selecione um Setor.");
                 return;
             }
 
-            // 2. Validação da Matrícula do Executante
             if (!executante) {
                 alert("Campo Obrigatório: Por favor, informe a Matrícula do Executante.");
                 return;
             }
 
-            // 3. Validação dos Horários
             if (!hInicio || !hFim) {
                 alert("Campos Obrigatórios: Os campos Hora Inicial e Hora Final são obrigatórios.");
                 return;
@@ -687,7 +754,6 @@
                 return;
             }
 
-            // 4. Validação das Observações (Obrigatório conforme C#)
             if (!obs) {
                 alert("Campo Obrigatório: Por favor, preencha o campo Observações.");
                 return;
@@ -697,96 +763,166 @@
 
             try {
                 // -----------------------------------------------------------
-                // CENÁRIO 1: EDIÇÃO DIRETA NO SUPABASE (Origem: RelatorioPage)
+                // CENÁRIO 1: EDIÇÃO DIRETA NO SUPABASE (Admin e Supervisor)
                 // -----------------------------------------------------------
                 if (_apontamentoRemotoEdicao != null) {
-                    if (!navigator.onLine) {
-                        alert("Sem Conexão: Você precisa de conexão à internet para salvar as alterações na nuvem.");
+                    const nivel = (localStorage.getItem("UsuarioNivel") || localStorage.getItem("NivelUsuario") || "Usuario").toLowerCase();
+                    const grupoSessao = (localStorage.getItem("UsuarioGrupo") || "").toLowerCase();
+                    const temPermissao = nivel.includes("admin") || nivel.includes("supervisor") ||
+                        grupoSessao.includes("admin") || grupoSessao.includes("supervisor") ||
+                        nivel === "1" || nivel === "2";
+
+                    if (!temPermissao) {
+                        alert("Permissão Insuficiente: Usuários comuns só editam dados no banco local antes do envio.");
+                        btnSalvar.disabled = false;
                         return;
                     }
 
+                    if (!navigator.onLine) {
+                        alert("Sem Conexão: Conecte-se à internet para atualizar registros na nuvem.");
+                        btnSalvar.disabled = false;
+                        return;
+                    }
+
+                    const remotoId = _apontamentoRemotoEdicao.id;
+
+                    // 1. Atualiza no Supabase (colunas exatas do DDL Postgres: ordemservico, horainicio, horafim)
                     const { error } = await supabaseClient
                         .from('apontamentos')
                         .update({
-                            ordem_servico: os,
+                            ordemservico: os,
                             setor: setor,
                             grupo: grupoUsuario,
                             matricula_executante: executante,
                             data: dataSql,
-                            hora_inicio: hInicio,
-                            hora_fim: hFim,
+                            horainicio: hInicio,
+                            horafim: hFim,
                             observacoes: obs
                         })
-                        .eq('id', _apontamentoRemotoEdicao.id);
+                        .eq('id', remotoId);
 
                     if (error) throw error;
 
-                    _apontamentoRemotoEdicao.ordem_servico = os;
-                    _apontamentoRemotoEdicao.setor = setor;
-                    _apontamentoRemotoEdicao.grupo = grupoUsuario;
-                    _apontamentoRemotoEdicao.matricula_executante = executante;
-                    _apontamentoRemotoEdicao.data = dataSql;
-                    _apontamentoRemotoEdicao.hora_inicio = hInicio;
-                    _apontamentoRemotoEdicao.hora_fim = hFim;
-                    _apontamentoRemotoEdicao.observacoes = obs;
+                    const agoraIso = new Date().toISOString();
 
-                    // Tenta atualizar no banco local se houver registro com a mesma O.S.
-                    try {
-                        const locais = await LocalDB.obterApontamentosLocais();
-                        const registroLocal = locais.find(x => x.ordem_servico === os);
-                        if (registroLocal) {
-                            registroLocal.setor = setor;
-                            registroLocal.grupo = grupoUsuario;
-                            registroLocal.matricula_executante = executante;
-                            registroLocal.data = dataSql;
-                            registroLocal.hora_inicio = hInicio;
-                            registroLocal.hora_fim = hFim;
-                            registroLocal.observacoes = obs;
-                            await LocalDB.salvarApontamento(registroLocal);
+                    // 2. Atualização ou Inserção Garantida no Banco Local (IndexedDB)
+                    if (typeof LocalDB !== 'undefined' && LocalDB.obterApontamentosLocais) {
+                        try {
+                            const locais = await LocalDB.obterApontamentosLocais();
+                            const osOriginal = extrairOrdemServicoDoObjeto(_apontamentoRemotoEdicao);
+
+                            // Localiza o registro local por: ID remoto gravado, O.S. nova ou O.S. antiga
+                            let registroLocal = locais.find(x => {
+                                const idRemoto = x.remoto_id || x.nuvem_id || x.remotoId;
+                                if (idRemoto && String(idRemoto) === String(remotoId)) return true;
+
+                                const osLoc = extrairOrdemServicoDoObjeto(x);
+                                return (os && osLoc === os) || (osOriginal && osLoc === osOriginal);
+                            });
+
+                            if (registroLocal) {
+                                // Se já existe no aparelho, atualiza os dados
+                                registroLocal.remoto_id = remotoId;
+                                registroLocal.ordemservico = os;
+                                registroLocal.ordem_servico = os;
+                                registroLocal.setor = setor;
+                                registroLocal.grupo = grupoUsuario;
+                                registroLocal.matricula_executante = executante;
+                                registroLocal.data = dataSql;
+                                registroLocal.horainicio = hInicio;
+                                registroLocal.hora_inicio = hInicio;
+                                registroLocal.horafim = hFim;
+                                registroLocal.hora_fim = hFim;
+                                registroLocal.observacoes = obs;
+                                registroLocal.data_sincronizado = agoraIso;
+
+                                await LocalDB.salvarApontamento(registroLocal);
+                            } else {
+                                // Se o registro foi feito por outro usuário em outro celular,
+                                // insere uma cópia no banco local marcada como sincronizada
+                                const matriculaDono = _apontamentoRemotoEdicao.matricula_usuario
+                                    || localStorage.getItem("MatriculaUsuario")
+                                    || "---";
+
+                                const novoRegistroLocal = {
+                                    remoto_id: remotoId,
+                                    ordemservico: os,
+                                    ordem_servico: os,
+                                    setor: setor,
+                                    grupo: grupoUsuario,
+                                    matricula_executante: executante,
+                                    matricula_usuario: matriculaDono,
+                                    data: dataSql,
+                                    horainicio: hInicio,
+                                    hora_inicio: hInicio,
+                                    horafim: hFim,
+                                    hora_fim: hFim,
+                                    observacoes: obs,
+                                    data_sincronizado: agoraIso
+                                };
+
+                                await LocalDB.salvarApontamento(novoRegistroLocal);
+                            }
+                        } catch (eLocal) {
+                            console.warn("Aviso ao sincronizar base local após edição na nuvem:", eLocal);
                         }
-                    } catch {
-                        // Não interrompe o fluxo caso a busca local falhe
                     }
 
-                    alert("Sucesso: Apontamento atualizado na nuvem com sucesso!");
+                    alert("Sucesso: Apontamento atualizado no Supabase e no banco local com sucesso!");
                     window.location.href = "relatorios.html";
                     return;
                 }
 
                 // -----------------------------------------------------------
-                // CENÁRIO 2: BANCO LOCAL SQLITE / INDEXEDDB (Novo ou Edição Local)
+                // CENÁRIO 2: BANCO LOCAL INDEXEDDB (Novo ou Edição antes do envio)
                 // -----------------------------------------------------------
-                const matriculaLogada = localStorage.getItem("MatriculaUsuario") || "---";
+                if (typeof LocalDB === 'undefined') {
+                    throw new Error("LocalDB não está disponível no contexto global (db.js).");
+                }
+
+                const matriculaLogada = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "---";
 
                 if (_apontamentoEdicao == null) {
                     const novoApontamento = {
+                        ordemservico: os,
                         ordem_servico: os,
                         setor: setor,
                         grupo: grupoUsuario,
                         matricula_executante: executante,
                         matricula_usuario: matriculaLogada,
                         data: dataSql,
+                        horainicio: hInicio,
                         hora_inicio: hInicio,
+                        horafim: hFim,
                         hora_fim: hFim,
                         observacoes: obs,
-                        data_sincronizado: null
+                        data_sincronizado: null // Salva pendente para envio
                     };
 
                     await LocalDB.salvarApontamento(novoApontamento);
-                    alert("Sucesso: Apontamento gravado com sucesso!");
+                    alert("Sucesso: Apontamento gravado no banco local!");
                 } else {
+                    if (_apontamentoEdicao.data_sincronizado) {
+                        alert("Operação Bloqueada: Apontamentos já enviados não podem ser alterados localmente.");
+                        btnSalvar.disabled = false;
+                        return;
+                    }
+
+                    _apontamentoEdicao.ordemservico = os;
                     _apontamentoEdicao.ordem_servico = os;
                     _apontamentoEdicao.setor = setor;
                     _apontamentoEdicao.grupo = grupoUsuario;
                     _apontamentoEdicao.matricula_executante = executante;
                     _apontamentoEdicao.data = dataSql;
+                    _apontamentoEdicao.horainicio = hInicio;
                     _apontamentoEdicao.hora_inicio = hInicio;
+                    _apontamentoEdicao.horafim = hFim;
                     _apontamentoEdicao.hora_fim = hFim;
                     _apontamentoEdicao.observacoes = obs;
                     _apontamentoEdicao.data_sincronizado = null;
 
                     await LocalDB.salvarApontamento(_apontamentoEdicao);
-                    alert("Sucesso: Apontamento atualizado com sucesso!");
+                    alert("Sucesso: Apontamento local atualizado com sucesso!");
                 }
 
                 window.location.href = "listaapontamento.html";
@@ -798,7 +934,6 @@
             }
         }
 
-        // OnVoltarTapped
         function onVoltarTapped() {
             if (window.history.length > 1) {
                 window.history.back();
