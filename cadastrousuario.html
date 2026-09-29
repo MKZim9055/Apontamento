@@ -1,10 +1,880 @@
 ﻿<!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
-    <meta charset="utf-8" />
-    <title></title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro de Usuários - Painel Administrativo</title>
+    <!-- CDN Oficial do Supabase JS v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #081426 0%, #020912 50%, #0A1D38 100%);
+            color: #FFFFFF;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 24px 16px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 540px;
+            display: flex;
+            flex-direction: column;
+            min-height: 90vh;
+            gap: 16px;
+        }
+
+        /* Topo */
+        .header {
+            margin-bottom: 4px;
+        }
+
+        .nav-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .btn-voltar {
+            width: 40px;
+            height: 40px;
+            background-color: #132F4C;
+            border: 1px solid #1F3A60;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            text-decoration: none;
+            color: #FFFFFF;
+            font-size: 20px;
+            font-weight: bold;
+            user-select: none;
+        }
+
+            .btn-voltar:hover {
+                background-color: #1A3E63;
+            }
+
+            .btn-voltar:active {
+                transform: scale(0.96);
+            }
+
+        .nav-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #FFFFFF;
+            margin-left: 14px;
+        }
+
+        .badge-status {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-online {
+            background-color: rgba(0, 196, 140, 0.2);
+            color: #00C48C;
+            border: 1px solid #00C48C;
+        }
+
+        .page-title {
+            font-size: 26px;
+            font-weight: 700;
+            color: #FFFFFF;
+            margin-bottom: 4px;
+        }
+
+        .page-subtitle {
+            font-size: 13px;
+            color: #8FA3BF;
+            line-height: 1.4;
+        }
+
+        /* Formulário */
+        .card-formulario {
+            background-color: #0B1C33;
+            border: 1px solid #173154;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .form-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-row-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #8FA3BF;
+        }
+
+        .input-box {
+            background-color: #061221;
+            border: 1px solid #1B3352;
+            border-radius: 12px;
+            height: 46px;
+            padding: 0 14px;
+            display: flex;
+            align-items: center;
+            transition: border-color 0.2s;
+        }
+
+            .input-box:focus-within {
+                border-color: #2F80ED;
+            }
+
+            .input-box input, .input-box select {
+                width: 100%;
+                background: transparent;
+                border: none;
+                outline: none;
+                color: #FFFFFF;
+                font-size: 14px;
+            }
+
+                .input-box select option {
+                    background-color: #0B1C33;
+                    color: #FFFFFF;
+                }
+
+                .input-box input::placeholder {
+                    color: #4B6382;
+                }
+
+        .btn-salvar {
+            background-color: #2F80ED;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 12px;
+            height: 48px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: filter 0.2s, transform 0.1s;
+            margin-top: 6px;
+        }
+
+            .btn-salvar:hover {
+                filter: brightness(1.1);
+            }
+
+            .btn-salvar:active {
+                transform: scale(0.98);
+            }
+
+            .btn-salvar:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+
+        .btn-cancelar {
+            background: transparent;
+            color: #8FA3BF;
+            border: 1px solid #1B3352;
+            border-radius: 12px;
+            height: 38px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: -4px;
+            display: none;
+        }
+
+        /* Lista de Usuários */
+        .usuarios-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+            .usuarios-header h2 {
+                font-size: 16px;
+                font-weight: 700;
+                color: #FFFFFF;
+            }
+
+        .btn-recarregar {
+            background: transparent;
+            border: none;
+            color: #2F80ED;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .usuarios-lista {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex-grow: 1;
+            min-height: 180px;
+        }
+
+        .usuario-card {
+            background-color: #0D3559;
+            border-radius: 16px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .usuario-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .usuario-nome-linha {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 2px;
+        }
+
+        .usuario-nome {
+            font-size: 15px;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        /* Estilos ajustados com fonte 14px e duas linhas */
+        .usuario-matricula-linha,
+        .usuario-grupo-linha {
+            font-size: 14px;
+            color: #8FA3BF;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+            .usuario-matricula-linha strong {
+                color: #FFFFFF;
+                font-weight: 600;
+            }
+
+            .usuario-grupo-linha strong {
+                color: #56CCF2;
+                font-weight: 600;
+            }
+
+        /* Badges de Nível */
+        .badge-nivel {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .nivel-usuario {
+            background-color: rgba(47, 128, 237, 0.2);
+            color: #56CCF2;
+            border: 1px solid #2F80ED;
+        }
+
+        .nivel-supervisor {
+            background-color: rgba(0, 196, 140, 0.2);
+            color: #6FCF97;
+            border: 1px solid #00C48C;
+        }
+
+        .nivel-admin {
+            background-color: rgba(155, 81, 224, 0.2);
+            color: #BB6BD9;
+            border: 1px solid #9B51E0;
+        }
+
+        .usuario-acoes {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .btn-acao {
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 15px;
+            transition: transform 0.1s;
+        }
+
+            .btn-acao:active {
+                transform: scale(0.92);
+            }
+
+        .btn-editar {
+            background-color: #1A3E63;
+        }
+
+        .btn-excluir {
+            background-color: #5C1D1D;
+        }
+
+        /* Estado Vazio */
+        .empty-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 12px;
+            gap: 8px;
+            text-align: center;
+        }
+
+        .empty-icon {
+            font-size: 40px;
+            opacity: 0.7;
+        }
+
+        .empty-title {
+            font-size: 15px;
+            color: #8FA3BF;
+            font-weight: 600;
+        }
+
+        .empty-sub {
+            font-size: 12px;
+            color: #5A718F;
+        }
+
+        .btn-criar-admin {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background-color: #00C48C;
+            border: none;
+            border-radius: 10px;
+            color: #FFFFFF;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        /* Rodapé */
+        .footer {
+            margin-top: auto;
+            padding-top: 14px;
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .footer-line {
+            flex-grow: 1;
+            height: 1px;
+            background-color: #1F3249;
+        }
+
+        .footer-text {
+            font-size: 11px;
+            color: #5A718F;
+            white-space: nowrap;
+        }
+    </style>
 </head>
 <body>
+
+    <div class="container">
+
+        <!-- Topo -->
+        <header class="header">
+            <div class="nav-bar">
+                <div class="nav-left">
+                    <a href="configuracoes.html" class="btn-voltar" title="Voltar para Configurações">←</a>
+                    <span class="nav-title">Configurações / Usuários</span>
+                </div>
+                <span id="badgeConexao" class="badge-status status-online">Online</span>
+            </div>
+            <h1 class="page-title">Cadastro de Usuários</h1>
+            <p class="page-subtitle">Sincronizado diretamente com a tabela <code>usuarios</code></p>
+        </header>
+
+        <!-- Formulário -->
+        <section class="card-formulario">
+            <input type="hidden" id="usuarioId" value="" />
+
+            <div class="form-row">
+                <label for="txtNome">Nome Completo *</label>
+                <div class="input-box">
+                    <input type="text" id="txtNome" placeholder="Ex: Markinho" maxlength="80" autocomplete="off" />
+                </div>
+            </div>
+
+            <div class="form-row-grid">
+                <div class="form-row">
+                    <label for="txtMatricula">Matrícula *</label>
+                    <div class="input-box">
+                        <input type="text" id="txtMatricula" placeholder="Ex: admin" maxlength="20" autocomplete="off" />
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <label for="txtSenha">Senha *</label>
+                    <div class="input-box">
+                        <input type="password" id="txtSenha" placeholder="Digite a senha" maxlength="40" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row-grid">
+                <div class="form-row">
+                    <label for="selNivel">Nível de Acesso</label>
+                    <div class="input-box">
+                        <select id="selNivel">
+                            <option value="Usuario">Usuário</option>
+                            <option value="Supervisor">Supervisor</option>
+                            <option value="Administrador">Administrador</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <label for="selGrupo">Grupo da Empresa</label>
+                    <div class="input-box">
+                        <select id="selGrupo">
+                            <option value="Geral">Geral</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" id="btnSalvar" class="btn-salvar" onclick="salvarUsuario()">Cadastrar Usuário</button>
+            <button type="button" id="btnCancelar" class="btn-cancelar" onclick="cancelarEdicao()">Cancelar Edição</button>
+        </section>
+
+        <!-- Lista Ordenada -->
+        <div class="usuarios-header">
+            <h2>Usuários Cadastrados</h2>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span id="lblTotalUsuarios" style="font-size: 12px; color: #8FA3BF;">Total: 0</span>
+                <button type="button" class="btn-recarregar" onclick="carregarUsuarios()">🔄 Recarregar</button>
+            </div>
+        </div>
+
+        <main class="usuarios-lista" id="listaUsuarios">
+            <div class="empty-view">
+                <div class="empty-icon">⏳</div>
+                <div class="empty-title">Carregando usuários do Supabase...</div>
+            </div>
+        </main>
+
+        <!-- Rodapé -->
+        <footer class="footer">
+            <div class="footer-line"></div>
+            <span class="footer-text">Ordem: Usuários • Supervisores • Administradores</span>
+            <div class="footer-line"></div>
+        </footer>
+
+    </div>
+
+    <script>
+        // =========================================================================
+        // 1. CAPTURA DO CLIENTE SUPABASE
+        // =========================================================================
+        function obterClienteSupabase() {
+            if (window.supabaseClient) return window.supabaseClient;
+            if (window.supabase && typeof window.SUPABASE_URL !== 'undefined') {
+                return window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+            }
+            return null;
+        }
+
+        let usuarios = [];
+        let grupos = [];
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            verificarPermissaoAdmin();
+            await carregarGruposParaSelect();
+            await carregarUsuarios();
+        });
+
+        function verificarPermissaoAdmin() {
+            const nivel = (
+                localStorage.getItem("NivelAcesso") ||
+                localStorage.getItem("NivelUsuario") ||
+                sessionStorage.getItem("NivelAcesso") ||
+                sessionStorage.getItem("NivelUsuario") ||
+                ""
+            ).trim().toLowerCase();
+
+            const matricula = localStorage.getItem("MatriculaUsuario") || sessionStorage.getItem("MatriculaUsuario");
+
+            if (!matricula) {
+                window.location.href = "login.html";
+                return;
+            }
+
+            const isAdmin = ["administrador", "admin", "1"].includes(nivel);
+            if (!isAdmin) {
+                alert("Acesso restrito: apenas Administradores podem gerenciar usuários.");
+                window.location.href = "index.html";
+            }
+        }
+
+        // =========================================================================
+        // 2. BUSCA GRUPOS PARA POPULAR O SELECT
+        // =========================================================================
+        async function carregarGruposParaSelect() {
+            const supabase = obterClienteSupabase();
+            try {
+                if (supabase) {
+                    const { data } = await supabase.from("grupos").select("nome").order("nome");
+                    if (data && data.length > 0) {
+                        grupos = data.map(g => g.nome.trim());
+                    }
+                }
+            } catch (e) { }
+
+            if (!grupos || grupos.length === 0) {
+                grupos = JSON.parse(localStorage.getItem("GruposCache") || '["Geral", "Caldeiraria", "Mecânica", "Elétrica"]');
+            }
+
+            const select = document.getElementById("selGrupo");
+            if (select) {
+                select.innerHTML = grupos.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join("");
+            }
+        }
+
+        // =========================================================================
+        // 3. CARREGAR USUÁRIOS DO SUPABASE (Com Ordem: Usuário -> Supervisor -> Admin)
+        // =========================================================================
+        function pesoNivel(nivel) {
+            const n = (nivel || "").trim().toLowerCase();
+            if (n === "usuario" || n === "usuário" || n === "3") return 1;
+            if (n === "supervisor" || n === "2") return 2;
+            if (n === "administrador" || n === "admin" || n === "1") return 3;
+            return 4;
+        }
+
+        async function carregarUsuarios() {
+            const container = document.getElementById("listaUsuarios");
+            const lblTotal = document.getElementById("lblTotalUsuarios");
+            const supabase = obterClienteSupabase();
+
+            container.innerHTML = `
+                    <div class="empty-view">
+                        <div class="empty-icon">⏳</div>
+                        <div class="empty-title">Consultando Supabase...</div>
+                    </div>
+                `;
+
+            if (!supabase) {
+                container.innerHTML = `
+                        <div class="empty-view" style="color: #FF6B6B;">
+                            <div class="empty-icon">⚠️</div>
+                            <div class="empty-title">Configuração do Supabase não encontrada!</div>
+                            <div class="empty-sub">Confirme se o arquivo <strong>supabase-config.js</strong> está no mesmo diretório.</div>
+                        </div>
+                    `;
+                return;
+            }
+
+            try {
+                const { data, error } = await supabase
+                    .from("usuarios")
+                    .select("*");
+
+                if (error) throw error;
+
+                if (!data || data.length === 0) {
+                    usuarios = [];
+                    lblTotal.textContent = "Total: 0";
+                    container.innerHTML = `
+                            <div class="empty-view">
+                                <div class="empty-icon">👥</div>
+                                <div class="empty-title">Nenhum usuário cadastrado.</div>
+                                <div class="empty-sub">A tabela está vazia. Você pode cadastrar acima ou criar o admin padrão:</div>
+                                <button class="btn-criar-admin" onclick="criarAdminPadrao()">Criar Usuário 'admin' (Markinho)</button>
+                            </div>
+                        `;
+                    return;
+                }
+
+                // Normaliza e mapeia os dados do Supabase
+                usuarios = data.map(u => ({
+                    id: u.id,
+                    matricula: u.matricula,
+                    nome: u.nome,
+                    grupo: u.grupo || "Geral",
+                    senha: u.senha,
+                    nivel: u.nivel
+                }));
+
+                // Ordenação estrita: Usuário -> Supervisor -> Administrador -> Nome
+                usuarios.sort((a, b) => {
+                    const diff = pesoNivel(a.nivel) - pesoNivel(b.nivel);
+                    if (diff !== 0) return diff;
+                    return (a.nome || "").localeCompare(b.nome || "", "pt-BR");
+                });
+
+                localStorage.setItem("UsuariosCache", JSON.stringify(usuarios));
+                renderizarUsuarios();
+
+            } catch (err) {
+                console.error("[Supabase Erro]:", err);
+                container.innerHTML = `
+                        <div class="empty-view" style="color: #FF6B6B;">
+                            <div class="empty-icon">❌</div>
+                            <div class="empty-title">Falha ao buscar usuários</div>
+                            <div class="empty-sub">${escapeHtml(err.message)}</div>
+                        </div>
+                    `;
+            }
+        }
+
+        function renderizarUsuarios() {
+            const container = document.getElementById("listaUsuarios");
+            const lblTotal = document.getElementById("lblTotalUsuarios");
+            lblTotal.textContent = `Total: ${usuarios.length}`;
+
+            container.innerHTML = usuarios.map(u => {
+                const badgeClass = obterBadgeClasse(u.nivel);
+                return `
+                        <div class="usuario-card">
+                            <div class="usuario-info">
+                                <div class="usuario-nome-linha">
+                                    <span class="usuario-nome">${escapeHtml(u.nome)}</span>
+                                    <span class="badge-nivel ${badgeClass}">${escapeHtml(u.nivel)}</span>
+                                </div>
+                                <!-- Linha 1: Matrícula com fonte 14px -->
+                                <div class="usuario-matricula-linha">
+                                    <span>Matrícula:</span>
+                                    <strong>${escapeHtml(u.matricula)}</strong>
+                                </div>
+                                <!-- Linha 2: Grupo com fonte 14px -->
+                                <div class="usuario-grupo-linha">
+                                    <span>Grupo:</span>
+                                    <strong>${escapeHtml(u.grupo)}</strong>
+                                </div>
+                            </div>
+                            <div class="usuario-acoes">
+                                <button class="btn-acao btn-editar" title="Editar" onclick="iniciarEdicao('${u.id}')">✏️</button>
+                                <button class="btn-acao btn-excluir" title="Excluir" onclick="excluirUsuario('${u.id}', '${escapeJs(u.nome)}')">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+            }).join("");
+        }
+
+        function obterBadgeClasse(nivel) {
+            const n = (nivel || "").trim().toLowerCase();
+            if (n === "supervisor" || n === "2") return "nivel-supervisor";
+            if (n === "administrador" || n === "admin" || n === "1") return "nivel-admin";
+            return "nivel-usuario";
+        }
+
+        // =========================================================================
+        // 4. SALVAR / ATUALIZAR USUÁRIO
+        // =========================================================================
+        async function salvarUsuario() {
+            const id = document.getElementById("usuarioId").value;
+            const nome = document.getElementById("txtNome").value.trim();
+            const matricula = document.getElementById("txtMatricula").value.trim();
+            const senha = document.getElementById("txtSenha").value.trim();
+            const nivel = document.getElementById("selNivel").value;
+            const grupo = document.getElementById("selGrupo").value;
+            const btnSalvar = document.getElementById("btnSalvar");
+            const supabase = obterClienteSupabase();
+
+            if (!nome || !matricula || !senha) {
+                alert("Por favor, preencha Nome, Matrícula e Senha.");
+                return;
+            }
+
+            if (!supabase) {
+                alert("Erro: Conexão com o Supabase não estabelecida.");
+                return;
+            }
+
+            btnSalvar.disabled = true;
+            btnSalvar.textContent = "Gravando...";
+
+            try {
+                const dados = {
+                    nome: nome,
+                    matricula: matricula,
+                    senha: senha,
+                    nivel: nivel,
+                    grupo: grupo
+                };
+
+                if (id) {
+                    // Edição (UPDATE)
+                    const { error } = await supabase
+                        .from("usuarios")
+                        .update(dados)
+                        .eq("id", id);
+
+                    if (error) throw error;
+                    alert("Usuário atualizado com sucesso!");
+                } else {
+                    // Novo Registro (INSERT)
+                    const { error } = await supabase
+                        .from("usuarios")
+                        .insert([dados]);
+
+                    if (error) throw error;
+                    alert("Usuário cadastrado com sucesso!");
+                }
+
+                cancelarEdicao();
+                await carregarUsuarios();
+
+            } catch (err) {
+                alert("Erro ao gravar no Supabase: " + err.message);
+            } finally {
+                btnSalvar.disabled = false;
+                btnSalvar.textContent = id ? "Atualizar Usuário" : "Cadastrar Usuário";
+            }
+        }
+
+        // Helper para inicializar o admin Markinho caso a tabela esteja limpa
+        async function criarAdminPadrao() {
+            const supabase = obterClienteSupabase();
+            if (!supabase) return;
+
+            try {
+                const { error } = await supabase.from("usuarios").insert([{
+                    nome: "Markinho",
+                    matricula: "admin",
+                    senha: "admin",
+                    nivel: "Administrador",
+                    grupo: "Geral"
+                }]);
+
+                if (error) throw error;
+                await carregarUsuarios();
+            } catch (e) {
+                alert("Erro ao criar admin padrão: " + e.message);
+            }
+        }
+
+        // =========================================================================
+        // 5. EDIÇÃO E EXCLUSÃO
+        // =========================================================================
+        function iniciarEdicao(id) {
+            const user = usuarios.find(u => String(u.id) === String(id));
+            if (!user) return;
+
+            document.getElementById("usuarioId").value = user.id;
+            document.getElementById("txtNome").value = user.nome;
+            document.getElementById("txtMatricula").value = user.matricula;
+            document.getElementById("txtSenha").value = user.senha;
+            document.getElementById("selNivel").value = user.nivel;
+            document.getElementById("selGrupo").value = user.grupo || "Geral";
+
+            document.getElementById("btnSalvar").textContent = "Atualizar Usuário";
+            document.getElementById("btnCancelar").style.display = "block";
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        function cancelarEdicao() {
+            document.getElementById("usuarioId").value = "";
+            document.getElementById("txtNome").value = "";
+            document.getElementById("txtMatricula").value = "";
+            document.getElementById("txtSenha").value = "";
+            document.getElementById("selNivel").value = "Usuario";
+            document.getElementById("btnSalvar").textContent = "Cadastrar Usuário";
+            document.getElementById("btnCancelar").style.display = "none";
+        }
+
+        async function excluirUsuario(id, nome) {
+            const confirmou = confirm(`Deseja realmente remover o usuário "${nome}"?`);
+            if (!confirmou) return;
+
+            const supabase = obterClienteSupabase();
+            if (!supabase) return;
+
+            try {
+                const { error } = await supabase
+                    .from("usuarios")
+                    .delete()
+                    .eq("id", id);
+
+                if (error) throw error;
+                await carregarUsuarios();
+            } catch (err) {
+                alert("Erro ao excluir usuário: " + err.message);
+            }
+        }
+
+        function escapeHtml(texto) {
+            if (!texto) return "";
+            return String(texto)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function escapeJs(texto) {
+            if (!texto) return "";
+            return String(texto).replace(/'/g, "\\'");
+        }
+    </script>
 
 </body>
 </html>

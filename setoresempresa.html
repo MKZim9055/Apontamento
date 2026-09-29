@@ -1,0 +1,725 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setores da Empresa - Configurações</title>
+    <!-- 1. SDK Oficial do Supabase v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- 2. Configuração Central Supabase -->
+    <script src="supabase-config.js"></script>
+    <!-- 3. Gerenciador do Banco Local IndexedDB -->
+    <script src="db.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #081426 0%, #020912 50%, #0A1D38 100%);
+            color: #FFFFFF;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 24px 16px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 520px;
+            display: flex;
+            flex-direction: column;
+            min-height: 90vh;
+            gap: 16px;
+        }
+
+        /* 1. Topo */
+        .header {
+            margin-bottom: 4px;
+        }
+
+        .nav-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .btn-voltar {
+            width: 40px;
+            height: 40px;
+            background-color: #132F4C;
+            border: 1px solid #1F3A60;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            text-decoration: none;
+            color: #FFFFFF;
+            font-size: 20px;
+            font-weight: bold;
+            user-select: none;
+        }
+
+            .btn-voltar:hover {
+                background-color: #1A3E63;
+            }
+
+            .btn-voltar:active {
+                transform: scale(0.96);
+            }
+
+        .nav-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #FFFFFF;
+            margin-left: 14px;
+        }
+
+        .badge-status {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+        }
+
+        .status-online {
+            background-color: rgba(0, 196, 140, 0.2);
+            color: #00C48C;
+            border: 1px solid #00C48C;
+        }
+
+        .status-offline {
+            background-color: rgba(255, 152, 56, 0.2);
+            color: #FF9838;
+            border: 1px solid #FF9838;
+        }
+
+        .page-title {
+            font-size: 26px;
+            font-weight: 700;
+            color: #FFFFFF;
+            margin-bottom: 4px;
+        }
+
+        .page-subtitle {
+            font-size: 13px;
+            color: #8FA3BF;
+            line-height: 1.4;
+        }
+
+        /* 2. Área de Cadastro Rápido de Setor */
+        .card-cadastro {
+            background-color: #0D253F;
+            border-radius: 16px;
+            padding: 14px 12px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            background-color: #071526;
+            border: 1px solid #1F3A5A;
+            border-radius: 12px;
+            height: 48px;
+            padding: 0 12px;
+            display: flex;
+            align-items: center;
+        }
+
+            .input-wrapper:focus-within {
+                border-color: #00C48C;
+            }
+
+            .input-wrapper input {
+                width: 100%;
+                background: transparent;
+                border: none;
+                outline: none;
+                color: #FFFFFF;
+                font-size: 14px;
+            }
+
+                .input-wrapper input::placeholder {
+                    color: #5A718F;
+                }
+
+        .btn-adicionar {
+            background-color: #00C48C;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 12px;
+            height: 48px;
+            padding: 0 18px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: filter 0.2s, transform 0.1s;
+            white-space: nowrap;
+        }
+
+            .btn-adicionar:hover {
+                filter: brightness(1.1);
+            }
+
+            .btn-adicionar:active {
+                transform: scale(0.97);
+            }
+
+            .btn-adicionar:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+
+        /* 3. Lista de Setores */
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 4px;
+        }
+
+            .list-header span {
+                font-size: 13px;
+                font-weight: 600;
+                color: #8FA3BF;
+            }
+
+        .btn-sync-manual {
+            background: transparent;
+            border: none;
+            color: #00C48C;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .setores-lista {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex-grow: 1;
+            min-height: 180px;
+        }
+
+        .setor-item {
+            background-color: #0D3559;
+            height: 68px;
+            border-radius: 16px;
+            padding: 0 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            animation: fadeIn 0.2s ease-in-out;
+            transition: transform 0.1s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .setor-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .setor-icon {
+            width: 40px;
+            height: 40px;
+            background-color: #124A7D;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .setor-detalhe {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            overflow: hidden;
+        }
+
+        .setor-nome {
+            font-size: 15px;
+            font-weight: 700;
+            color: #FFFFFF;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .setor-sync-status {
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .sync-ok {
+            color: #00C48C;
+        }
+
+        .sync-pendente {
+            color: #FF9838;
+        }
+
+        .btn-excluir {
+            width: 38px;
+            height: 38px;
+            background-color: #5C1D1D;
+            border: none;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s, transform 0.1s;
+            flex-shrink: 0;
+        }
+
+            .btn-excluir:hover {
+                background-color: #7A2828;
+            }
+
+            .btn-excluir:active {
+                transform: scale(0.94);
+            }
+
+        /* Estado Vazio */
+        .empty-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 12px;
+            gap: 8px;
+            text-align: center;
+        }
+
+        .empty-icon {
+            font-size: 40px;
+            opacity: 0.6;
+        }
+
+        .empty-title {
+            font-size: 15px;
+            color: #8FA3BF;
+            font-weight: 600;
+        }
+
+        .empty-sub {
+            font-size: 12px;
+            color: #5A718F;
+        }
+
+        /* 4. Rodapé */
+        .footer {
+            margin-top: auto;
+            padding-top: 14px;
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .footer-line {
+            flex-grow: 1;
+            height: 1px;
+            background-color: #1F3249;
+        }
+
+        .footer-text {
+            font-size: 11px;
+            color: #5A718F;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+
+        <!-- 1. Topo -->
+        <header class="header">
+            <div class="nav-bar">
+                <div class="nav-left">
+                    <a href="configuracoes.html" class="btn-voltar" title="Voltar para Configurações">←</a>
+                    <span class="nav-title">Configurações / Setores</span>
+                </div>
+                <span id="badgeConexao" class="badge-status status-online">Online</span>
+            </div>
+            <h1 class="page-title">Setores da Empresa</h1>
+            <p class="page-subtitle">Sincronização em nuvem com armazenamento local offline</p>
+        </header>
+
+        <!-- 2. Área de Cadastro Rápido -->
+        <section class="card-cadastro">
+            <div class="input-group">
+                <div class="input-wrapper">
+                    <input type="text" id="txtNovoSetor" placeholder="Ex: Caldeiraria, Mecânica, Elétrica..." maxlength="50" autocomplete="off" />
+                </div>
+                <button type="button" id="btnAdicionar" class="btn-adicionar" onclick="adicionarSetor()">Adicionar</button>
+            </div>
+        </section>
+
+        <!-- Cabeçalho da Lista -->
+        <div class="list-header">
+            <span id="lblContador">Consultando banco local...</span>
+            <button type="button" class="btn-sync-manual" onclick="sincronizarComSupabase()">🔄 Sincronizar</button>
+        </div>
+
+        <!-- 3. Lista de Setores -->
+        <main class="setores-lista" id="listaSetores">
+            <div class="empty-view">
+                <div class="empty-icon">⏳</div>
+                <div class="empty-title">Iniciando base de dados local...</div>
+            </div>
+        </main>
+
+        <!-- 4. Rodapé -->
+        <footer class="footer">
+            <div class="footer-line"></div>
+            <span class="footer-text" id="lblTotalSetores">Setores cadastrados: 0</span>
+            <div class="footer-line"></div>
+        </footer>
+
+    </div>
+
+    <script>
+        // =========================================================================
+        // 1. INICIALIZAÇÃO DE SESSÃO E SUPABASE
+        // =========================================================================
+        function obterClienteSupabase() {
+            if (window.supabaseClient) return window.supabaseClient;
+            if (window.supabase && typeof window.SUPABASE_URL !== 'undefined') {
+                return window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+            }
+            return null;
+        }
+
+        let setoresLocais = [];
+
+        document.addEventListener("DOMContentLoaded", () => {
+            verificarPermissao();
+            atualizarIndicadorConexao();
+
+            // Sequência de inicialização para garantir carregamento instantâneo
+            inicializarTelaSetores();
+
+            window.addEventListener("online", () => {
+                atualizarIndicadorConexao();
+                sincronizarComSupabase();
+            });
+
+            window.addEventListener("offline", atualizarIndicadorConexao);
+
+            const input = document.getElementById("txtNovoSetor");
+            if (input) {
+                input.addEventListener("keyup", (e) => {
+                    if (e.key === "Enter") adicionarSetor();
+                });
+            }
+        });
+
+        async function inicializarTelaSetores() {
+            // 1. Garante abertura prévia do IndexedDB
+            if (window.LocalDB) {
+                await window.LocalDB.abrirConexao();
+            }
+
+            // 2. Renderiza dados locais imediatamente
+            await carregarDoBancoLocal();
+
+            // 3. Se online, baixa os dados mais recentes do Supabase
+            if (navigator.onLine) {
+                await sincronizarComSupabase();
+            }
+        }
+
+        function atualizarIndicadorConexao() {
+            const badge = document.getElementById("badgeConexao");
+            if (!badge) return;
+            badge.textContent = navigator.onLine ? "Online" : "Modo Offline";
+            badge.className = `badge-status ${navigator.onLine ? "status-online" : "status-offline"}`;
+        }
+
+        function verificarPermissao() {
+            const nivel = (
+                localStorage.getItem("NivelAcesso") ||
+                localStorage.getItem("NivelUsuario") ||
+                sessionStorage.getItem("NivelAcesso") ||
+                sessionStorage.getItem("NivelUsuario") ||
+                ""
+            ).trim().toLowerCase();
+
+            const matricula = localStorage.getItem("MatriculaUsuario") || sessionStorage.getItem("MatriculaUsuario");
+
+            if (!matricula) {
+                window.location.href = "login.html";
+                return;
+            }
+
+            const isAdmin = ["administrador", "admin", "1"].includes(nivel);
+            if (!isAdmin) {
+                alert("Acesso restrito: apenas Administradores podem gerenciar setores.");
+                window.location.href = "configuracoes.html";
+            }
+        }
+
+        // =========================================================================
+        // 2. LEITURA VIA LocalDB (IndexedDB)
+        // =========================================================================
+        async function carregarDoBancoLocal() {
+            try {
+                if (window.LocalDB) {
+                    const dados = await window.LocalDB.obterSetores();
+                    setoresLocais = dados.map(item => ({
+                        ...item,
+                        nome: (item.nome || item.setor || '').trim()
+                    }));
+                } else {
+                    setoresLocais = [];
+                }
+
+                // Ordena alfabeticamente
+                setoresLocais.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
+            } catch (e) {
+                console.error("[Setores] Erro ao consultar LocalDB:", e);
+                setoresLocais = [];
+            } finally {
+                renderizarLista();
+            }
+        }
+
+        function renderizarLista() {
+            const container = document.getElementById("listaSetores");
+            const contador = document.getElementById("lblContador");
+            const lblTotal = document.getElementById("lblTotalSetores");
+
+            if (!container) return;
+
+            const total = setoresLocais.length;
+            if (contador) contador.textContent = `${total} setor(es) no banco local`;
+            if (lblTotal) lblTotal.textContent = `Setores cadastrados: ${total}`;
+
+            if (total === 0) {
+                container.innerHTML = `
+                        <div class="empty-view">
+                            <div class="empty-icon">🏭</div>
+                            <div class="empty-title">Nenhum setor cadastrado.</div>
+                            <div class="empty-sub">Cadastre o primeiro setor no campo acima.</div>
+                        </div>
+                    `;
+                return;
+            }
+
+            container.innerHTML = setoresLocais.map(item => {
+                const sincronizado = item.nuvem_id != null;
+                const statusTexto = sincronizado ? "Salvo local & Nuvem" : "Salvo localmente";
+                const statusClasse = sincronizado ? "sync-ok" : "sync-pendente";
+                const statusIcone = sincronizado ? "☁️" : "💾";
+
+                return `
+                        <div class="setor-item">
+                            <div class="setor-info">
+                                <div class="setor-icon">🏭</div>
+                                <div class="setor-detalhe">
+                                    <span class="setor-nome" title="${escapeHtml(item.nome)}">${escapeHtml(item.nome)}</span>
+                                    <span class="setor-sync-status ${statusClasse}">
+                                        ${statusIcone} ${statusTexto}
+                                    </span>
+                                </div>
+                            </div>
+                            <button class="btn-excluir" title="Excluir Setor" onclick="excluirSetor('${escapeJs(item.nome)}')">🗑️</button>
+                        </div>
+                    `;
+            }).join("");
+        }
+
+        // =========================================================================
+        // 3. SINCRONIZAÇÃO NUVEM -> LOCAL (coluna: 'nome')
+        // =========================================================================
+        async function sincronizarComSupabase() {
+            const supabase = obterClienteSupabase();
+            if (!supabase || !navigator.onLine) {
+                await carregarDoBancoLocal();
+                return;
+            }
+
+            try {
+                // Tabela setores com coluna 'nome'
+                const { data, error } = await supabase
+                    .from("setores")
+                    .select("nome")
+                    .order("nome", { ascending: true });
+
+                if (error) throw error;
+
+                if (data && window.LocalDB) {
+                    await window.LocalDB.sincronizarSetoresLocais(data);
+                }
+            } catch (err) {
+                console.warn("[Sync Setores] Falha ao sincronizar com nuvem, operando local:", err.message);
+            } finally {
+                await carregarDoBancoLocal();
+            }
+        }
+
+        // =========================================================================
+        // 4. ADICIONAR SETOR (coluna: 'nome')
+        // =========================================================================
+        async function adicionarSetor() {
+            const input = document.getElementById("txtNovoSetor");
+            const btn = document.getElementById("btnAdicionar");
+            const novoSetor = (input ? input.value : "").trim();
+            const supabase = obterClienteSupabase();
+
+            if (!novoSetor) {
+                alert("Por favor, digite o nome do setor.");
+                if (input) input.focus();
+                return;
+            }
+
+            if (novoSetor.toLowerCase() === "--- nenhum ---") {
+                alert("Nome reservado pelo sistema.");
+                return;
+            }
+
+            const jaExiste = setoresLocais.some(s => (s.nome || '').toLowerCase() === novoSetor.toLowerCase());
+            if (jaExiste) {
+                alert(`O setor '${novoSetor}' já está cadastrado.`);
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = "...";
+            let nuvemId = null;
+
+            // 1. Grava no Supabase (coluna: 'nome')
+            if (navigator.onLine && supabase) {
+                try {
+                    const { error } = await supabase
+                        .from("setores")
+                        .insert([{ nome: novoSetor }]);
+
+                    if (!error) {
+                        nuvemId = novoSetor;
+                    } else {
+                        console.warn("[Nuvem] Erro ao gravar setor:", error.message);
+                    }
+                } catch (err) {
+                    console.warn("[Nuvem] Falha ao enviar ao Supabase, mantendo local:", err.message);
+                }
+            }
+
+            // 2. Grava no IndexedDB usando o LocalDB
+            try {
+                if (window.LocalDB) {
+                    await window.LocalDB.salvarSetor(novoSetor, nuvemId);
+                }
+
+                input.value = "";
+                await carregarDoBancoLocal();
+
+                if (nuvemId == null) {
+                    alert("Sem internet: setor salvo localmente no navegador e pronto para uso!");
+                }
+            } catch (e) {
+                alert("Erro ao gravar no banco local: " + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Adicionar";
+                if (input) input.focus();
+            }
+        }
+
+        // =========================================================================
+        // 5. EXCLUIR SETOR (coluna: 'nome')
+        // =========================================================================
+        async function excluirSetor(nomeSetor) {
+            const confirmou = confirm(`Deseja realmente remover o setor '${nomeSetor}'?`);
+            if (!confirmou) return;
+
+            const supabase = obterClienteSupabase();
+
+            // 1. Remove do Supabase
+            if (navigator.onLine && supabase) {
+                try {
+                    await supabase
+                        .from("setores")
+                        .delete()
+                        .eq("nome", nomeSetor);
+                } catch (err) {
+                    console.warn("[Nuvem] Falha ao excluir do Supabase:", err.message);
+                }
+            }
+
+            // 2. Remove do IndexedDB pelo LocalDB
+            try {
+                if (window.LocalDB) {
+                    await window.LocalDB.excluirSetorPorNome(nomeSetor);
+                }
+                await carregarDoBancoLocal();
+            } catch (e) {
+                alert("Erro ao excluir do banco local: " + e.message);
+            }
+        }
+
+        function escapeHtml(texto) {
+            if (!texto) return "";
+            return String(texto)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function escapeJs(texto) {
+            if (!texto) return "";
+            return String(texto).replace(/'/g, "\\'");
+        }
+    </script>
+
+</body>
+</html>

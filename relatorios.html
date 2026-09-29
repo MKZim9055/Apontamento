@@ -12,8 +12,10 @@
     <link rel="apple-touch-icon" href="icoapontamento.png" />
     <link rel="manifest" href="manifest.json" />
 
-    <!-- SDK oficial do Supabase -->
+    <!-- SDK oficial do Supabase e Gerenciador IndexedDB -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="db.js"></script>
 
     <style>
         * {
@@ -98,7 +100,7 @@
                 color: #8FA3BF;
             }
 
-        /* 2. Painel de Filtros e Busca (Borda #173154, Fundo #0B1C33) */
+        /* 2. Painel de Filtros e Busca */
         .filter-panel {
             background-color: #0B1C33;
             border: 1px solid #173154;
@@ -487,9 +489,6 @@
                 <div class="input-box-sm">
                     <select id="pkrGrupo">
                         <option value="Todos os Grupos">Todos os Grupos</option>
-                        <option value="Caldeiraria">Caldeiraria</option>
-                        <option value="Mecânica">Mecânica</option>
-                        <option value="Mantenedor">Mantenedor</option>
                     </select>
                 </div>
             </div>
@@ -503,7 +502,7 @@
 
         <div id="refreshIndicator" class="refresh-status">Atualizando registros...</div>
 
-        <!-- 4. Lista dos Apontamentos (CollectionView com Pull-to-Refresh) -->
+        <!-- 4. Lista dos Apontamentos (CollectionView) -->
         <div class="list-container" id="cvApontamentos">
             <!-- Renderizado dinamicamente -->
         </div>
@@ -514,11 +513,15 @@
         // =========================================================================
         // 1. CONFIGURAÇÕES SUPABASE
         // =========================================================================
-        const SUPABASE_URL = 'https://mtlbrhmpiwvzjwbzaywi.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_qilTaEWSiDNr1L-N5uE5gA_NYyLkyBt';
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        const NOME_TABELA = 'apontamentos';
+        function obterClienteSupabase() {
+            if (window.supabaseClient) return window.supabaseClient;
+            if (window.supabase && typeof window.SUPABASE_URL !== 'undefined') {
+                return window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+            }
+            return null;
+        }
 
+        const NOME_TABELA = 'apontamentos';
         let _listaOriginal = [];
         let _filtroTimer = null;
 
@@ -533,6 +536,10 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             configurarValoresPadrao();
+            if (typeof LocalDB !== 'undefined' && LocalDB.abrirConexao) {
+                try { await LocalDB.abrirConexao(); } catch (_) { }
+            }
+            await carregarGruposFiltroAsync();
             await onAppearing();
         });
 
@@ -545,18 +552,64 @@
 
             dpDataInicio.value = hoje;
             dpDataFim.value = hoje;
-            pkrGrupo.selectedIndex = 0;
+        }
+
+        // =========================================================================
+        // CARREGA GRUPOS DINAMICAMENTE PARA O FILTRO
+        // =========================================================================
+        async function carregarGruposFiltroAsync() {
+            let lista = [];
+
+            // 1. Tenta carregar do IndexedDB / Cache rápido
+            if (typeof LocalDB !== 'undefined' && LocalDB.obterGrupos) {
+                try {
+                    const locais = await LocalDB.obterGrupos();
+                    lista = locais.map(g => (g.grupo || g.nome || '').trim()).filter(Boolean);
+                } catch (_) { }
+            }
+
+            if (lista.length === 0) {
+                const cache = localStorage.getItem("GruposCache");
+                if (cache) lista = JSON.parse(cache);
+            }
+
+            // 2. Se online, sincroniza da tabela grupos (coluna: grupo)
+            const supabase = obterClienteSupabase();
+            if (navigator.onLine && supabase) {
+                try {
+                    const { data, error } = await supabase
+                        .from('grupos')
+                        .select('grupo')
+                        .order('grupo', { ascending: true });
+
+                    if (!error && data && data.length > 0) {
+                        lista = data.map(g => (g.grupo || '').trim()).filter(Boolean);
+                    }
+                } catch (_) { }
+            }
+
+            const unicos = [...new Set(lista)].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+            pkrGrupo.innerHTML = '<option value="Todos os Grupos">Todos os Grupos</option>';
+            unicos.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g;
+                opt.textContent = g;
+                pkrGrupo.appendChild(opt);
+            });
         }
 
         // =========================================================================
         // 2. CICLO DE VIDA (OnAppearing)
         // =========================================================================
         async function onAppearing() {
-            if (navigator.onLine) {
+            const supabase = obterClienteSupabase();
+
+            if (navigator.onLine && supabase) {
                 const matriculaLogada = localStorage.getItem("MatriculaUsuario") || "";
                 if (matriculaLogada && matriculaLogada !== "---") {
                     try {
-                        const { data, error } = await supabaseClient
+                        const { data, error } = await supabase
                             .from('usuarios')
                             .select('id')
                             .eq('matricula', matriculaLogada)
@@ -582,11 +635,14 @@
         // 3. CONSULTA NA NUVEM (CarregarApontamentosAsync)
         // =========================================================================
         async function carregarApontamentosAsync() {
+            const supabase = obterClienteSupabase();
+            if (!supabase) return;
+
             try {
                 refreshIndicator.style.display = 'block';
                 lblTotalRegistros.textContent = 'Buscando...';
 
-                const { data, error } = await supabaseClient
+                const { data, error } = await supabase
                     .from(NOME_TABELA)
                     .select('*')
                     .order('data', { ascending: false })
@@ -605,9 +661,6 @@
             }
         }
 
-        // =========================================================================
-        // 4. PARSERS E NORMALIZADORES AUXILIARES
-        // =========================================================================
         function normalizarTexto(txt) {
             if (!txt && txt !== 0) return '';
             return String(txt)
@@ -620,9 +673,9 @@
         function extrairOrdemServico(item) {
             if (!item) return '-';
             const candidatos = [
+                item.ordemservico,
                 item.ordem_servico,
                 item.OrdemServico,
-                item.ordemservico,
                 item.numero_os,
                 item.num_os,
                 item.os,
@@ -676,7 +729,7 @@
         }
 
         // =========================================================================
-        // 5. FILTRAGEM EM MEMÓRIA (AplicarFiltrosEmMemoria)
+        // 5. FILTRAGEM EM MEMÓRIA
         // =========================================================================
         function aplicarFiltrosEmMemoria() {
             const dataInicio = dpDataInicio.value;
@@ -725,7 +778,7 @@
         }
 
         // =========================================================================
-        // 6. RENDERIZAÇÃO NA TELA (ItemTemplate)
+        // 6. RENDERIZAÇÃO NA TELA
         // =========================================================================
         function renderizar(itens) {
             lblTotalRegistros.textContent = `${itens.length} registro(s)`;
@@ -748,20 +801,14 @@
                 const dataStr = formatarData(item.data || item.Data);
                 const matricula = item.matricula_executante || item.MatriculaExecutante || '-';
 
-                const inicioRaw = item.hora_inicio
+                const inicioRaw = item.horainicio
+                    ?? item.hora_inicio
                     ?? item.HoraInicio
-                    ?? item.hora_inicial
-                    ?? item.horainicio
-                    ?? item.horaInicio
-                    ?? item.inicio
                     ?? '';
 
-                const fimRaw = item.hora_fim
+                const fimRaw = item.horafim
+                    ?? item.hora_fim
                     ?? item.HoraFim
-                    ?? item.hora_final
-                    ?? item.horafim
-                    ?? item.horaFim
-                    ?? item.fim
                     ?? '';
 
                 const inicio = formatarHora(inicioRaw);
@@ -775,7 +822,6 @@
                                 <button class="swipe-btn btn-delete" onclick="onExcluirItemInvoked('${id}', '${os}')">Excluir</button>
                             </div>
                             <div class="item-card" data-open="false">
-                                <!-- Linha 1: Tag de O.S e DataFormatada -->
                                 <div class="card-line-1">
                                     <div class="tags-group">
                                         <span class="badge-os">${os}</span>
@@ -784,10 +830,8 @@
                                     <span class="data-text">${dataStr}</span>
                                 </div>
 
-                                <!-- Divisor Interno Suave -->
                                 <div class="card-divider"></div>
 
-                                <!-- Linha 2: Executante e Horários + Grupo -->
                                 <div class="card-line-2">
                                     <div class="matricula-group">
                                         <span class="matricula-label">Matrícula:</span>
@@ -805,7 +849,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Linha 3: Observações -->
                                 ${obs ? `<div class="card-obs">${obs}</div>` : ''}
                             </div>
                         </div>
@@ -816,7 +859,7 @@
         }
 
         // =========================================================================
-        // 7. EXCLUSÃO E EDIÇÃO
+        // 7. EXCLUSÃO COM ESPELHO NO BANCO LOCAL (INDEXEDDB)
         // =========================================================================
         async function onExcluirItemInvoked(id, os) {
             if (!navigator.onLine) {
@@ -824,22 +867,45 @@
                 return;
             }
 
-            const confirmar = confirm(`Excluir do Banco Dados: Deseja excluir permanentemente a O.S. ${os} do Banco Dados?`);
+            const confirmar = confirm(`Deseja excluir permanentemente a O.S. ${os} do Banco de Dados e do aparelho?`);
             if (!confirmar) return;
 
+            const supabase = obterClienteSupabase();
+            if (!supabase) return;
+
             try {
-                const { error } = await supabaseClient
+                // 1. Remove da nuvem Supabase
+                const { error } = await supabase
                     .from(NOME_TABELA)
                     .delete()
                     .eq('id', id);
 
                 if (error) throw error;
 
+                // 2. Remove da base local IndexedDB para manter sincronizado com a lista
+                if (typeof LocalDB !== 'undefined' && LocalDB.obterApontamentosLocais) {
+                    try {
+                        const locais = await LocalDB.obterApontamentosLocais();
+                        const localEncontrado = locais.find(x => {
+                            const idRemoto = x.remoto_id ?? x.id_remoto ?? x.remotoId;
+                            if (idRemoto && String(idRemoto) === String(id)) return true;
+                            const osLoc = extrairOrdemServico(x);
+                            return (os && os !== '-' && osLoc === os);
+                        });
+
+                        if (localEncontrado && localEncontrado.id) {
+                            await LocalDB.excluirApontamento(localEncontrado.id);
+                        }
+                    } catch (eLocal) {
+                        console.warn("[LocalDB] Aviso ao excluir localmente:", eLocal);
+                    }
+                }
+
                 _listaOriginal = _listaOriginal.filter(item => String(item.id) !== String(id));
                 aplicarFiltrosEmMemoria();
-                alert("Sucesso: Registro excluído do Banco Dados com sucesso!");
+                alert("Sucesso: Registro excluído com sucesso!");
             } catch (ex) {
-                alert(`Erro: Falha ao excluir registro: ${ex.message || ex}`);
+                alert(`Erro ao excluir registro: ${ex.message || ex}`);
             }
         }
 
@@ -853,7 +919,7 @@
         }
 
         // =========================================================================
-        // 8. GESTOS DE SWIPE UNIFICADOS (PC COM MOUSE + CELULAR COM TOQUE)
+        // 8. GESTOS DE SWIPE UNIFICADOS
         // =========================================================================
         function configurarGestosSwipe() {
             const cards = document.querySelectorAll('.item-card');
@@ -871,7 +937,6 @@
 
             cards.forEach(card => {
                 card.addEventListener('pointerdown', (e) => {
-                    // Ignora cliques que não sejam o botão principal do mouse
                     if (e.pointerType === 'mouse' && e.button !== 0) return;
 
                     isDragging = true;
@@ -884,7 +949,6 @@
                     const isAberto = card.getAttribute('data-open') === 'true';
                     initialOffset = isAberto ? -LARGURA_BOTOES : 0;
 
-                    // Se interagir com outro card, fecha o que estiver aberto
                     if (cardAberto && cardAberto !== card) {
                         cardAberto.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
                         cardAberto.style.transform = 'translateX(0px)';
@@ -906,18 +970,14 @@
                     const diffX = currentX - startX;
                     const diffY = e.clientY - startY;
 
-                    // Detecta se a intenção principal é arraste lateral
                     if (!movendoHorizontal && Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 6) {
                         movendoHorizontal = true;
                     }
 
                     if (movendoHorizontal) {
                         let novaPosicao = initialOffset + diffX;
-
-                        // Não permite ultrapassar o alinhamento inicial
                         if (novaPosicao > 0) novaPosicao = 0;
 
-                        // Efeito de resistência suave além de 140px
                         if (novaPosicao < -LARGURA_BOTOES) {
                             novaPosicao = -LARGURA_BOTOES + (novaPosicao + LARGURA_BOTOES) * 0.2;
                         }
@@ -948,7 +1008,6 @@
                     }
 
                     if (!isAberto) {
-                        // Card fechado sendo puxado para a esquerda
                         if (diffX < -GATILHO_ABERTURA) {
                             card.style.transform = `translateX(-${LARGURA_BOTOES}px)`;
                             card.setAttribute('data-open', 'true');
@@ -958,7 +1017,6 @@
                             card.setAttribute('data-open', 'false');
                         }
                     } else {
-                        // Card aberto sendo empurrado para a direita
                         if (diffX > GATILHO_ABERTURA) {
                             card.style.transform = 'translateX(0px)';
                             card.setAttribute('data-open', 'false');
@@ -976,7 +1034,6 @@
                 card.addEventListener('pointercancel', finalizarArraste);
             });
 
-            // Clique ou toque em qualquer área fora fecha o card aberto
             document.addEventListener('pointerdown', (e) => {
                 if (cardAberto && !e.target.closest('.swipe-container')) {
                     cardAberto.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';

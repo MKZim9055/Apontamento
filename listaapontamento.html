@@ -14,6 +14,7 @@
 
     <!-- Supabase JS Client Oficial e Banco Local IndexedDB -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
     <script src="db.js"></script>
 
     <!-- Guardião de Autenticação -->
@@ -494,30 +495,51 @@
 
     <script>
         // =========================================================================
-        // 1. CONFIGURAÇÕES SUPABASE
+        // 1. CAPTURA ROBUSTA DO CLIENTE SUPABASE
         // =========================================================================
-        const SUPABASE_URL = "https://mtlbrhmpiwvzjwbzaywi.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_qilTaEWSiDNr1L-N5uE5gA_NYyLkyBt";
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        function obterClienteSupabase() {
+            if (window.supabaseClient) return window.supabaseClient;
+            if (window.supabase && typeof window.SUPABASE_URL !== 'undefined') {
+                return window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+            }
+            return null;
+        }
 
         let _listaOriginal = [];
         let isSyncing = false;
 
         document.addEventListener('DOMContentLoaded', async () => {
+            // Garante abertura da base local IndexedDB primeiro
+            if (typeof LocalDB !== 'undefined' && LocalDB.abrirConexao) {
+                try { await LocalDB.abrirConexao(); } catch (_) { }
+            }
+
             await validarUsuarioAtivo();
             configurarPermissoesVisuais();
             await carregarDadosAsync();
+
+            // Sincroniza em segundo plano alterações remotas
+            if (navigator.onLine) {
+                await atualizarEdicoesDoSupervisorAsync();
+            }
+
+            window.addEventListener('online', async () => {
+                await atualizarEdicoesDoSupervisorAsync();
+            });
         });
 
         // 1. Validação do Usuário Ativo
         async function validarUsuarioAtivo() {
             if (!navigator.onLine) return;
 
+            const supabase = obterClienteSupabase();
+            if (!supabase) return;
+
             const matricula = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula");
             if (!matricula) return;
 
             try {
-                const { data, error } = await supabaseClient
+                const { data, error } = await supabase
                     .from('usuarios')
                     .select('matricula')
                     .eq('matricula', matricula);
@@ -534,18 +556,20 @@
 
         // 2. Permissões de Visibilidade
         function configurarPermissoesVisuais() {
-            // Garante que o botão voltar fique sempre visível para qualquer perfil
             document.getElementById('btnVoltar').classList.remove('hidden');
 
-            // Mantém o botão de sair visível para controle de sessão
-            const nivel = (localStorage.getItem("UsuarioNivel") || localStorage.getItem("NivelUsuario") || "Usuario").toLowerCase();
-            const isUsuario = nivel === "usuario" || nivel === "3";
+            const nivel = (
+                localStorage.getItem("NivelAcesso") ||
+                localStorage.getItem("UsuarioNivel") ||
+                localStorage.getItem("NivelUsuario") ||
+                "Usuario"
+            ).toLowerCase();
 
-            // Se quiser exibir o botão sair para todos ou manter a lógica:
+            const isUsuario = nivel === "usuario" || nivel === "3";
             document.getElementById('btnSair').classList.toggle('hidden', !isUsuario);
         }
 
-        // 3. Consulta de Registros Locais (db.js)
+        // 3. Consulta de Registros Locais (IndexedDB)
         async function carregarDadosAsync() {
             try {
                 if (typeof LocalDB === 'undefined') {
@@ -554,23 +578,144 @@
                 }
 
                 const matricula = (localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "").trim();
-                const nivel = (localStorage.getItem("UsuarioNivel") || localStorage.getItem("NivelUsuario") || "Usuario").toLowerCase();
+                const nivel = (
+                    localStorage.getItem("NivelAcesso") ||
+                    localStorage.getItem("UsuarioNivel") ||
+                    localStorage.getItem("NivelUsuario") ||
+                    "Usuario"
+                ).toLowerCase();
                 const isUsuario = nivel === "usuario" || nivel === "3";
 
                 let dados = await LocalDB.obterApontamentosLocais();
 
-                // Ordena por data decrescente
-                dados.sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0));
+                // Ordena por data decrescente e por ID decrescente
+                dados.sort((a, b) => {
+                    const diffData = new Date(b.data || 0) - new Date(a.data || 0);
+                    if (diffData !== 0) return diffData;
+                    return (b.id || 0) - (a.id || 0);
+                });
 
                 // Restringe para o operador comum
                 if (isUsuario && matricula) {
-                    dados = dados.filter(a => String(a.matricula_executante || '').trim() === matricula);
+                    dados = dados.filter(a => {
+                        const matExec = String(a.matricula_executante || '').trim();
+                        const matUser = String(a.matricula_usuario || '').trim();
+                        return matExec === matricula || matUser === matricula;
+                    });
                 }
 
                 _listaOriginal = dados;
                 filtrarLista();
             } catch (err) {
                 console.error("Erro ao ler banco local:", err);
+            }
+        }
+
+        // 4. Baixa edições feitas por supervisores/administradores no Supabase (Espelho Local Garantido)
+        async function atualizarEdicoesDoSupervisorAsync() {
+            if (!navigator.onLine) return;
+            const supabase = obterClienteSupabase();
+            if (!supabase) return;
+
+            const matricula = (localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "").trim();
+            if (!matricula) return;
+
+            try {
+                const locais = await LocalDB.obterApontamentosLocais();
+                if (locais.length === 0) return;
+
+                // Busca apontamentos onde o usuário é executante OU cadastrador (autor)
+                const { data: remotos, error } = await supabase
+                    .from('apontamentos')
+                    .select('*')
+                    .or(`matricula_executante.eq.${matricula},matricula_usuario.eq.${matricula}`);
+
+                if (error || !remotos || remotos.length === 0) return;
+
+                let houveModificacao = false;
+
+                for (const remoto of remotos) {
+                    const remotoId = Number(remoto.id);
+                    const osRemota = extrairOrdemServico(remoto);
+                    const dataRemota = String(remoto.data || '').substring(0, 10);
+                    const hIniRemota = formatarHora(remoto.horainicio || remoto.hora_inicio);
+                    const matExecRemota = String(remoto.matricula_executante || '').trim();
+
+                    // Match por: ID remoto, O.S. ou Trio operacional
+                    let local = locais.find(l => {
+                        const idRem = l.remoto_id ?? l.id_remoto ?? l.remotoId;
+                        if (idRem !== undefined && idRem !== null && Number(idRem) === remotoId) return true;
+
+                        const osLoc = extrairOrdemServico(l);
+                        if (osRemota !== '-' && osLoc !== '-' && osLoc.toLowerCase() === osRemota.toLowerCase()) return true;
+
+                        const lData = String(l.data || '').substring(0, 10);
+                        const lHora = formatarHora(l.horainicio || l.hora_inicio);
+                        const lExec = String(l.matricula_executante || '').trim();
+
+                        return (lData === dataRemota && lHora === hIniRemota && lExec === matExecRemota);
+                    });
+
+                    if (local && local.id) {
+                        let alterou = false;
+
+                        if (Number(local.remoto_id) !== remotoId) {
+                            local.remoto_id = remotoId;
+                            local.id_remoto = remotoId;
+                            alterou = true;
+                        }
+
+                        if (osRemota !== '-' && (local.ordemservico !== osRemota || local.ordem_servico !== osRemota)) {
+                            local.ordemservico = osRemota;
+                            local.ordem_servico = osRemota;
+                            alterou = true;
+                        }
+
+                        if (remoto.setor && local.setor !== remoto.setor) {
+                            local.setor = remoto.setor;
+                            alterou = true;
+                        }
+
+                        if (remoto.grupo && local.grupo !== remoto.grupo) {
+                            local.grupo = remoto.grupo;
+                            alterou = true;
+                        }
+
+                        if (hIniRemota && formatarHora(local.horainicio || local.hora_inicio) !== hIniRemota) {
+                            local.horainicio = hIniRemota;
+                            local.hora_inicio = hIniRemota;
+                            alterou = true;
+                        }
+
+                        const hFimRemota = formatarHora(remoto.horafim || remoto.hora_fim);
+                        if (hFimRemota && formatarHora(local.horafim || local.hora_fim) !== hFimRemota) {
+                            local.horafim = hFimRemota;
+                            local.hora_fim = hFimRemota;
+                            alterou = true;
+                        }
+
+                        if (remoto.observacoes !== undefined && local.observacoes !== remoto.observacoes) {
+                            local.observacoes = remoto.observacoes;
+                            alterou = true;
+                        }
+
+                        if (!local.data_sincronizado) {
+                            local.data_sincronizado = new Date().toISOString();
+                            alterou = true;
+                        }
+
+                        if (alterou) {
+                            await LocalDB.salvarApontamento(local);
+                            houveModificacao = true;
+                        }
+                    }
+                }
+
+                if (houveModificacao) {
+                    await carregarDadosAsync();
+                }
+            } catch (e) {
+                console.warn("[Sync Nuvem -> Local]:", e);
             }
         }
 
@@ -588,16 +733,35 @@
         function formatarHora(h) {
             if (!h) return '';
             const s = String(h).trim();
+            if (s.includes('T')) {
+                const parteTempo = s.split('T')[1];
+                if (parteTempo && parteTempo.includes(':')) {
+                    const sub = parteTempo.split(':');
+                    return `${sub[0].padStart(2, '0')}:${sub[1].padStart(2, '0')}`;
+                }
+            }
             if (s.includes(':')) {
                 const partes = s.split(':');
                 return `${partes[0].padStart(2, '0')}:${(partes[1] || '00').substring(0, 2).padStart(2, '0')}`;
+            }
+            const digitos = s.replace(/\D/g, '');
+            if (digitos.length >= 4) {
+                return `${digitos.slice(0, 2)}:${digitos.slice(2, 4)}`;
             }
             return s;
         }
 
         function extrairOrdemServico(item) {
             if (!item) return '-';
-            const candidatos = [item.ordemservico, item.ordem_servico, item.OrdemServico, item.numero_os, item.os, item.OS];
+            const candidatos = [
+                item.ordemservico,
+                item.ordem_servico,
+                item.OrdemServico,
+                item.numero_os,
+                item.num_os,
+                item.os,
+                item.OS
+            ];
             for (const val of candidatos) {
                 if (val !== undefined && val !== null && String(val).trim() !== '') {
                     return String(val).trim();
@@ -606,7 +770,7 @@
             return '-';
         }
 
-        // 4. Renderização com Formato Idêntico ao Relatórios
+        // 5. Renderização da Lista
         function filtrarLista() {
             const termo = document.getElementById('txtBusca')?.value?.trim().toLowerCase() || "";
             const container = document.getElementById('listaApontamentos');
@@ -624,7 +788,7 @@
                 );
 
             const pendentes = _listaOriginal.filter(a => !a.data_sincronizado).length;
-            lblTotal.textContent = `${filtrados.length} registro(s)  /  ${pendentes} pendente(s)`;
+            lblTotal.textContent = `${filtrados.length} registro(s)  /${pendentes} pendente(s)`;
 
             if (filtrados.length === 0) {
                 container.innerHTML = "";
@@ -703,7 +867,7 @@
         }
 
         // =========================================================================
-        // 5. GESTOS DE SWIPE UNIFICADOS (PC COM MOUSE + CELULAR COM TOQUE)
+        // 6. GESTOS DE SWIPE UNIFICADOS
         // =========================================================================
         function configurarGestosSwipe() {
             const cards = document.querySelectorAll('.item-card');
@@ -833,11 +997,13 @@
         }
 
         // =========================================================================
-        // 6. SINCRONIZAÇÃO INDIVIDUAL E EM LOTE (Mapeamento exato da tabela Postgres)
+        // 7. SINCRONIZAÇÃO INDIVIDUAL E EM LOTE
         // =========================================================================
         async function onEnviarItemClicked(id) {
             if (isSyncing) return;
             isSyncing = true;
+
+            const supabase = obterClienteSupabase();
 
             try {
                 const todos = await LocalDB.obterApontamentosLocais();
@@ -851,14 +1017,13 @@
 
                 if (!confirm(`Deseja transmitir a O.S. ${extrairOrdemServico(item)} para a nuvem?`)) return;
 
-                if (!navigator.onLine) {
+                if (!navigator.onLine || !supabase) {
                     alert("Sem conexão: O dispositivo está sem internet no momento.");
                     return;
                 }
 
                 const matriculaLogada = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "---";
 
-                // Nomes das colunas correspondentes ao DDL da sua tabela apontamentos
                 const itemRemoto = {
                     matricula_usuario: item.matricula_usuario || matriculaLogada,
                     data: item.data,
@@ -871,10 +1036,19 @@
                     grupo: item.grupo || 'Mantenedor'
                 };
 
-                const { error } = await supabaseClient.from('apontamentos').insert([itemRemoto]);
+                const { data: retNuvem, error } = await supabase
+                    .from('apontamentos')
+                    .insert([itemRemoto])
+                    .select();
+
                 if (error) throw error;
 
                 item.data_sincronizado = new Date().toISOString();
+                if (retNuvem && retNuvem.length > 0) {
+                    item.remoto_id = retNuvem[0].id;
+                    item.id_remoto = retNuvem[0].id;
+                }
+
                 await LocalDB.salvarApontamento(item);
 
                 alert("Sucesso: Apontamento sincronizado com sucesso!");
@@ -892,6 +1066,8 @@
             if (isSyncing) return;
             isSyncing = true;
 
+            const supabase = obterClienteSupabase();
+
             try {
                 const todos = await LocalDB.obterApontamentosLocais();
                 const pendentes = todos.filter(a => !a.data_sincronizado);
@@ -901,7 +1077,7 @@
                     return;
                 }
 
-                if (!navigator.onLine) {
+                if (!navigator.onLine || !supabase) {
                     alert("Sem conexão à internet no momento.");
                     return;
                 }
@@ -910,7 +1086,6 @@
 
                 const matriculaLogada = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "---";
 
-                // Nomes das colunas correspondentes ao DDL da sua tabela apontamentos
                 const loteRemoto = pendentes.map(p => ({
                     matricula_usuario: p.matricula_usuario || matriculaLogada,
                     data: p.data,
@@ -923,12 +1098,21 @@
                     grupo: p.grupo || 'Mantenedor'
                 }));
 
-                const { error } = await supabaseClient.from('apontamentos').insert(loteRemoto);
+                const { data: retNuvem, error } = await supabase
+                    .from('apontamentos')
+                    .insert(loteRemoto)
+                    .select();
+
                 if (error) throw error;
 
                 const agora = new Date().toISOString();
-                for (const item of pendentes) {
+                for (let i = 0; i < pendentes.length; i++) {
+                    const item = pendentes[i];
                     item.data_sincronizado = agora;
+                    if (retNuvem && retNuvem.length > i) {
+                        item.remoto_id = retNuvem[i].id;
+                        item.id_remoto = retNuvem[i].id;
+                    }
                     await LocalDB.salvarApontamento(item);
                 }
 
@@ -944,7 +1128,7 @@
         }
 
         // =========================================================================
-        // 7. AÇÕES E NAVEGAÇÃO
+        // 8. AÇÕES E NAVEGAÇÃO
         // =========================================================================
         function novoApontamento() {
             window.location.href = "novoapontamento.html";
@@ -955,8 +1139,11 @@
             const item = todos.find(x => x.id === id);
 
             if (item && item.data_sincronizado) {
-                alert(`A O.S. ${extrairOrdemServico(item)} já foi transmitida para a nuvem e não pode mais ser editada localmente.`);
-                return;
+                const remotoId = item.remoto_id || item.id_remoto;
+                if (remotoId) {
+                    window.location.href = `novoapontamento.html?remotoId=${remotoId}`;
+                    return;
+                }
             }
 
             window.location.href = `novoapontamento.html?id=${id}`;
@@ -989,6 +1176,7 @@
             localStorage.removeItem("UsuarioGrupo");
             localStorage.removeItem("UsuarioNivel");
             localStorage.removeItem("NivelUsuario");
+            localStorage.removeItem("NivelAcesso");
         }
 
         function sairSessao() {

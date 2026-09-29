@@ -14,6 +14,7 @@
 
     <!-- Supabase JS Client Oficial e Banco Local IndexedDB -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
     <script src="db.js"></script>
 
     <style>
@@ -366,6 +367,16 @@
 
                 </div>
 
+                <!-- Grupo da Empresa (Visível somente para Administradores e Supervisores) -->
+                <div class="input-group" id="containerGrupo" style="display: none;">
+                    <label for="pickerGrupo">Grupo da Empresa</label>
+                    <div class="input-box">
+                        <select id="pickerGrupo">
+                            <option value="" disabled selected hidden>Selecione o grupo...</option>
+                        </select>
+                    </div>
+                </div>
+
                 <!-- Setor com Picker -->
                 <div class="input-group">
                     <label for="pickerSetor">Setor</label>
@@ -399,24 +410,61 @@
 
     <script>
         // =========================================================================
-        // 1. CONFIGURAÇÕES SUPABASE
+        // 1. CAPTURA ROBUSTA DO SUPABASE
         // =========================================================================
-        const SUPABASE_URL = "https://mtlbrhmpiwvzjwbzaywi.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_qilTaEWSiDNr1L-N5uE5gA_NYyLkyBt";
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        function obterClienteSupabase() {
+            if (window.supabaseClient) return window.supabaseClient;
+            if (window.supabase && typeof window.SUPABASE_URL !== 'undefined') {
+                return window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+            }
+            return null;
+        }
 
         let _apontamentoEdicao = null;
         let _apontamentoRemotoEdicao = null;
         let _setorPendenteSelecao = null;
+        let _grupoPendenteSelecao = null;
+        let _temPermissaoGestor = false;
+
         const Setores = [];
+        const Grupos = [];
 
         document.addEventListener('DOMContentLoaded', async () => {
             configurarValoresPadrao();
+            verificarPermissaoGestor();
+
+            if (typeof LocalDB !== 'undefined' && LocalDB.abrirConexao) {
+                try { await LocalDB.abrirConexao(); } catch (_) { }
+            }
+
+            if (_temPermissaoGestor) {
+                await carregarGruposAsync();
+            }
             await carregarSetoresAsync();
             await verificarParametrosRota();
         });
 
-        // Configuração com Data Local precisa (fuso horário local)
+        function verificarPermissaoGestor() {
+            const nivel = (
+                localStorage.getItem("NivelAcesso") ||
+                localStorage.getItem("UsuarioNivel") ||
+                localStorage.getItem("NivelUsuario") ||
+                sessionStorage.getItem("NivelAcesso") ||
+                "Usuario"
+            ).toLowerCase();
+
+            const grupo = (localStorage.getItem("UsuarioGrupo") || "").toLowerCase();
+
+            _temPermissaoGestor = nivel.includes("admin") || nivel.includes("supervisor") ||
+                grupo.includes("admin") || grupo.includes("supervisor") ||
+                nivel === "1" || nivel === "2";
+
+            const containerGrupo = document.getElementById('containerGrupo');
+            if (containerGrupo) {
+                containerGrupo.style.display = _temPermissaoGestor ? "flex" : "none";
+            }
+        }
+
         function configurarValoresPadrao() {
             const agora = new Date();
             const ano = agora.getFullYear();
@@ -438,54 +486,104 @@
             }
         }
 
-        // Função de Extração Universal de Ordem de Serviço
-        function extrairOrdemServicoDoObjeto(item) {
-            if (!item) return '';
-            const chaves = ['ordemservico', 'ordem_servico', 'OrdemServico', 'numero_os', 'num_os', 'os', 'OS', 'nr_os'];
-            for (const chave of chaves) {
-                if (item[chave] !== undefined && item[chave] !== null && String(item[chave]).trim() !== '') {
-                    return String(item[chave]).trim();
+        // =========================================================================
+        // CARREGAMENTO DE GRUPOS (coluna 'grupo')
+        // =========================================================================
+        async function carregarGruposAsync() {
+            const select = document.getElementById('pickerGrupo');
+
+            function renderizarOpcoesGrupos(listaGrupos) {
+                Grupos.length = 0;
+                select.innerHTML = '<option value="" disabled selected hidden>Selecione o grupo...</option>';
+                const ordenados = [...listaGrupos].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+
+                ordenados.forEach(grupoNome => {
+                    Grupos.push(grupoNome);
+                    const opt = document.createElement('option');
+                    opt.value = grupoNome;
+                    opt.textContent = grupoNome;
+                    select.appendChild(opt);
+                });
+
+                if (_grupoPendenteSelecao) {
+                    definirGrupoSelecionado(_grupoPendenteSelecao);
+                } else {
+                    const grupoPadrao = localStorage.getItem("UsuarioGrupo") || "Mantenedor";
+                    definirGrupoSelecionado(grupoPadrao);
                 }
             }
-            return '';
-        }
 
-        // Normalizador de Data para Input HTML (YYYY-MM-DD)
-        function normalizarDataParaInput(valorData) {
-            if (!valorData) return '';
-            const str = String(valorData).trim();
-            if (str.includes('T')) return str.split('T')[0];
-            if (str.includes('-')) return str.substring(0, 10);
-            if (str.includes('/')) {
-                const partes = str.split('/');
-                if (partes.length === 3) return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
+            try {
+                if (typeof LocalDB !== 'undefined' && LocalDB.obterGrupos) {
+                    const gruposLocais = await LocalDB.obterGrupos();
+                    if (gruposLocais && gruposLocais.length > 0) {
+                        const nomes = gruposLocais.map(g => g.grupo || g.nome).filter(Boolean);
+                        renderizarOpcoesGrupos(nomes);
+                    }
+                }
+            } catch (eLocal) {
+                console.warn("[Grupos] Erro ao ler locais:", eLocal);
             }
-            return str;
+
+            if (!navigator.onLine) return;
+
+            const supabase = obterClienteSupabase();
+            if (!supabase) return;
+
+            try {
+                const { data: respostaNuvem, error } = await supabase
+                    .from('grupos')
+                    .select('grupo')
+                    .order('grupo', { ascending: true });
+
+                if (!error && respostaNuvem && respostaNuvem.length > 0) {
+                    const nomesNuvem = respostaNuvem.map(g => (g.grupo || '').trim()).filter(Boolean);
+
+                    if (typeof LocalDB !== 'undefined' && LocalDB.sincronizarGruposLocais) {
+                        await LocalDB.sincronizarGruposLocais(respostaNuvem);
+                    }
+
+                    renderizarOpcoesGrupos([...new Set(nomesNuvem)]);
+                    if (_grupoPendenteSelecao) _grupoPendenteSelecao = null;
+                }
+            } catch (ex) {
+                console.warn("[Grupos] Erro ao sincronizar nuvem:", ex);
+            }
         }
 
-        // Normalizador Universal de Horários
-        function formatarHora(h) {
-            if (!h) return '';
-            const s = String(h).trim();
-            if (s.includes('T')) {
-                const parteTempo = s.split('T')[1];
-                if (parteTempo && parteTempo.includes(':')) {
-                    const sub = parteTempo.split(':');
-                    return `${sub[0].padStart(2, '0')}:${sub[1].padStart(2, '0')}`;
+        function definirGrupoSelecionado(nomeGrupo) {
+            if (!nomeGrupo || !nomeGrupo.trim()) return;
+            const grupoTrim = nomeGrupo.trim();
+            const select = document.getElementById('pickerGrupo');
+
+            if (Grupos.length === 0) {
+                _grupoPendenteSelecao = grupoTrim;
+                return;
+            }
+
+            let indexEncontrado = -1;
+            for (let i = 0; i < select.options.length; i++) {
+                if (select.options[i].value.toLowerCase() === grupoTrim.toLowerCase()) {
+                    indexEncontrado = i;
+                    break;
                 }
             }
-            if (s.includes(':')) {
-                const partes = s.split(':');
-                return `${partes[0].padStart(2, '0')}:${(partes[1] || '00').substring(0, 2).padStart(2, '0')}`;
+
+            if (indexEncontrado >= 0) {
+                select.selectedIndex = indexEncontrado;
+            } else {
+                const opt = document.createElement('option');
+                opt.value = grupoTrim;
+                opt.textContent = grupoTrim;
+                select.appendChild(opt);
+                select.value = grupoTrim;
+                Grupos.push(grupoTrim);
             }
-            const digitos = s.replace(/\D/g, '');
-            if (digitos.length >= 4) {
-                return `${digitos.slice(0, 2)}:${digitos.slice(2, 4)}`;
-            }
-            return s;
         }
 
-        // Carregar Setores com resiliência
+        // =========================================================================
+        // CARREGAMENTO DE SETORES (coluna 'nome')
+        // =========================================================================
         async function carregarSetoresAsync() {
             const select = document.getElementById('pickerSetor');
 
@@ -515,32 +613,32 @@
                     }
                 }
             } catch (eLocal) {
-                console.warn("Aviso ao ler setores locais:", eLocal);
+                console.warn("[Setores] Erro ao ler locais:", eLocal);
             }
 
             if (!navigator.onLine) return;
 
+            const supabase = obterClienteSupabase();
+            if (!supabase) return;
+
             try {
-                const { data: respostaNuvem, error } = await supabaseClient
+                const { data: respostaNuvem, error } = await supabase
                     .from('setores')
-                    .select('id, nome');
+                    .select('id, nome')
+                    .order('nome', { ascending: true });
 
                 if (!error && respostaNuvem && respostaNuvem.length > 0) {
                     const nomesNuvem = respostaNuvem.map(s => (s.nome || '').trim()).filter(n => n.length > 0);
 
-                    if (typeof LocalDB !== 'undefined' && LocalDB.salvarSetor) {
-                        for (const s of respostaNuvem) {
-                            if (s.nome && s.nome.trim()) {
-                                try { await LocalDB.salvarSetor(s.nome.trim(), s.id); } catch (_) { }
-                            }
-                        }
+                    if (typeof LocalDB !== 'undefined' && LocalDB.sincronizarSetoresLocais) {
+                        await LocalDB.sincronizarSetoresLocais(respostaNuvem);
                     }
 
                     renderizarOpcoes([...new Set(nomesNuvem)]);
                     if (_setorPendenteSelecao) _setorPendenteSelecao = null;
                 }
             } catch (ex) {
-                console.error("Falha geral ao buscar setores na nuvem:", ex);
+                console.error("[Setores] Erro ao buscar setores:", ex);
             }
         }
 
@@ -579,30 +677,70 @@
             }
         }
 
+        function extrairOrdemServicoDoObjeto(item) {
+            if (!item) return '';
+            const chaves = ['ordemservico', 'ordem_servico', 'OrdemServico', 'numero_os', 'num_os', 'os', 'OS', 'nr_os'];
+            for (const chave of chaves) {
+                if (item[chave] !== undefined && item[chave] !== null && String(item[chave]).trim() !== '') {
+                    return String(item[chave]).trim();
+                }
+            }
+            return '';
+        }
+
+        function normalizarDataParaInput(valorData) {
+            if (!valorData) return '';
+            const str = String(valorData).trim();
+            if (str.includes('T')) return str.split('T')[0];
+            if (str.includes('-')) return str.substring(0, 10);
+            if (str.includes('/')) {
+                const partes = str.split('/');
+                if (partes.length === 3) return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
+            }
+            return str;
+        }
+
+        function formatarHora(h) {
+            if (!h) return '';
+            const s = String(h).trim();
+            if (s.includes('T')) {
+                const parteTempo = s.split('T')[1];
+                if (parteTempo && parteTempo.includes(':')) {
+                    const sub = parteTempo.split(':');
+                    return `${sub[0].padStart(2, '0')}:${sub[1].padStart(2, '0')}`;
+                }
+            }
+            if (s.includes(':')) {
+                const partes = s.split(':');
+                return `${partes[0].padStart(2, '0')}:${(partes[1] || '00').substring(0, 2).padStart(2, '0')}`;
+            }
+            const digitos = s.replace(/\D/g, '');
+            if (digitos.length >= 4) {
+                return `${digitos.slice(0, 2)}:${digitos.slice(2, 4)}`;
+            }
+            return s;
+        }
+
         // =========================================================================
-        // VERIFICAÇÃO DE ROTA E REGRAS DE PERMISSÃO
+        // VERIFICAÇÃO DE ROTA E PREENCHIMENTO EM EDIÇÃO
         // =========================================================================
         async function verificarParametrosRota() {
             const params = new URLSearchParams(window.location.search);
             const localId = params.get('id');
             const remotoId = params.get('remotoId');
 
-            // 1. CENÁRIO: EDIÇÃO NA NUVEM (Somente Administrador e Supervisor)
             if (remotoId) {
-                const nivel = (localStorage.getItem("UsuarioNivel") || localStorage.getItem("NivelUsuario") || "Usuario").toLowerCase();
-                const grupo = (localStorage.getItem("UsuarioGrupo") || "").toLowerCase();
-                const temPermissao = nivel.includes("admin") || nivel.includes("supervisor") ||
-                    grupo.includes("admin") || grupo.includes("supervisor") ||
-                    nivel === "1" || nivel === "2";
-
-                if (!temPermissao) {
-                    alert("Acesso Negado: Apenas Administradores e Supervisores podem editar registros diretamente no servidor.");
+                if (!_temPermissaoGestor) {
+                    alert("Acesso Negado: Apenas Administradores e Supervisores podem editar registros no servidor.");
                     window.location.replace("listaapontamento.html");
                     return;
                 }
 
+                const supabase = obterClienteSupabase();
+                if (!supabase) return;
+
                 try {
-                    const { data, error } = await supabaseClient
+                    const { data, error } = await supabase
                         .from('apontamentos')
                         .select('*')
                         .eq('id', remotoId)
@@ -622,15 +760,12 @@
                 return;
             }
 
-            // 2. CENÁRIO: EDIÇÃO NO BANCO LOCAL (Antes do envio)
             if (localId) {
                 try {
                     const item = await LocalDB.obterApontamentoPorId(localId);
                     if (item) {
                         if (item.data_sincronizado) {
-                            alert("Este apontamento já foi transmitido para a nuvem e não pode mais ser editado no banco local.");
-                            window.location.replace("listaapontamento.html");
-                            return;
+                            alert("Este apontamento já foi transmitido para a nuvem. Editando cópia local sincronizada.");
                         }
                         _apontamentoEdicao = item;
                         carregarDadosParaEdicao(item);
@@ -659,6 +794,9 @@
             document.getElementById('tpNativoFim').value = hFim;
 
             definirSetorSelecionado(item.setor || item.Setor || '');
+            if (_temPermissaoGestor) {
+                definirGrupoSelecionado(item.grupo || item.Grupo || '');
+            }
             document.getElementById('txtObservacoes').value = item.observacoes || item.Observacoes || '';
 
             document.getElementById('lblMatriculaOperador').textContent = `Editando Local ID: #${item.id}`;
@@ -685,6 +823,9 @@
             document.getElementById('tpNativoFim').value = hFim;
 
             definirSetorSelecionado(item.setor || item.Setor || '');
+            if (_temPermissaoGestor) {
+                definirGrupoSelecionado(item.grupo || item.Grupo || '');
+            }
             document.getElementById('txtObservacoes').value = item.observacoes || item.Observacoes || item.descricao || '';
 
             document.getElementById('lblMatriculaOperador').textContent = `Editando Nuvem ID: #${item.id}`;
@@ -708,7 +849,7 @@
         }
 
         // =========================================================================
-        // SALVAMENTO (GRAVAÇÃO LOCAL OU REMOTA COM SINCRONIZAÇÃO LOCAL)
+        // SALVAMENTO GARANTIDO (COLUNAS EXATAS: ordemservico, horainicio, horafim)
         // =========================================================================
         async function onSalvarApontamentoClicked(e) {
             e.preventDefault();
@@ -720,27 +861,39 @@
             const setor = document.getElementById('pickerSetor').value.trim();
             const obs = document.getElementById('txtObservacoes').value.trim();
             const dataSql = document.getElementById('dpData').value;
-            const grupoUsuario = (localStorage.getItem("UsuarioGrupo") || "Mantenedor").trim();
             const btnSalvar = document.getElementById('btnSalvar');
+            const supabase = obterClienteSupabase();
+
+            // Grupo
+            let grupoFinal = (localStorage.getItem("UsuarioGrupo") || "Mantenedor").trim();
+            if (_temPermissaoGestor) {
+                const pickerGrupoVal = document.getElementById('pickerGrupo').value.trim();
+                if (pickerGrupoVal) grupoFinal = pickerGrupoVal;
+            }
 
             if (!setor) {
-                alert("Campo Obrigatório: Por favor, selecione um Setor.");
+                alert("Campo Obrigatório: Selecione um Setor.");
+                return;
+            }
+
+            if (_temPermissaoGestor && !grupoFinal) {
+                alert("Campo Obrigatório: Selecione um Grupo.");
                 return;
             }
 
             if (!executante) {
-                alert("Campo Obrigatório: Por favor, informe a Matrícula do Executante.");
+                alert("Campo Obrigatório: Informe a Matrícula do Executante.");
                 return;
             }
 
             if (!hInicio || !hFim) {
-                alert("Campos Obrigatórios: Os campos Hora Inicial e Hora Final são obrigatórios.");
+                alert("Campos Obrigatórios: Preencha os horários Inicial e Final.");
                 return;
             }
 
             const regexHora = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
             if (!regexHora.test(hInicio) || !regexHora.test(hFim)) {
-                alert("Formato Inválido: Preencha os horários no formato HH:mm (Ex: 07:30).");
+                alert("Formato Inválido: Use HH:mm (Ex: 07:30).");
                 return;
             }
 
@@ -750,83 +903,95 @@
             const totalMinFim = hFimH * 60 + hFimM;
 
             if (totalMinFim <= totalMinIni) {
-                alert("Horário Incoerente: A Hora Final deve ser posterior à Hora Inicial.");
+                alert("Horário Incoerente: Hora Final deve ser maior que Hora Inicial.");
                 return;
             }
 
             if (!obs) {
-                alert("Campo Obrigatório: Por favor, preencha o campo Observações.");
+                alert("Campo Obrigatório: Preencha as Observações.");
                 return;
             }
 
             btnSalvar.disabled = true;
 
             try {
+                const agoraIso = new Date().toISOString();
+                const matriculaLogada = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "---";
+
+                // Payload rigoroso com as colunas reais do PostgreSQL do Supabase
+                const payloadSupabase = {
+                    ordemservico: os,
+                    setor: setor,
+                    grupo: grupoFinal,
+                    matricula_executante: executante,
+                    data: dataSql,
+                    horainicio: hInicio,
+                    horafim: hFim,
+                    observacoes: obs
+                };
+
                 // -----------------------------------------------------------
-                // CENÁRIO 1: EDIÇÃO DIRETA NO SUPABASE (Admin e Supervisor)
+                // CENÁRIO 1: EDIÇÃO REMOTA (Nuvem + Espelho Local Garantido)
                 // -----------------------------------------------------------
                 if (_apontamentoRemotoEdicao != null) {
-                    const nivel = (localStorage.getItem("UsuarioNivel") || localStorage.getItem("NivelUsuario") || "Usuario").toLowerCase();
-                    const grupoSessao = (localStorage.getItem("UsuarioGrupo") || "").toLowerCase();
-                    const temPermissao = nivel.includes("admin") || nivel.includes("supervisor") ||
-                        grupoSessao.includes("admin") || grupoSessao.includes("supervisor") ||
-                        nivel === "1" || nivel === "2";
-
-                    if (!temPermissao) {
-                        alert("Permissão Insuficiente: Usuários comuns só editam dados no banco local antes do envio.");
+                    if (!_temPermissaoGestor) {
+                        alert("Permissão Insuficiente.");
                         btnSalvar.disabled = false;
                         return;
                     }
 
-                    if (!navigator.onLine) {
-                        alert("Sem Conexão: Conecte-se à internet para atualizar registros na nuvem.");
+                    if (!navigator.onLine || !supabase) {
+                        alert("Sem Conexão: Conecte-se à internet para atualizar no servidor.");
                         btnSalvar.disabled = false;
                         return;
                     }
 
                     const remotoId = _apontamentoRemotoEdicao.id;
 
-                    // 1. Atualiza no Supabase (colunas exatas do DDL Postgres: ordemservico, horainicio, horafim)
-                    const { error } = await supabaseClient
+                    // 1. Atualiza no Supabase usando APENAS as colunas existentes
+                    const { error } = await supabase
                         .from('apontamentos')
-                        .update({
-                            ordemservico: os,
-                            setor: setor,
-                            grupo: grupoUsuario,
-                            matricula_executante: executante,
-                            data: dataSql,
-                            horainicio: hInicio,
-                            horafim: hFim,
-                            observacoes: obs
-                        })
+                        .update(payloadSupabase)
                         .eq('id', remotoId);
 
                     if (error) throw error;
 
-                    const agoraIso = new Date().toISOString();
-
-                    // 2. Atualização ou Inserção Garantida no Banco Local (IndexedDB)
+                    // 2. ATUALIZAÇÃO NO BANCO LOCAL (INDEXEDDB) COM ID PRESERVADO
                     if (typeof LocalDB !== 'undefined' && LocalDB.obterApontamentosLocais) {
                         try {
                             const locais = await LocalDB.obterApontamentosLocais();
                             const osOriginal = extrairOrdemServicoDoObjeto(_apontamentoRemotoEdicao);
+                            const dataOriginal = normalizarDataParaInput(_apontamentoRemotoEdicao.data || _apontamentoRemotoEdicao.Data);
+                            const horaOriginal = formatarHora(_apontamentoRemotoEdicao.horainicio || _apontamentoRemotoEdicao.hora_inicio);
 
-                            // Localiza o registro local por: ID remoto gravado, O.S. nova ou O.S. antiga
                             let registroLocal = locais.find(x => {
-                                const idRemoto = x.remoto_id || x.nuvem_id || x.remotoId;
-                                if (idRemoto && String(idRemoto) === String(remotoId)) return true;
+                                const idRem = x.remoto_id ?? x.nuvem_id ?? x.remotoId ?? x.id_remoto;
+                                if (idRem !== undefined && idRem !== null && String(idRem) === String(remotoId)) {
+                                    return true;
+                                }
 
                                 const osLoc = extrairOrdemServicoDoObjeto(x);
-                                return (os && osLoc === os) || (osOriginal && osLoc === osOriginal);
+                                if (os && osLoc && osLoc.toLowerCase() === os.toLowerCase()) return true;
+                                if (osOriginal && osLoc && osLoc.toLowerCase() === osOriginal.toLowerCase()) return true;
+
+                                const xData = normalizarDataParaInput(x.data);
+                                const xHora = formatarHora(x.horainicio || x.hora_inicio);
+                                const xExec = String(x.matricula_executante || '').trim();
+
+                                if (xData === dataOriginal && xHora === horaOriginal && xExec === String(_apontamentoRemotoEdicao.matricula_executante).trim()) {
+                                    return true;
+                                }
+
+                                return false;
                             });
 
-                            if (registroLocal) {
-                                // Se já existe no aparelho, atualiza os dados
+                            if (registroLocal && registroLocal.id) {
                                 registroLocal.remoto_id = remotoId;
+                                registroLocal.id_remoto = remotoId;
                                 registroLocal.ordemservico = os;
                                 registroLocal.ordem_servico = os;
                                 registroLocal.setor = setor;
-                                registroLocal.grupo = grupoUsuario;
+                                registroLocal.grupo = grupoFinal;
                                 registroLocal.matricula_executante = executante;
                                 registroLocal.data = dataSql;
                                 registroLocal.horainicio = hInicio;
@@ -838,20 +1003,15 @@
 
                                 await LocalDB.salvarApontamento(registroLocal);
                             } else {
-                                // Se o registro foi feito por outro usuário em outro celular,
-                                // insere uma cópia no banco local marcada como sincronizada
-                                const matriculaDono = _apontamentoRemotoEdicao.matricula_usuario
-                                    || localStorage.getItem("MatriculaUsuario")
-                                    || "---";
-
                                 const novoRegistroLocal = {
                                     remoto_id: remotoId,
+                                    id_remoto: remotoId,
                                     ordemservico: os,
                                     ordem_servico: os,
                                     setor: setor,
-                                    grupo: grupoUsuario,
+                                    grupo: grupoFinal,
                                     matricula_executante: executante,
-                                    matricula_usuario: matriculaDono,
+                                    matricula_usuario: _apontamentoRemotoEdicao.matricula_usuario || matriculaLogada,
                                     data: dataSql,
                                     horainicio: hInicio,
                                     hora_inicio: hInicio,
@@ -860,34 +1020,31 @@
                                     observacoes: obs,
                                     data_sincronizado: agoraIso
                                 };
-
                                 await LocalDB.salvarApontamento(novoRegistroLocal);
                             }
                         } catch (eLocal) {
-                            console.warn("Aviso ao sincronizar base local após edição na nuvem:", eLocal);
+                            console.warn("[LocalDB] Falha ao atualizar espelho local:", eLocal);
                         }
                     }
 
-                    alert("Sucesso: Apontamento atualizado no Supabase e no banco local com sucesso!");
+                    alert("Sucesso: Apontamento atualizado!");
                     window.location.href = "relatorios.html";
                     return;
                 }
 
                 // -----------------------------------------------------------
-                // CENÁRIO 2: BANCO LOCAL INDEXEDDB (Novo ou Edição antes do envio)
+                // CENÁRIO 2: SALVAMENTO LOCAL (Novo ou Edição)
                 // -----------------------------------------------------------
                 if (typeof LocalDB === 'undefined') {
-                    throw new Error("LocalDB não está disponível no contexto global (db.js).");
+                    throw new Error("LocalDB indisponível em db.js.");
                 }
-
-                const matriculaLogada = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "---";
 
                 if (_apontamentoEdicao == null) {
                     const novoApontamento = {
                         ordemservico: os,
                         ordem_servico: os,
                         setor: setor,
-                        grupo: grupoUsuario,
+                        grupo: grupoFinal,
                         matricula_executante: executante,
                         matricula_usuario: matriculaLogada,
                         data: dataSql,
@@ -896,22 +1053,39 @@
                         horafim: hFim,
                         hora_fim: hFim,
                         observacoes: obs,
-                        data_sincronizado: null // Salva pendente para envio
+                        data_sincronizado: null
                     };
 
-                    await LocalDB.salvarApontamento(novoApontamento);
-                    alert("Sucesso: Apontamento gravado no banco local!");
-                } else {
-                    if (_apontamentoEdicao.data_sincronizado) {
-                        alert("Operação Bloqueada: Apontamentos já enviados não podem ser alterados localmente.");
-                        btnSalvar.disabled = false;
-                        return;
+                    // Salva primeiro para gerar a PK do IndexedDB
+                    const idLocalGerado = await LocalDB.salvarApontamento(novoApontamento);
+                    novoApontamento.id = idLocalGerado;
+
+                    // Se online, insere na nuvem e atualiza a mesma linha local
+                    if (navigator.onLine && supabase) {
+                        try {
+                            const { data: retNuvem, error: errNuvem } = await supabase
+                                .from('apontamentos')
+                                .insert([payloadSupabase])
+                                .select();
+
+                            if (!errNuvem && retNuvem && retNuvem.length > 0) {
+                                novoApontamento.remoto_id = retNuvem[0].id;
+                                novoApontamento.id_remoto = retNuvem[0].id;
+                                novoApontamento.data_sincronizado = agoraIso;
+                                await LocalDB.salvarApontamento(novoApontamento);
+                            }
+                        } catch (eEnvio) {
+                            console.warn("Nuvem indisponível. Mantido no banco local pendente:", eEnvio);
+                        }
                     }
 
+                    alert("Sucesso: Apontamento gravado com sucesso!");
+                } else {
+                    // Edição de registro local existente: preserva o ID primário do IndexedDB
                     _apontamentoEdicao.ordemservico = os;
                     _apontamentoEdicao.ordem_servico = os;
                     _apontamentoEdicao.setor = setor;
-                    _apontamentoEdicao.grupo = grupoUsuario;
+                    _apontamentoEdicao.grupo = grupoFinal;
                     _apontamentoEdicao.matricula_executante = executante;
                     _apontamentoEdicao.data = dataSql;
                     _apontamentoEdicao.horainicio = hInicio;
@@ -919,7 +1093,22 @@
                     _apontamentoEdicao.horafim = hFim;
                     _apontamentoEdicao.hora_fim = hFim;
                     _apontamentoEdicao.observacoes = obs;
-                    _apontamentoEdicao.data_sincronizado = null;
+
+                    const idRemotoExistente = _apontamentoEdicao.remoto_id || _apontamentoEdicao.id_remoto;
+                    if (idRemotoExistente && navigator.onLine && supabase) {
+                        try {
+                            await supabase
+                                .from('apontamentos')
+                                .update(payloadSupabase)
+                                .eq('id', idRemotoExistente);
+
+                            _apontamentoEdicao.data_sincronizado = agoraIso;
+                        } catch (_) {
+                            _apontamentoEdicao.data_sincronizado = null;
+                        }
+                    } else {
+                        _apontamentoEdicao.data_sincronizado = null;
+                    }
 
                     await LocalDB.salvarApontamento(_apontamentoEdicao);
                     alert("Sucesso: Apontamento local atualizado com sucesso!");
@@ -928,7 +1117,7 @@
                 window.location.href = "listaapontamento.html";
             } catch (ex) {
                 console.error(ex);
-                alert(`Erro: Falha ao salvar dados: ${ex.message || ex}`);
+                alert(`Erro ao salvar dados: ${ex.message || ex}`);
             } finally {
                 btnSalvar.disabled = false;
             }

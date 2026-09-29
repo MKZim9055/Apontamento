@@ -1,0 +1,724 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grupos da Empresa - Configurações</title>
+    <!-- 1. SDK Oficial do Supabase v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- 2. Configuração Central Supabase -->
+    <script src="supabase-config.js"></script>
+    <!-- 3. Gerenciador do Banco Local IndexedDB -->
+    <script src="db.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #081426 0%, #020912 50%, #0A1D38 100%);
+            color: #FFFFFF;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 24px 16px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 520px;
+            display: flex;
+            flex-direction: column;
+            min-height: 90vh;
+            gap: 16px;
+        }
+
+        /* Topo */
+        .header {
+            margin-bottom: 4px;
+        }
+
+        .nav-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .btn-voltar {
+            width: 42px;
+            height: 42px;
+            background-color: #132F4C;
+            border: 1px solid #1F3A60;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            text-decoration: none;
+            color: #FFFFFF;
+            font-size: 20px;
+            font-weight: bold;
+            transition: background-color 0.2s, transform 0.1s;
+            user-select: none;
+        }
+
+            .btn-voltar:hover {
+                background-color: #1A3E63;
+            }
+
+            .btn-voltar:active {
+                transform: scale(0.96);
+            }
+
+        .nav-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #FFFFFF;
+            margin-left: 14px;
+        }
+
+        .badge-status {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+        }
+
+        .status-online {
+            background-color: rgba(0, 196, 140, 0.2);
+            color: #00C48C;
+            border: 1px solid #00C48C;
+        }
+
+        .status-offline {
+            background-color: rgba(255, 152, 56, 0.2);
+            color: #FF9838;
+            border: 1px solid #FF9838;
+        }
+
+        .page-title {
+            font-size: 26px;
+            font-weight: 700;
+            color: #FFFFFF;
+            margin-bottom: 4px;
+        }
+
+        .page-subtitle {
+            font-size: 13px;
+            color: #8FA3BF;
+            line-height: 1.4;
+        }
+
+        /* Card de Cadastro */
+        .card-form {
+            background-color: #0B1C33;
+            border: 1px solid #173154;
+            border-radius: 18px;
+            padding: 16px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: #D1B8E8;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-text {
+            flex: 1;
+            height: 48px;
+            background-color: #061221;
+            border: 1px solid #3D2063;
+            border-radius: 12px;
+            padding: 0 14px;
+            color: #FFFFFF;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+            .input-text:focus {
+                border-color: #9B51E0;
+            }
+
+            .input-text::placeholder {
+                color: #4B6382;
+            }
+
+        .btn-adicionar {
+            height: 48px;
+            padding: 0 20px;
+            background: linear-gradient(135deg, #9B51E0 0%, #7B2CBF 100%);
+            border: none;
+            border-radius: 12px;
+            color: #FFFFFF;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: filter 0.2s, transform 0.1s;
+            white-space: nowrap;
+        }
+
+            .btn-adicionar:hover {
+                filter: brightness(1.1);
+            }
+
+            .btn-adicionar:active {
+                transform: scale(0.97);
+            }
+
+            .btn-adicionar:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+
+        /* Lista de Grupos */
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 4px;
+        }
+
+            .list-header span {
+                font-size: 13px;
+                font-weight: 600;
+                color: #8FA3BF;
+            }
+
+        .btn-sync-manual {
+            background: transparent;
+            border: none;
+            color: #2F80ED;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .grupos-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex-grow: 1;
+            min-height: 180px;
+        }
+
+        .grupo-card {
+            background-color: #0E223D;
+            border: 1px solid #1F3A60;
+            border-radius: 14px;
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            transition: border-color 0.2s, transform 0.1s;
+            animation: fadeIn 0.2s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .grupo-card:hover {
+            border-color: #9B51E0;
+            transform: translateY(-1px);
+        }
+
+        .grupo-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .grupo-badge {
+            width: 38px;
+            height: 38px;
+            background-color: #2D1B4E;
+            color: #D1B8E8;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .grupo-detalhe {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            overflow: hidden;
+        }
+
+        .grupo-nome {
+            font-size: 15px;
+            font-weight: 600;
+            color: #FFFFFF;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .grupo-sync-status {
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .sync-ok {
+            color: #00C48C;
+        }
+
+        .sync-pendente {
+            color: #FF9838;
+        }
+
+        .btn-excluir {
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #FF6B6B;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+            .btn-excluir:hover {
+                background: rgba(239, 68, 68, 0.25);
+                border-color: #EF4444;
+            }
+
+        .empty-state {
+            text-align: center;
+            padding: 30px 12px;
+            color: #5A718F;
+            font-size: 14px;
+        }
+
+        /* Rodapé */
+        .footer {
+            margin-top: auto;
+            padding-top: 14px;
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .footer-line {
+            flex-grow: 1;
+            height: 1px;
+            background-color: #1F3249;
+        }
+
+        .footer-text {
+            font-size: 11px;
+            color: #5A718F;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+
+        <!-- Topo -->
+        <header class="header">
+            <div class="nav-bar">
+                <div class="nav-left">
+                    <a href="configuracoes.html" class="btn-voltar" title="Voltar para Configurações">←</a>
+                    <span class="nav-title">Painel Administrativo</span>
+                </div>
+                <span id="badgeConexao" class="badge-status status-online">Online</span>
+            </div>
+            <h1 class="page-title">Grupos da Empresa</h1>
+            <p class="page-subtitle">Sincronização em nuvem com armazenamento local offline</p>
+        </header>
+
+        <!-- Formulário para Criar Grupo -->
+        <div class="card-form">
+            <label class="form-label" for="txtNovoGrupo">Novo Grupo</label>
+            <div class="input-group">
+                <input type="text" id="txtNovoGrupo" class="input-text" placeholder="Ex: Caldeiraria, Mecânica, Elétrica..." autocomplete="off">
+                <button id="btnSalvar" class="btn-adicionar" onclick="salvarGrupo()">Adicionar</button>
+            </div>
+        </div>
+
+        <!-- Cabeçalho da Lista -->
+        <div class="list-header">
+            <span id="lblContador">Consultando banco local...</span>
+            <button type="button" class="btn-sync-manual" onclick="sincronizarComSupabase()">🔄 Sincronizar</button>
+        </div>
+
+        <!-- Lista de Grupos -->
+        <main id="containerGrupos" class="grupos-list">
+            <div class="empty-state">Iniciando base de dados local...</div>
+        </main>
+
+        <!-- Rodapé -->
+        <footer class="footer">
+            <div class="footer-line"></div>
+            <span class="footer-text">Banco Local IndexedDB &bull; Supabase Sync</span>
+            <div class="footer-line"></div>
+        </footer>
+
+    </div>
+
+    <script>
+        // =========================================================================
+        // 1. INICIALIZAÇÃO DE SESSÃO E SUPABASE
+        // =========================================================================
+        function obterClienteSupabase() {
+            if (window.supabaseClient) return window.supabaseClient;
+            if (window.supabase && typeof window.SUPABASE_URL !== 'undefined') {
+                return window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+            }
+            return null;
+        }
+
+        let gruposLocais = [];
+
+        document.addEventListener("DOMContentLoaded", () => {
+            verificarPermissao();
+            atualizarIndicadorConexao();
+
+            // Sequência de inicialização para evitar tela em branco
+            inicializarTelaGrupos();
+
+            window.addEventListener("online", () => {
+                atualizarIndicadorConexao();
+                sincronizarComSupabase();
+            });
+
+            window.addEventListener("offline", atualizarIndicadorConexao);
+
+            const input = document.getElementById("txtNovoGrupo");
+            if (input) {
+                input.addEventListener("keyup", (e) => {
+                    if (e.key === "Enter") salvarGrupo();
+                });
+            }
+        });
+
+        async function inicializarTelaGrupos() {
+            // 1. Abre a conexão com o IndexedDB primeiro
+            if (window.LocalDB) {
+                await window.LocalDB.abrirConexao();
+            }
+
+            // 2. Carrega e exibe o que já estiver salvo no aparelho imediatamente
+            await carregarDoBancoLocal();
+
+            // 3. Se online, baixa do Supabase e espelha no banco local
+            if (navigator.onLine) {
+                await sincronizarComSupabase();
+            }
+        }
+
+        function atualizarIndicadorConexao() {
+            const badge = document.getElementById("badgeConexao");
+            if (!badge) return;
+            if (navigator.onLine) {
+                badge.textContent = "Online";
+                badge.className = "badge-status status-online";
+            } else {
+                badge.textContent = "Modo Offline";
+                badge.className = "badge-status status-offline";
+            }
+        }
+
+        function verificarPermissao() {
+            const nivel = (
+                localStorage.getItem("NivelAcesso") ||
+                localStorage.getItem("NivelUsuario") ||
+                sessionStorage.getItem("NivelAcesso") ||
+                sessionStorage.getItem("NivelUsuario") ||
+                ""
+            ).trim().toLowerCase();
+
+            const matricula = localStorage.getItem("MatriculaUsuario") || sessionStorage.getItem("MatriculaUsuario");
+
+            if (!matricula) {
+                window.location.href = "login.html";
+                return;
+            }
+
+            const isAdmin = ["administrador", "admin", "1"].includes(nivel);
+            if (!isAdmin) {
+                alert("Acesso restrito: somente Administradores podem gerenciar grupos.");
+                window.location.href = "configuracoes.html";
+            }
+        }
+
+        // =========================================================================
+        // 2. LEITURA VIA LocalDB (IndexedDB)
+        // =========================================================================
+        async function carregarDoBancoLocal() {
+            try {
+                if (window.LocalDB) {
+                    const dados = await window.LocalDB.obterGrupos();
+                    gruposLocais = dados.map(item => ({
+                        ...item,
+                        nome: (item.grupo || item.nome || '').trim(),
+                        grupo: (item.grupo || item.nome || '').trim()
+                    }));
+                } else {
+                    gruposLocais = [];
+                }
+
+                // Ordena alfabeticamente
+                gruposLocais.sort((a, b) => (a.grupo || a.nome || '').localeCompare(b.grupo || b.nome || '', 'pt-BR'));
+            } catch (e) {
+                console.error("[Grupos] Erro ao consultar LocalDB:", e);
+                gruposLocais = [];
+            } finally {
+                renderizarLista();
+            }
+        }
+
+        function renderizarLista() {
+            const container = document.getElementById("containerGrupos");
+            const contador = document.getElementById("lblContador");
+
+            if (!container) return;
+
+            if (contador) {
+                contador.textContent = `${gruposLocais.length} grupo(s) no banco local`;
+            }
+
+            if (gruposLocais.length === 0) {
+                container.innerHTML = `<div class="empty-state">Nenhum grupo encontrado localmente. Adicione um novo acima.</div>`;
+                return;
+            }
+
+            container.innerHTML = "";
+
+            gruposLocais.forEach((item) => {
+                const card = document.createElement("div");
+                card.className = "grupo-card";
+
+                const nomeExibicao = item.grupo || item.nome;
+                const sincronizado = item.nuvem_id != null;
+                const statusTexto = sincronizado ? "Salvo local & Nuvem" : "Salvo localmente";
+                const statusClasse = sincronizado ? "sync-ok" : "sync-pendente";
+                const statusIcone = sincronizado ? "☁️" : "💾";
+
+                card.innerHTML = `
+                        <div class="grupo-info">
+                            <div class="grupo-badge">🏷️</div>
+                            <div class="grupo-detalhe">
+                                <span class="grupo-nome" title="${escapeHtml(nomeExibicao)}">${escapeHtml(nomeExibicao)}</span>
+                                <span class="grupo-sync-status ${statusClasse}">
+                                    ${statusIcone} ${statusTexto}
+                                </span>
+                            </div>
+                        </div>
+                        <button class="btn-excluir" title="Excluir grupo" onclick="excluirGrupo('${escapeJs(nomeExibicao)}')">
+                            🗑️
+                        </button>
+                    `;
+
+                container.appendChild(card);
+            });
+        }
+
+        // =========================================================================
+        // 3. SINCRONIZAÇÃO NUVEM -> LOCAL (usando a coluna 'grupo' do Supabase)
+        // =========================================================================
+        async function sincronizarComSupabase() {
+            const supabase = obterClienteSupabase();
+            if (!supabase || !navigator.onLine) {
+                await carregarDoBancoLocal();
+                return;
+            }
+
+            try {
+                // Consulta na tabela 'grupos' ordenando pela coluna 'grupo'
+                const { data, error } = await supabase
+                    .from("grupos")
+                    .select("grupo")
+                    .order("grupo", { ascending: true });
+
+                if (error) throw error;
+
+                if (data && window.LocalDB) {
+                    const listaFormatada = data.map(item => ({
+                        nome: (item.grupo || "").trim(),
+                        grupo: (item.grupo || "").trim(),
+                        nuvem_id: item.grupo
+                    }));
+                    await window.LocalDB.sincronizarGruposLocais(listaFormatada);
+                }
+            } catch (err) {
+                console.warn("[Sync] Operando com dados do banco local offline:", err.message);
+            } finally {
+                await carregarDoBancoLocal();
+            }
+        }
+
+        // =========================================================================
+        // 4. ADICIONAR GRUPO (INSERT na coluna 'grupo')
+        // =========================================================================
+        async function salvarGrupo() {
+            const txtInput = document.getElementById("txtNovoGrupo");
+            const btnSalvar = document.getElementById("btnSalvar");
+            const nome = (txtInput ? txtInput.value : "").trim();
+            const supabase = obterClienteSupabase();
+
+            if (!nome) {
+                alert("Informe o nome do grupo.");
+                if (txtInput) txtInput.focus();
+                return;
+            }
+
+            const jaExiste = gruposLocais.some(g => {
+                const atual = (g.grupo || g.nome || '').toLowerCase();
+                return atual === nome.toLowerCase();
+            });
+
+            if (jaExiste) {
+                alert(`O grupo "${nome}" já está cadastrado.`);
+                return;
+            }
+
+            btnSalvar.disabled = true;
+            btnSalvar.textContent = "...";
+
+            let nuvemId = null;
+
+            // 1. Grava no Supabase (coluna: 'grupo')
+            if (navigator.onLine && supabase) {
+                try {
+                    const { error } = await supabase
+                        .from("grupos")
+                        .insert([{ grupo: nome }]);
+
+                    if (!error) {
+                        nuvemId = nome;
+                    } else {
+                        console.warn("[Nuvem] Erro ao gravar grupo:", error.message);
+                    }
+                } catch (err) {
+                    console.warn("[Nuvem] Falha ao enviar ao Supabase, mantendo local:", err.message);
+                }
+            }
+
+            // 2. Grava no IndexedDB usando o LocalDB
+            try {
+                if (window.LocalDB) {
+                    await window.LocalDB.salvarGrupo(nome, nuvemId);
+                }
+
+                txtInput.value = "";
+                await carregarDoBancoLocal();
+
+                if (nuvemId == null) {
+                    alert("Sem internet: grupo salvo localmente no navegador e pronto para uso!");
+                }
+            } catch (e) {
+                alert("Erro ao gravar no banco local: " + e.message);
+            } finally {
+                btnSalvar.disabled = false;
+                btnSalvar.textContent = "Adicionar";
+                if (txtInput) txtInput.focus();
+            }
+        }
+
+        // =========================================================================
+        // 5. EXCLUIR GRUPO (DELETE filtrando pela coluna 'grupo')
+        // =========================================================================
+        async function excluirGrupo(nome) {
+            const confirmar = confirm(`Deseja realmente remover o grupo "${nome}"?`);
+            if (!confirmar) return;
+
+            const supabase = obterClienteSupabase();
+
+            // 1. Remove do Supabase
+            if (navigator.onLine && supabase) {
+                try {
+                    await supabase
+                        .from("grupos")
+                        .delete()
+                        .eq("grupo", nome);
+                } catch (err) {
+                    console.warn("[Nuvem] Falha ao excluir do Supabase:", err.message);
+                }
+            }
+
+            // 2. Remove do IndexedDB pelo LocalDB
+            try {
+                if (window.LocalDB) {
+                    await window.LocalDB.excluirGrupoPorNome(nome);
+                }
+                await carregarDoBancoLocal();
+            } catch (e) {
+                alert("Erro ao excluir do banco local: " + e.message);
+            }
+        }
+
+        function escapeHtml(texto) {
+            if (!texto) return "";
+            return String(texto)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function escapeJs(texto) {
+            if (!texto) return "";
+            return String(texto).replace(/'/g, "\\'");
+        }
+    </script>
+
+</body>
+</html>
