@@ -298,21 +298,20 @@
                 cursor: grabbing;
             }
 
-        /* Linha 1 */
+        /* Linha 1: O.S centralizada verticalmente em relação ao bloco Data + Grupo */
         .card-line-1 {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: center;
         }
 
         /* Bloco da O.S à esquerda */
         .os-left-group {
             display: flex;
-            flex-direction: column;
-            align-items: flex-start;
+            align-items: center;
         }
 
-        /* Bloco da Data e Setor abaixo à direita */
+        /* Bloco da Data e Grupo à direita */
         .meta-right-group {
             display: flex;
             flex-direction: column;
@@ -323,20 +322,22 @@
         .badge-os {
             background-color: #0B4242;
             border-radius: 6px;
-            padding: 3px 8px;
+            padding: 4px 10px;
             color: #00C48C;
             font-size: 16px;
             font-weight: 700;
             width: fit-content;
+            display: inline-flex;
+            align-items: center;
         }
 
-        .badge-setor {
-            background-color: #162E4A;
+        .badge-grupo-topo {
+            background-color: #1A314E;
+            color: #49B0F3;
             border-radius: 6px;
-            padding: 3px 8px;
-            color: #CAD8E8;
+            padding: 2px 8px;
             font-size: 14px;
-            font-weight: 600;
+            font-weight: 700;
             width: fit-content;
         }
 
@@ -401,18 +402,24 @@
             color: #657D99;
         }
 
-        /* Badge do Grupo abaixo dos horários */
-        .badge-grupo {
-            background-color: #1A314E;
-            color: #49B0F3;
+        /* Linha do Setor em cima de Obs */
+        .card-setor-row {
+            display: flex;
+            align-items: center;
+            margin-top: 2px;
+        }
+
+        .badge-setor-bloco {
+            background-color: #162E4A;
             border-radius: 6px;
-            padding: 2px 8px;
+            padding: 3px 8px;
+            color: #CAD8E8;
             font-size: 14px;
-            font-weight: 700;
+            font-weight: 600;
             width: fit-content;
         }
 
-        /* Linha 3: Observações */
+        /* Linha 3: Tarefa (Observações) */
         .card-obs {
             font-size: 14px;
             color: #8FA3BF;
@@ -423,6 +430,10 @@
             overflow: hidden;
             margin-top: 2px;
         }
+
+            .card-obs strong {
+                color: #CAD8E8;
+            }
 
         /* EmptyView */
         .empty-view {
@@ -572,7 +583,6 @@
         async function carregarGruposFiltroAsync() {
             let lista = [];
 
-            // 1. Tenta carregar do IndexedDB / Cache rápido
             if (typeof LocalDB !== 'undefined' && LocalDB.obterGrupos) {
                 try {
                     const locais = await LocalDB.obterGrupos();
@@ -585,7 +595,6 @@
                 if (cache) lista = JSON.parse(cache);
             }
 
-            // 2. Se online, sincroniza da tabela grupos (coluna: grupo)
             const supabase = obterClienteSupabase();
             if (navigator.onLine && supabase) {
                 try {
@@ -834,20 +843,20 @@
                                 <button class="swipe-btn btn-delete" onclick="onExcluirItemInvoked('${id}', '${os}')">Excluir</button>
                             </div>
                             <div class="item-card" data-open="false">
-                                <!-- Linha 1: O.S à esquerda; Data com Setor abaixo à direita -->
+                                <!-- Linha 1: O.S à esquerda centralizada; Data com Grupo abaixo à direita -->
                                 <div class="card-line-1">
                                     <div class="os-left-group">
                                         <span class="badge-os">${os}</span>
                                     </div>
                                     <div class="meta-right-group">
                                         <span class="data-text">${dataStr}</span>
-                                        <span class="badge-setor">Setor: ${setor}</span>
+                                        <span class="badge-grupo-topo">Grupo: ${grupo}</span>
                                     </div>
                                 </div>
 
                                 <div class="card-divider"></div>
 
-                                <!-- Linha 2: Matrícula e Horários + Grupo -->
+                                <!-- Linha 2: Matrícula à esquerda; Horários à direita -->
                                 <div class="card-line-2">
                                     <div class="matricula-group">
                                         <span class="matricula-label">Matrícula:</span>
@@ -861,11 +870,16 @@
                                             <span class="ate-text">até</span>
                                             <span class="horario-text">${fim || '--:--'}</span>
                                         </div>
-                                        <span class="badge-grupo">Grupo: ${grupo}</span>
                                     </div>
                                 </div>
 
-                                ${obs ? `<div class="card-obs">${obs}</div>` : ''}
+                                <!-- Setor em cima de Tarefa (Observações) -->
+                                <div class="card-setor-row">
+                                    <span class="badge-setor-bloco">Setor: ${setor}</span>
+                                </div>
+
+                                <!-- Tarefa com rótulo em negrito -->
+                                ${obs ? `<div class="card-obs"><strong>Tarefa:</strong> ${obs}</div>` : ''}
                             </div>
                         </div>
                     `;
@@ -890,7 +904,6 @@
             if (!supabase) return;
 
             try {
-                // 1. Remove da nuvem Supabase
                 const { error } = await supabase
                     .from(NOME_TABELA)
                     .delete()
@@ -898,7 +911,6 @@
 
                 if (error) throw error;
 
-                // 2. Remove da base local IndexedDB para manter sincronizado com a lista
                 if (typeof LocalDB !== 'undefined' && LocalDB.obterApontamentosLocais) {
                     try {
                         const locais = await LocalDB.obterApontamentosLocais();

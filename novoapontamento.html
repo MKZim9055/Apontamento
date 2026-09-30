@@ -213,7 +213,7 @@
             cursor: pointer;
         }
 
-        /* Observações */
+        /* Caixa de Texto Tarefa (Observações) */
         .input-box-textarea {
             background-color: #061221;
             border: 1px solid #1B3352;
@@ -367,7 +367,7 @@
 
                 </div>
 
-                <!-- Grupo da Empresa (Visível somente para Administradores e Supervisores) -->
+                <!-- 1º: Grupo da Empresa (Visível para Administradores e Supervisores) -->
                 <div class="input-group" id="containerGrupo" style="display: none;">
                     <label for="pickerGrupo">Grupo da Empresa</label>
                     <div class="input-box">
@@ -377,7 +377,7 @@
                     </div>
                 </div>
 
-                <!-- Setor com Picker -->
+                <!-- 2º: Setor (Logo acima de Tarefa) -->
                 <div class="input-group">
                     <label for="pickerSetor">Setor</label>
                     <div class="input-box">
@@ -387,9 +387,9 @@
                     </div>
                 </div>
 
-                <!-- Observações -->
+                <!-- 3º: Tarefa (Observações) -->
                 <div class="input-group">
-                    <label for="txtObservacoes">Observações</label>
+                    <label for="txtObservacoes">Tarefa:</label>
                     <div class="input-box-textarea">
                         <textarea id="txtObservacoes"
                                   placeholder="Descrição da tarefa..."
@@ -793,10 +793,10 @@
             document.getElementById('tpNativoInicio').value = hInicio;
             document.getElementById('tpNativoFim').value = hFim;
 
-            definirSetorSelecionado(item.setor || item.Setor || '');
             if (_temPermissaoGestor) {
                 definirGrupoSelecionado(item.grupo || item.Grupo || '');
             }
+            definirSetorSelecionado(item.setor || item.Setor || '');
             document.getElementById('txtObservacoes').value = item.observacoes || item.Observacoes || '';
 
             document.getElementById('lblMatriculaOperador').textContent = `Editando Local ID: #${item.id}`;
@@ -822,10 +822,10 @@
             document.getElementById('tpNativoInicio').value = hInicio;
             document.getElementById('tpNativoFim').value = hFim;
 
-            definirSetorSelecionado(item.setor || item.Setor || '');
             if (_temPermissaoGestor) {
                 definirGrupoSelecionado(item.grupo || item.Grupo || '');
             }
+            definirSetorSelecionado(item.setor || item.Setor || '');
             document.getElementById('txtObservacoes').value = item.observacoes || item.Observacoes || item.descricao || '';
 
             document.getElementById('lblMatriculaOperador').textContent = `Editando Nuvem ID: #${item.id}`;
@@ -849,7 +849,7 @@
         }
 
         // =========================================================================
-        // SALVAMENTO GARANTIDO (COLUNAS EXATAS: ordemservico, horainicio, horafim)
+        // SALVAMENTO GARANTIDO
         // =========================================================================
         async function onSalvarApontamentoClicked(e) {
             e.preventDefault();
@@ -871,13 +871,13 @@
                 if (pickerGrupoVal) grupoFinal = pickerGrupoVal;
             }
 
-            if (!setor) {
-                alert("Campo Obrigatório: Selecione um Setor.");
+            if (_temPermissaoGestor && !grupoFinal) {
+                alert("Campo Obrigatório: Selecione um Grupo.");
                 return;
             }
 
-            if (_temPermissaoGestor && !grupoFinal) {
-                alert("Campo Obrigatório: Selecione um Grupo.");
+            if (!setor) {
+                alert("Campo Obrigatório: Selecione um Setor.");
                 return;
             }
 
@@ -908,7 +908,7 @@
             }
 
             if (!obs) {
-                alert("Campo Obrigatório: Preencha as Observações.");
+                alert("Campo Obrigatório: Preencha a Tarefa.");
                 return;
             }
 
@@ -918,7 +918,6 @@
                 const agoraIso = new Date().toISOString();
                 const matriculaLogada = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "---";
 
-                // Payload rigoroso com as colunas reais do PostgreSQL do Supabase
                 const payloadSupabase = {
                     ordemservico: os,
                     setor: setor,
@@ -948,7 +947,6 @@
 
                     const remotoId = _apontamentoRemotoEdicao.id;
 
-                    // 1. Atualiza no Supabase usando APENAS as colunas existentes
                     const { error } = await supabase
                         .from('apontamentos')
                         .update(payloadSupabase)
@@ -956,7 +954,6 @@
 
                     if (error) throw error;
 
-                    // 2. ATUALIZAÇÃO NO BANCO LOCAL (INDEXEDDB) COM ID PRESERVADO
                     if (typeof LocalDB !== 'undefined' && LocalDB.obterApontamentosLocais) {
                         try {
                             const locais = await LocalDB.obterApontamentosLocais();
@@ -1056,11 +1053,9 @@
                         data_sincronizado: null
                     };
 
-                    // Salva primeiro para gerar a PK do IndexedDB
                     const idLocalGerado = await LocalDB.salvarApontamento(novoApontamento);
                     novoApontamento.id = idLocalGerado;
 
-                    // Se online, insere na nuvem e atualiza a mesma linha local
                     if (navigator.onLine && supabase) {
                         try {
                             const { data: retNuvem, error: errNuvem } = await supabase
@@ -1081,7 +1076,6 @@
 
                     alert("Sucesso: Apontamento gravado com sucesso!");
                 } else {
-                    // Edição de registro local existente: preserva o ID primário do IndexedDB
                     _apontamentoEdicao.ordemservico = os;
                     _apontamentoEdicao.ordem_servico = os;
                     _apontamentoEdicao.setor = setor;

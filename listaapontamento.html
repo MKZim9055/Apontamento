@@ -245,14 +245,14 @@
                 cursor: grabbing;
             }
 
-        /* Linha 1 */
+        /* Linha 1: O.S centralizada em relação à Data e Grupo */
         .card-line-1 {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: center;
         }
 
-        /* Bloco da OS e Status abaixo */
+        /* Bloco da OS e Status à esquerda */
         .os-status-group {
             display: flex;
             flex-direction: column;
@@ -260,7 +260,7 @@
             gap: 5px;
         }
 
-        /* Bloco da Data e Setor abaixo */
+        /* Bloco da Data e Grupo à direita */
         .meta-right-group {
             display: flex;
             flex-direction: column;
@@ -278,13 +278,13 @@
             width: fit-content;
         }
 
-        .badge-setor {
-            background-color: #162E4A;
+        .badge-grupo-topo {
+            background-color: #1A314E;
+            color: #49B0F3;
             border-radius: 6px;
-            padding: 3px 8px;
-            color: #CAD8E8;
+            padding: 2px 8px;
             font-size: 14px;
-            font-weight: 600;
+            font-weight: 700;
             width: fit-content;
         }
 
@@ -369,17 +369,24 @@
             color: #657D99;
         }
 
-        .badge-grupo {
-            background-color: #1A314E;
-            color: #49B0F3;
+        /* Linha do Setor acima da Tarefa */
+        .card-setor-row {
+            display: flex;
+            align-items: center;
+            margin-top: 2px;
+        }
+
+        .badge-setor-bloco {
+            background-color: #162E4A;
             border-radius: 6px;
-            padding: 2px 8px;
+            padding: 3px 8px;
+            color: #CAD8E8;
             font-size: 14px;
-            font-weight: 700;
+            font-weight: 600;
             width: fit-content;
         }
 
-        /* Linha 3: Observações */
+        /* Linha 3: Tarefa (Observações) */
         .card-obs {
             font-size: 14px;
             color: #8FA3BF;
@@ -390,6 +397,10 @@
             overflow: hidden;
             margin-top: 2px;
         }
+
+            .card-obs strong {
+                color: #CAD8E8;
+            }
 
         /* Empty State */
         .empty-view {
@@ -833,7 +844,7 @@
                                 <button class="swipe-btn btn-delete" onclick="excluirItem(${id})">Excluir</button>
                             </div>
                             <div class="item-card" data-open="false">
-                                <!-- Linha 1: O.S com Status abaixo à esquerda; Data com Setor abaixo à direita -->
+                                <!-- Linha 1: O.S centralizada em relação à Data e Grupo -->
                                 <div class="card-line-1">
                                     <div class="os-status-group">
                                         <span class="badge-os">${os}</span>
@@ -841,14 +852,13 @@
                                     </div>
                                     <div class="meta-right-group">
                                         <span class="data-text">${dataStr}</span>
-                                        <span class="badge-setor">Setor: ${setor}</span>
+                                        <span class="badge-grupo-topo">Grupo: ${grupo}</span>
                                     </div>
                                 </div>
 
-                                <!-- Divisor Interno Suave -->
                                 <div class="card-divider"></div>
 
-                                <!-- Linha 2: Matrícula e Horários + Grupo -->
+                                <!-- Linha 2: Matrícula à esquerda; Horários à direita -->
                                 <div class="card-line-2">
                                     <div class="matricula-group">
                                         <span class="matricula-label">Matrícula:</span>
@@ -862,12 +872,16 @@
                                             <span class="ate-text">até</span>
                                             <span class="horario-text">${fim || '--:--'}</span>
                                         </div>
-                                        <span class="badge-grupo">Grupo: ${grupo}</span>
                                     </div>
                                 </div>
 
-                                <!-- Linha 3: Observações -->
-                                ${obs ? `<div class="card-obs">${obs}</div>` : ''}
+                                <!-- Setor acima de Tarefa (Observações) -->
+                                <div class="card-setor-row">
+                                    <span class="badge-setor-bloco">Setor: ${setor}</span>
+                                </div>
+
+                                <!-- Linha 3: Tarefa -->
+                                ${obs ? `<div class="card-obs"><strong>Tarefa:</strong> ${obs}</div>` : ''}
                             </div>
                         </div>
                     `;
