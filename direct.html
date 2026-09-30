@@ -786,9 +786,13 @@
             try {
                 supabaseClient
                     .channel('direct_mensagens_realtime')
-                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_mensagens' }, () => {
-                        carregarMensagensAsync();
-                    })
+                    .on(
+                        'postgres_changes',
+                        { event: '*', schema: 'public', table: 'direct_mensagens' },
+                        () => {
+                            carregarMensagensAsync();
+                        }
+                    )
                     .subscribe();
             } catch (e) {
                 console.warn("Realtime não inicializado:", e);

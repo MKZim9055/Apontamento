@@ -30,16 +30,21 @@
             user-select: text;
         }
 
+        /* Trava a altura da tela inteira para scroll interno limpo */
+        html {
+            height: 100%;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            min-height: 100vh;
-            min-height: 100dvh;
+            height: 100vh;
+            height: 100dvh;
             background: linear-gradient(135deg, #081426 0%, #020912 50%, #0A1D38 100%);
             color: #FFFFFF;
             display: flex;
             flex-direction: column;
             padding: calc(35px + env(safe-area-inset-top)) 20px calc(12px + env(safe-area-inset-bottom)) 20px;
-            overflow-x: hidden;
+            overflow: hidden; /* Evita que a tela inteira dance */
         }
 
         .container {
@@ -50,6 +55,8 @@
             flex-direction: column;
             flex: 1;
             height: 100%;
+            min-height: 0; /* Permite que o container respeite limites flex */
+            overflow: hidden;
         }
 
         /* 1. Topo: Botão Voltar e Cabeçalho */
@@ -58,6 +65,7 @@
             grid-template-columns: auto 1fr;
             align-items: center;
             margin-bottom: 16px;
+            flex-shrink: 0;
         }
 
         .btn-voltar {
@@ -110,6 +118,7 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+            flex-shrink: 0; /* Impede que os filtros sejam espremidos */
         }
 
         .filter-title {
@@ -210,6 +219,7 @@
             justify-content: space-between;
             align-items: center;
             margin: 0 4px 8px 4px;
+            flex-shrink: 0;
         }
 
         .counter-label {
@@ -224,14 +234,17 @@
             color: #00C48C;
         }
 
-        /* 4. Lista e Swipe View Fiel ao MAUI */
+        /* 4. Lista e Scroll Ativo */
         .list-container {
             flex: 1;
+            min-height: 0; /* FUNDAMENTAL: permite calcular o overflow dentro do flex */
             overflow-y: auto;
+            overflow-x: hidden;
             display: flex;
             flex-direction: column;
             gap: 10px;
-            padding-bottom: 20px;
+            padding-bottom: 24px;
+            -webkit-overflow-scrolling: touch; /* Suavidade no iOS */
             overscroll-behavior-y: contain;
         }
 
@@ -240,6 +253,7 @@
             border-radius: 14px;
             overflow: hidden;
             background-color: #081426;
+            flex-shrink: 0; /* Não deforma os cards */
         }
 
         .swipe-actions {
@@ -287,7 +301,7 @@
             flex-direction: column;
             gap: 8px;
             z-index: 2;
-            touch-action: pan-y;
+            touch-action: pan-y; /* Permite rolar verticalmente livremente */
             will-change: transform;
             backface-visibility: hidden;
             cursor: grab;
@@ -298,20 +312,18 @@
                 cursor: grabbing;
             }
 
-        /* Linha 1: O.S centralizada verticalmente em relação ao bloco Data + Grupo */
+        /* Linha 1 */
         .card-line-1 {
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        /* Bloco da O.S à esquerda */
         .os-left-group {
             display: flex;
             align-items: center;
         }
 
-        /* Bloco da Data e Grupo à direita */
         .meta-right-group {
             display: flex;
             flex-direction: column;
@@ -347,7 +359,7 @@
             color: #8FA3BF;
         }
 
-        /* Divisor Interno Suave */
+        /* Divisor */
         .card-divider {
             height: 1px;
             background-color: #162E4E;
@@ -402,7 +414,7 @@
             color: #657D99;
         }
 
-        /* Linha do Setor em cima de Obs */
+        /* Linha Setor */
         .card-setor-row {
             display: flex;
             align-items: center;
@@ -419,7 +431,7 @@
             width: fit-content;
         }
 
-        /* Linha 3: Tarefa (Observações) */
+        /* Linha 3: Observações */
         .card-obs {
             font-size: 14px;
             color: #8FA3BF;
@@ -461,6 +473,7 @@
             color: #00C48C;
             margin-bottom: 6px;
             display: none;
+            flex-shrink: 0;
         }
     </style>
 </head>
@@ -525,10 +538,10 @@
 
         <div id="refreshIndicator" class="refresh-status">Atualizando registros...</div>
 
-        <!-- 4. Lista dos Apontamentos (CollectionView) -->
-        <div class="list-container" id="cvApontamentos">
+        <!-- 4. Lista dos Apontamentos com Scroll Ativo -->
+        <main class="list-container" id="cvApontamentos">
             <!-- Renderizado dinamicamente -->
-        </div>
+        </main>
 
     </div>
 
@@ -653,7 +666,7 @@
         }
 
         // =========================================================================
-        // 3. CONSULTA NA NUVEM (CarregarApontamentosAsync)
+        // 3. CONSULTA NA NUVEM
         // =========================================================================
         async function carregarApontamentosAsync() {
             const supabase = obterClienteSupabase();
@@ -843,7 +856,7 @@
                                 <button class="swipe-btn btn-delete" onclick="onExcluirItemInvoked('${id}', '${os}')">Excluir</button>
                             </div>
                             <div class="item-card" data-open="false">
-                                <!-- Linha 1: O.S à esquerda centralizada; Data com Grupo abaixo à direita -->
+                                <!-- Linha 1: O.S e Data/Grupo -->
                                 <div class="card-line-1">
                                     <div class="os-left-group">
                                         <span class="badge-os">${os}</span>
@@ -856,7 +869,7 @@
 
                                 <div class="card-divider"></div>
 
-                                <!-- Linha 2: Matrícula à esquerda; Horários à direita -->
+                                <!-- Linha 2: Matrícula e Horários -->
                                 <div class="card-line-2">
                                     <div class="matricula-group">
                                         <span class="matricula-label">Matrícula:</span>
@@ -873,12 +886,12 @@
                                     </div>
                                 </div>
 
-                                <!-- Setor em cima de Tarefa (Observações) -->
+                                <!-- Setor -->
                                 <div class="card-setor-row">
                                     <span class="badge-setor-bloco">Setor: ${setor}</span>
                                 </div>
 
-                                <!-- Tarefa com rótulo em negrito -->
+                                <!-- Tarefa -->
                                 ${obs ? `<div class="card-obs"><strong>Tarefa:</strong> ${obs}</div>` : ''}
                             </div>
                         </div>
@@ -947,7 +960,7 @@
         }
 
         // =========================================================================
-        // 8. GESTOS DE SWIPE UNIFICADOS
+        // 8. GESTOS DE SWIPE UNIFICADOS (COM LIBERAÇÃO DE SCROLL VERTICAL)
         // =========================================================================
         function configurarGestosSwipe() {
             const cards = document.querySelectorAll('.item-card');
@@ -985,10 +998,7 @@
                     }
 
                     card.style.transition = 'none';
-
-                    try {
-                        card.setPointerCapture(e.pointerId);
-                    } catch (_) { }
+                    // Nota: setPointerCapture só deve ser chamado se o arraste for horizontal confirmado
                 });
 
                 card.addEventListener('pointermove', (e) => {
@@ -998,8 +1008,12 @@
                     const diffX = currentX - startX;
                     const diffY = e.clientY - startY;
 
-                    if (!movendoHorizontal && Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 6) {
+                    // Confirma se o usuário quer mover horizontal ou se está apenas rolando verticalmente
+                    if (!movendoHorizontal && Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 8) {
                         movendoHorizontal = true;
+                        try {
+                            card.setPointerCapture(e.pointerId);
+                        } catch (_) { }
                     }
 
                     if (movendoHorizontal) {

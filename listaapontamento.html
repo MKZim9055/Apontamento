@@ -41,16 +41,21 @@
             user-select: text;
         }
 
+        /* 1. Trava o HTML e Body para o tamanho da tela */
+        html {
+            height: 100%;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            min-height: 100vh;
-            min-height: 100dvh;
+            height: 100vh;
+            height: 100dvh;
             background: linear-gradient(135deg, #081426 0%, #020912 50%, #0A1D38 100%);
             color: #FFFFFF;
             display: flex;
             flex-direction: column;
             padding: calc(35px + env(safe-area-inset-top)) 20px calc(12px + env(safe-area-inset-bottom)) 20px;
-            overflow-x: hidden;
+            overflow: hidden; /* Mantém cabeçalho e busca fixos */
         }
 
         .container {
@@ -60,7 +65,9 @@
             display: flex;
             flex-direction: column;
             flex: 1;
+            min-height: 0; /* Essencial para flex children calcularem overflow */
             height: 100%;
+            overflow: hidden;
         }
 
         /* 1. Topo: Voltar, Título e Ações */
@@ -70,6 +77,7 @@
             justify-content: space-between;
             margin-bottom: 16px;
             gap: 12px;
+            flex-shrink: 0;
         }
 
         .header-left {
@@ -129,6 +137,7 @@
             gap: 10px;
             margin-bottom: 12px;
             transition: border-color 0.2s ease;
+            flex-shrink: 0;
         }
 
             .search-box:focus-within {
@@ -154,6 +163,7 @@
             justify-content: space-between;
             align-items: center;
             margin: 0 4px 8px 4px;
+            flex-shrink: 0;
         }
 
         .counter-label {
@@ -168,14 +178,17 @@
             color: #00C48C;
         }
 
-        /* 4. Lista e Swipe View */
+        /* 4. Lista e Swipe View com Scroll Habilitado */
         .list-container {
             flex: 1;
+            min-height: 0; /* Permite scroll ativo */
             overflow-y: auto;
+            overflow-x: hidden;
             display: flex;
             flex-direction: column;
             gap: 10px;
             padding-bottom: 90px;
+            -webkit-overflow-scrolling: touch;
             overscroll-behavior-y: contain;
         }
 
@@ -184,6 +197,7 @@
             border-radius: 14px;
             overflow: hidden;
             background-color: #081426;
+            flex-shrink: 0;
         }
 
         .swipe-actions {
@@ -200,7 +214,7 @@
             align-items: center;
             justify-content: center;
             color: #FFFFFF;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 700;
             cursor: pointer;
             border: none;
@@ -211,10 +225,6 @@
             .swipe-btn:active {
                 opacity: 0.8;
             }
-
-        .btn-sync {
-            background-color: #00C48C;
-        }
 
         .btn-edit {
             background-color: #1F6FEB;
@@ -234,7 +244,7 @@
             flex-direction: column;
             gap: 8px;
             z-index: 2;
-            touch-action: pan-y;
+            touch-action: pan-y; /* Permite rolar verticalmente livremente */
             will-change: transform;
             backface-visibility: hidden;
             cursor: grab;
@@ -245,14 +255,13 @@
                 cursor: grabbing;
             }
 
-        /* Linha 1: O.S centralizada em relação à Data e Grupo */
+        /* Linha 1 */
         .card-line-1 {
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        /* Bloco da OS e Status à esquerda */
         .os-status-group {
             display: flex;
             flex-direction: column;
@@ -260,7 +269,12 @@
             gap: 5px;
         }
 
-        /* Bloco da Data e Grupo à direita */
+        .status-actions-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
         .meta-right-group {
             display: flex;
             flex-direction: column;
@@ -306,6 +320,26 @@
                 background-color: rgba(0, 196, 140, 0.15);
                 color: #00C48C;
                 border: 1px solid rgba(0, 196, 140, 0.3);
+            }
+
+        .btn-sync-card {
+            background-color: #00C48C;
+            color: #020912;
+            border: none;
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: transform 0.12s ease, opacity 0.15s ease;
+        }
+
+            .btn-sync-card:active {
+                transform: scale(0.95);
+                opacity: 0.9;
             }
 
         .data-text {
@@ -369,7 +403,6 @@
             color: #657D99;
         }
 
-        /* Linha do Setor acima da Tarefa */
         .card-setor-row {
             display: flex;
             align-items: center;
@@ -386,7 +419,6 @@
             width: fit-content;
         }
 
-        /* Linha 3: Tarefa (Observações) */
         .card-obs {
             font-size: 14px;
             color: #8FA3BF;
@@ -478,7 +510,6 @@
             </div>
 
             <div class="top-actions">
-                <button id="btnSair" class="action-btn hidden" onclick="sairSessao()" title="Encerrar Sessão">🚪</button>
                 <button id="btnSyncLote" class="action-btn" onclick="sincronizarLote()" title="Enviar pendentes para nuvem">☁️</button>
             </div>
         </header>
@@ -500,10 +531,10 @@
             <span class="counter-value" id="lblTotal">0 registro(s)</span>
         </div>
 
-        <!-- 4. Lista dos Apontamentos com Swipe -->
-        <div class="list-container" id="listaApontamentos">
+        <!-- 4. Lista dos Apontamentos com Swipe e Scroll -->
+        <main class="list-container" id="listaApontamentos">
             <!-- Renderizado dinamicamente -->
-        </div>
+        </main>
 
         <!-- View Vazia -->
         <div id="emptyView" class="empty-view">
@@ -580,16 +611,6 @@
         // 2. Permissões de Visibilidade
         function configurarPermissoesVisuais() {
             document.getElementById('btnVoltar').classList.remove('hidden');
-
-            const nivel = (
-                localStorage.getItem("NivelAcesso") ||
-                localStorage.getItem("UsuarioNivel") ||
-                localStorage.getItem("NivelUsuario") ||
-                "Usuario"
-            ).toLowerCase();
-
-            const isUsuario = nivel === "usuario" || nivel === "3";
-            document.getElementById('btnSair').classList.toggle('hidden', !isUsuario);
         }
 
         // 3. Consulta de Registros Locais (IndexedDB)
@@ -648,106 +669,12 @@
                 const { data: remotos, error } = await supabase
                     .from('apontamentos')
                     .select('*')
-                    .or(`matricula_executante.eq.${matricula},matricula_usuario.eq.${matricula}`);
-
-                if (error || !remotos || remotos.length === 0) return;
-
-                let houveModificacao = false;
-
-                for (const remoto of remotos) {
-                    const remotoId = Number(remoto.id);
-                    const osRemota = extrairOrdemServico(remoto);
-                    const dataRemota = String(remoto.data || '').substring(0, 10);
-                    const hIniRemota = formatarHora(remoto.horainicio || remoto.hora_inicio);
-                    const matExecRemota = String(remoto.matricula_executante || '').trim();
-
-                    let local = locais.find(l => {
-                        const idRem = l.remoto_id ?? l.id_remoto ?? l.remotoId;
-                        if (idRem !== undefined && idRem !== null && Number(idRem) === remotoId) return true;
-
-                        const osLoc = extrairOrdemServico(l);
-                        if (osRemota !== '-' && osLoc !== '-' && osLoc.toLowerCase() === osRemota.toLowerCase()) return true;
-
-                        const lData = String(l.data || '').substring(0, 10);
-                        const lHora = formatarHora(l.horainicio || l.hora_inicio);
-                        const lExec = String(l.matricula_executante || '').trim();
-
-                        return (lData === dataRemota && lHora === hIniRemota && lExec === matExecRemota);
-                    });
-
-                    if (local && local.id) {
-                        let alterou = false;
-
-                        if (Number(local.remoto_id) !== remotoId) {
-                            local.remoto_id = remotoId;
-                            local.id_remoto = remotoId;
-                            alterou = true;
-                        }
-
-                        if (osRemota !== '-' && (local.ordemservico !== osRemota || local.ordem_servico !== osRemota)) {
-                            local.ordemservico = osRemota;
-                            local.ordem_servico = osRemota;
-                            alterou = true;
-                        }
-
-                        if (remoto.setor && local.setor !== remoto.setor) {
-                            local.setor = remoto.setor;
-                            alterou = true;
-                        }
-
-                        if (remoto.grupo && local.grupo !== remoto.grupo) {
-                            local.grupo = remoto.grupo;
-                            alterou = true;
-                        }
-
-                        if (hIniRemota && formatarHora(local.horainicio || local.hora_inicio) !== hIniRemota) {
-                            local.horainicio = hIniRemota;
-                            local.hora_inicio = hIniRemota;
-                            alterou = true;
-                        }
-
-                        const hFimRemota = formatarHora(remoto.horafim || remoto.hora_fim);
-                        if (hFimRemota && formatarHora(local.horafim || local.hora_fim) !== hFimRemota) {
-                            local.horafim = hFimRemota;
-                            local.hora_fim = hFimRemota;
-                            alterou = true;
-                        }
-
-                        if (remoto.observacoes !== undefined && local.observacoes !== remoto.observacoes) {
-                            local.observacoes = remoto.observacoes;
-                            alterou = true;
-                        }
-
-                        if (!local.data_sincronizado) {
-                            local.data_sincronizado = new Date().toISOString();
-                            alterou = true;
-                        }
-
-                        if (alterou) {
-                            await LocalDB.salvarApontamento(local);
-                            houveModificacao = true;
-                        }
-                    }
+                    .or(`matricula_executante.eq.${matricula},matricula_usuario.eq.${matricula}`); if (error \vert{ } \vert{ } !remotos \vert{ } \vert{ } remotos.length === 0) return; let houveModificacao = false; for (const remoto of remotos) { const remotoId = Number(remoto.id); const osRemota = extrairOrdemServico(remoto); const dataRemota = String(remoto.data \vert{}\vert{} '').substring(0, 10); const hIniRemota = formatarHora(remoto.horainicio \vert{}\vert{} remoto.hora_inicio); const matExecRemota = String(remoto.matricula_executante \vert{}\vert{} '').trim(); let local = locais.find(l => { const idRem = l.remoto_id ?? l.id_remoto ?? l.remotoId; if (idRem !== undefined && idRem !== null && Number(idRem) === remotoId) return true; const osLoc = extrairOrdemServico(l); if (osRemota !== '-' && osLoc !== '-' && osLoc.toLowerCase() === osRemota.toLowerCase()) return true; const lData = String(l.data \vert{}\vert{} '').substring(0, 10); const lHora = formatarHora(l.horainicio \vert{}\vert{} l.hora_inicio); const lExec = String(l.matricula_executante \vert{}\vert{} '').trim(); return (lData === dataRemota && lHora === hIniRemota && lExec === matExecRemota); }); if (local && local.id) { let alterou = false; if (Number(local.remoto_id) !== remotoId) { local.remoto_id = remotoId; local.id_remoto = remotoId; alterou = true; } if (osRemota !== '-' && (local.ordemservico !== osRemota \vert{ } \vert{ } local.ordem_servico !== osRemota)) { local.ordemservico = osRemota; local.ordem_servico = osRemota; alterou = true; } if (remoto.setor && local.setor !== remoto.setor) { local.setor = remoto.setor; alterou = true; } if (remoto.grupo && local.grupo !== remoto.grupo) { local.grupo = remoto.grupo; alterou = true; } if (hIniRemota && formatarHora(local.horainicio \vert{}\vert{} local.hora_inicio) !== hIniRemota) { local.horainicio = hIniRemota; local.hora_inicio = hIniRemota; alterou = true; } const hFimRemota = formatarHora(remoto.horafim \vert{}\vert{} remoto.hora_fim); if (hFimRemota && formatarHora(local.horafim \vert{}\vert{} local.hora_fim) !== hFimRemota) { local.horafim = hFimRemota; local.hora_fim = hFimRemota; alterou = true; } if (remoto.observacoes !== undefined && local.observacoes !== remoto.observacoes) { local.observacoes = remoto.observacoes; alterou = true; } if (!local.data_sincronizado) { local.data_sincronizado = new Date().toISOString(); alterou = true; } if (alterou) { await LocalDB.salvarApontamento(local); houveModificacao = true; } } } if (houveModificacao) { await carregarDadosAsync(); }
+            } catch (e) { console.warn("[Sync Nuvem -> Local]:", e); }
+        }          // Formatadores auxiliares         function formatarData(valorData) {             if (!valorData) return '';             const dataIso = String(valorData).substring(0, 10);             const partes = dataIso.split('-');             if (partes.length === 3) {                 return `${partes[2]}/${partes[1]}/${partes[0]}`;
                 }
-
-                if (houveModificacao) {
-                    await carregarDadosAsync();
-                }
-            } catch (e) {
-                console.warn("[Sync Nuvem -> Local]:", e);
+        return valorData;
             }
-        }
-
-        // Formatadores auxiliares
-        function formatarData(valorData) {
-            if (!valorData) return '';
-            const dataIso = String(valorData).substring(0, 10);
-            const partes = dataIso.split('-');
-            if (partes.length === 3) {
-                return `${partes[2]}/${partes[1]}/${partes[0]}`;
-            }
-            return valorData;
-        }
 
         function formatarHora(h) {
             if (!h) return '';
@@ -807,7 +734,7 @@
                 );
 
             const pendentes = _listaOriginal.filter(a => !a.data_sincronizado).length;
-            lblTotal.textContent = `${filtrados.length} registro(s)  /${pendentes} pendente(s)`;
+            lblTotal.textContent = `${filtrados.length} registro(s) /${pendentes} pendente(s)`;
 
             if (filtrados.length === 0) {
                 container.innerHTML = "";
@@ -832,14 +759,13 @@
                 const statusTexto = isSincronizado ? "✅ Enviado" : "⏳ Pendente";
                 const statusClass = isSincronizado ? "enviado" : "pendente";
 
-                const botaoSync = !isSincronizado
-                    ? `<button class="swipe-btn btn-sync" onclick="onEnviarItemClicked(${id})">Enviar ☁️</button>`
+                const botaoSyncFrente = !isSincronizado
+                    ? `<button type="button" class="btn-sync-card" onclick="onEnviarItemClicked(${id})" title="Enviar agora para a nuvem">Enviar ☁️</button>`
                     : ``;
 
                 return `
                         <div class="swipe-container" id="card-${id}">
-                            <div class="swipe-actions" data-buttons="${isSincronizado ? 2 : 3}">
-                                ${botaoSync}
+                            <div class="swipe-actions" data-buttons="2">
                                 <button class="swipe-btn btn-edit" onclick="editarItem(${id})">Editar</button>
                                 <button class="swipe-btn btn-delete" onclick="excluirItem(${id})">Excluir</button>
                             </div>
@@ -848,7 +774,10 @@
                                 <div class="card-line-1">
                                     <div class="os-status-group">
                                         <span class="badge-os">${os}</span>
-                                        <span class="badge-status ${statusClass}">${statusTexto}</span>
+                                        <div class="status-actions-row">
+                                            <span class="badge-status ${statusClass}">${statusTexto}</span>
+                                            ${botaoSyncFrente}
+                                        </div>
                                     </div>
                                     <div class="meta-right-group">
                                         <span class="data-text">${dataStr}</span>
@@ -891,7 +820,7 @@
         }
 
         // =========================================================================
-        // 6. GESTOS DE SWIPE UNIFICADOS
+        // 6. GESTOS DE SWIPE UNIFICADOS (COM LIBERAÇÃO DO SCROLL VERTICAL)
         // =========================================================================
         function configurarGestosSwipe() {
             const cards = document.querySelectorAll('.item-card');
@@ -908,12 +837,8 @@
             let activePointerId = null;
 
             cards.forEach(card => {
-                const container = card.closest('.swipe-container');
-                const actions = container.querySelector('.swipe-actions');
-                const numBotoes = parseInt(actions.getAttribute('data-buttons') || '2', 10);
-                const larguraLimite = numBotoes === 3 ? 210 : 140;
-
                 card.addEventListener('pointerdown', (e) => {
+                    if (e.target.closest('.btn-sync-card')) return;
                     if (e.pointerType === 'mouse' && e.button !== 0) return;
 
                     isDragging = true;
@@ -922,7 +847,7 @@
                     startY = e.clientY;
                     currentX = startX;
                     movendoHorizontal = false;
-                    larguraPainel = larguraLimite;
+                    larguraPainel = 140;
 
                     const isAberto = card.getAttribute('data-open') === 'true';
                     initialOffset = isAberto ? -larguraPainel : 0;
@@ -935,10 +860,7 @@
                     }
 
                     card.style.transition = 'none';
-
-                    try {
-                        card.setPointerCapture(e.pointerId);
-                    } catch (_) { }
+                    // Nota: Não chamamos setPointerCapture aqui para não travar o scroll vertical nativo!
                 });
 
                 card.addEventListener('pointermove', (e) => {
@@ -948,8 +870,12 @@
                     const diffX = currentX - startX;
                     const diffY = e.clientY - startY;
 
-                    if (!movendoHorizontal && Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 6) {
+                    // Captura o ponteiro apenas após confirmar intenção de arrasto horizontal
+                    if (!movendoHorizontal && Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 8) {
                         movendoHorizontal = true;
+                        try {
+                            card.setPointerCapture(e.pointerId);
+                        } catch (_) { }
                     }
 
                     if (movendoHorizontal) {
@@ -1034,12 +960,16 @@
                 const item = todos.find(x => x.id === id);
 
                 if (!item || item.data_sincronizado) {
-                    alert(`A O.S. ${extrairOrdemServico(item)} já foi transmitida.`);
+                    const osIdent = extrairOrdemServico(item);
+                    alert(`O registro ${osIdent !== '-' ? osIdent : '#' + id} já foi transmitido.`);
                     await carregarDadosAsync();
                     return;
                 }
 
-                if (!confirm(`Deseja transmitir a O.S. ${extrairOrdemServico(item)} para a nuvem?`)) return;
+                const osNome = extrairOrdemServico(item);
+                const rotuloMsg = osNome !== '-' ? `a O.S. ${osNome}` : `o apontamento #${id}`;
+
+                if (!confirm(`Deseja transmitir ${rotuloMsg} para a nuvem agora?`)) return;
 
                 if (!navigator.onLine || !supabase) {
                     alert("Sem conexão: O dispositivo está sem internet no momento.");
@@ -1051,7 +981,7 @@
                 const itemRemoto = {
                     matricula_usuario: item.matricula_usuario || matriculaLogada,
                     data: item.data,
-                    ordemservico: extrairOrdemServico(item),
+                    ordemservico: osNome !== '-' ? osNome : '',
                     matricula_executante: item.matricula_executante || '',
                     horainicio: formatarHora(item.horainicio || item.hora_inicio),
                     horafim: formatarHora(item.horafim || item.hora_fim),
@@ -1113,7 +1043,7 @@
                 const loteRemoto = pendentes.map(p => ({
                     matricula_usuario: p.matricula_usuario || matriculaLogada,
                     data: p.data,
-                    ordemservico: extrairOrdemServico(p),
+                    ordemservico: extrairOrdemServico(p) !== '-' ? extrairOrdemServico(p) : '',
                     matricula_executante: p.matricula_executante || '',
                     horainicio: formatarHora(p.horainicio || p.hora_inicio),
                     horafim: formatarHora(p.horafim || p.hora_fim),
@@ -1201,13 +1131,6 @@
             localStorage.removeItem("UsuarioNivel");
             localStorage.removeItem("NivelUsuario");
             localStorage.removeItem("NivelAcesso");
-        }
-
-        function sairSessao() {
-            if (confirm("Deseja encerrar a sessão?")) {
-                desconectar();
-                window.location.replace("login.html");
-            }
         }
     </script>
 </body>
