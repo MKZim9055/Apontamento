@@ -181,7 +181,7 @@
         /* 4. Lista e Swipe View com Scroll Habilitado */
         .list-container {
             flex: 1;
-            min-height: 0; /* Permite scroll ativo */
+            min-height: 0;
             overflow-y: auto;
             overflow-x: hidden;
             display: flex;
@@ -244,7 +244,7 @@
             flex-direction: column;
             gap: 8px;
             z-index: 2;
-            touch-action: pan-y; /* Permite rolar verticalmente livremente */
+            touch-action: pan-y;
             will-change: transform;
             backface-visibility: hidden;
             cursor: grab;
@@ -488,6 +488,7 @@
             font-size: 32px;
             font-weight: bold;
             margin-top: -3px;
+            pointer-events: none; /* Garante que o clique seja absorvido pelo botão */
         }
 
         .hidden {
@@ -502,7 +503,7 @@
         <!-- 1. Topo -->
         <header class="header-top">
             <div class="header-left">
-                <button id="btnVoltar" class="action-btn hidden" onclick="voltarPagina()" title="Voltar">←</button>
+                <button id="btnVoltar" class="action-btn" onclick="voltarPagina()" title="Voltar">←</button>
                 <div class="header-titles">
                     <h1>Apontamentos</h1>
                     <p>Banco de dados local</p>
@@ -510,7 +511,7 @@
             </div>
 
             <div class="top-actions">
-                <button id="btnSyncLote" class="action-btn" onclick="sincronizarLote()" title="Enviar pendentes para nuvem">☁️</button>
+                <button id="btnSyncLote" class="action-btn" onclick="sincronizarLote()" title="Enviar pendentes para banco dados">☁️</button>
             </div>
         </header>
 
@@ -543,7 +544,7 @@
         </div>
 
         <!-- Botão Flutuante (+) -->
-        <button class="btn-fab" onclick="novoApontamento()" title="Novo Apontamento">
+        <button type="button" class="btn-fab" onclick="novoApontamento()" title="Novo Apontamento">
             <span>+</span>
         </button>
 
@@ -610,7 +611,10 @@
 
         // 2. Permissões de Visibilidade
         function configurarPermissoesVisuais() {
-            document.getElementById('btnVoltar').classList.remove('hidden');
+            const btnVoltar = document.getElementById('btnVoltar');
+            if (btnVoltar) {
+                btnVoltar.classList.remove('hidden');
+            }
         }
 
         // 3. Consulta de Registros Locais (IndexedDB)
@@ -653,7 +657,7 @@
             }
         }
 
-        // 4. Baixa edições feitas por supervisores/administradores no Supabase
+        // 4. Baixa edições feitas por supervisores/administradores no Supabase (CORRIGIDO)
         async function atualizarEdicoesDoSupervisorAsync() {
             if (!navigator.onLine) return;
             const supabase = obterClienteSupabase();
@@ -669,12 +673,106 @@
                 const { data: remotos, error } = await supabase
                     .from('apontamentos')
                     .select('*')
-                    .or(`matricula_executante.eq.${matricula},matricula_usuario.eq.${matricula}`); if (error \vert{ } \vert{ } !remotos \vert{ } \vert{ } remotos.length === 0) return; let houveModificacao = false; for (const remoto of remotos) { const remotoId = Number(remoto.id); const osRemota = extrairOrdemServico(remoto); const dataRemota = String(remoto.data \vert{}\vert{} '').substring(0, 10); const hIniRemota = formatarHora(remoto.horainicio \vert{}\vert{} remoto.hora_inicio); const matExecRemota = String(remoto.matricula_executante \vert{}\vert{} '').trim(); let local = locais.find(l => { const idRem = l.remoto_id ?? l.id_remoto ?? l.remotoId; if (idRem !== undefined && idRem !== null && Number(idRem) === remotoId) return true; const osLoc = extrairOrdemServico(l); if (osRemota !== '-' && osLoc !== '-' && osLoc.toLowerCase() === osRemota.toLowerCase()) return true; const lData = String(l.data \vert{}\vert{} '').substring(0, 10); const lHora = formatarHora(l.horainicio \vert{}\vert{} l.hora_inicio); const lExec = String(l.matricula_executante \vert{}\vert{} '').trim(); return (lData === dataRemota && lHora === hIniRemota && lExec === matExecRemota); }); if (local && local.id) { let alterou = false; if (Number(local.remoto_id) !== remotoId) { local.remoto_id = remotoId; local.id_remoto = remotoId; alterou = true; } if (osRemota !== '-' && (local.ordemservico !== osRemota \vert{ } \vert{ } local.ordem_servico !== osRemota)) { local.ordemservico = osRemota; local.ordem_servico = osRemota; alterou = true; } if (remoto.setor && local.setor !== remoto.setor) { local.setor = remoto.setor; alterou = true; } if (remoto.grupo && local.grupo !== remoto.grupo) { local.grupo = remoto.grupo; alterou = true; } if (hIniRemota && formatarHora(local.horainicio \vert{}\vert{} local.hora_inicio) !== hIniRemota) { local.horainicio = hIniRemota; local.hora_inicio = hIniRemota; alterou = true; } const hFimRemota = formatarHora(remoto.horafim \vert{}\vert{} remoto.hora_fim); if (hFimRemota && formatarHora(local.horafim \vert{}\vert{} local.hora_fim) !== hFimRemota) { local.horafim = hFimRemota; local.hora_fim = hFimRemota; alterou = true; } if (remoto.observacoes !== undefined && local.observacoes !== remoto.observacoes) { local.observacoes = remoto.observacoes; alterou = true; } if (!local.data_sincronizado) { local.data_sincronizado = new Date().toISOString(); alterou = true; } if (alterou) { await LocalDB.salvarApontamento(local); houveModificacao = true; } } } if (houveModificacao) { await carregarDadosAsync(); }
-            } catch (e) { console.warn("[Sync Nuvem -> Local]:", e); }
-        }          // Formatadores auxiliares         function formatarData(valorData) {             if (!valorData) return '';             const dataIso = String(valorData).substring(0, 10);             const partes = dataIso.split('-');             if (partes.length === 3) {                 return `${partes[2]}/${partes[1]}/${partes[0]}`;
+                    .or(`matricula_executante.eq.${matricula},matricula_usuario.eq.${matricula}`);
+
+                if (error || !remotos || remotos.length === 0) return;
+
+                let houveModificacao = false;
+
+                for (const remoto of remotos) {
+                    const remotoId = Number(remoto.id);
+                    const osRemota = extrairOrdemServico(remoto);
+                    const dataRemota = String(remoto.data || '').substring(0, 10);
+                    const hIniRemota = formatarHora(remoto.horainicio || remoto.hora_inicio);
+                    const matExecRemota = String(remoto.matricula_executante || '').trim();
+
+                    let local = locais.find(l => {
+                        const idRem = l.remoto_id ?? l.id_remoto ?? l.remotoId;
+                        if (idRem !== undefined && idRem !== null && Number(idRem) === remotoId) return true;
+
+                        const osLoc = extrairOrdemServico(l);
+                        if (osRemota !== '-' && osLoc !== '-' && osLoc.toLowerCase() === osRemota.toLowerCase()) return true;
+
+                        const lData = String(l.data || '').substring(0, 10);
+                        const lHora = formatarHora(l.horainicio || l.hora_inicio);
+                        const lExec = String(l.matricula_executante || '').trim();
+
+                        return (lData === dataRemota && lHora === hIniRemota && lExec === matExecRemota);
+                    });
+
+                    if (local && local.id) {
+                        let alterou = false;
+
+                        if (Number(local.remoto_id) !== remotoId) {
+                            local.remoto_id = remotoId;
+                            local.id_remoto = remotoId;
+                            alterou = true;
+                        }
+
+                        if (osRemota !== '-' && (local.ordemservico !== osRemota || local.ordem_servico !== osRemota)) {
+                            local.ordemservico = osRemota;
+                            local.ordem_servico = osRemota;
+                            alterou = true;
+                        }
+
+                        if (remoto.setor && local.setor !== remoto.setor) {
+                            local.setor = remoto.setor;
+                            alterou = true;
+                        }
+
+                        if (remoto.grupo && local.grupo !== remoto.grupo) {
+                            local.grupo = remoto.grupo;
+                            alterou = true;
+                        }
+
+                        if (hIniRemota && formatarHora(local.horainicio || local.hora_inicio) !== hIniRemota) {
+                            local.horainicio = hIniRemota;
+                            local.hora_inicio = hIniRemota;
+                            alterou = true;
+                        }
+
+                        const hFimRemota = formatarHora(remoto.horafim || remoto.hora_fim);
+                        if (hFimRemota && formatarHora(local.horafim || local.hora_fim) !== hFimRemota) {
+                            local.horafim = hFimRemota;
+                            local.hora_fim = hFimRemota;
+                            alterou = true;
+                        }
+
+                        if (remoto.observacoes !== undefined && local.observacoes !== remoto.observacoes) {
+                            local.observacoes = remoto.observacoes;
+                            alterou = true;
+                        }
+
+                        if (!local.data_sincronizado) {
+                            local.data_sincronizado = new Date().toISOString();
+                            alterou = true;
+                        }
+
+                        if (alterou) {
+                            await LocalDB.salvarApontamento(local);
+                            houveModificacao = true;
+                        }
+                    }
                 }
-        return valorData;
+
+                if (houveModificacao) {
+                    await carregarDadosAsync();
+                }
+            } catch (e) {
+                console.warn("[Sync Nuvem -> Local]:", e);
             }
+        }
+
+        // Formatadores auxiliares
+        function formatarData(valorData) {
+            if (!valorData) return '';
+            const dataIso = String(valorData).substring(0, 10);
+            const partes = dataIso.split('-');
+            if (partes.length === 3) {
+                return `${partes[2]}/${partes[1]}/${partes[0]}`;
+            }
+            return valorData;
+        }
 
         function formatarHora(h) {
             if (!h) return '';
@@ -760,7 +858,7 @@
                 const statusClass = isSincronizado ? "enviado" : "pendente";
 
                 const botaoSyncFrente = !isSincronizado
-                    ? `<button type="button" class="btn-sync-card" onclick="onEnviarItemClicked(${id})" title="Enviar agora para a nuvem">Enviar ☁️</button>`
+                    ? `<button type="button" class="btn-sync-card" onclick="onEnviarItemClicked(${id})" title="Enviar agora para banco dados">Enviar ☁️</button>`
                     : ``;
 
                 return `
@@ -770,7 +868,6 @@
                                 <button class="swipe-btn btn-delete" onclick="excluirItem(${id})">Excluir</button>
                             </div>
                             <div class="item-card" data-open="false">
-                                <!-- Linha 1: O.S centralizada em relação à Data e Grupo -->
                                 <div class="card-line-1">
                                     <div class="os-status-group">
                                         <span class="badge-os">${os}</span>
@@ -787,7 +884,6 @@
 
                                 <div class="card-divider"></div>
 
-                                <!-- Linha 2: Matrícula à esquerda; Horários à direita -->
                                 <div class="card-line-2">
                                     <div class="matricula-group">
                                         <span class="matricula-label">Matrícula:</span>
@@ -804,12 +900,10 @@
                                     </div>
                                 </div>
 
-                                <!-- Setor acima de Tarefa (Observações) -->
                                 <div class="card-setor-row">
                                     <span class="badge-setor-bloco">Setor: ${setor}</span>
                                 </div>
 
-                                <!-- Linha 3: Tarefa -->
                                 ${obs ? `<div class="card-obs"><strong>Tarefa:</strong> ${obs}</div>` : ''}
                             </div>
                         </div>
@@ -820,7 +914,7 @@
         }
 
         // =========================================================================
-        // 6. GESTOS DE SWIPE UNIFICADOS (COM LIBERAÇÃO DO SCROLL VERTICAL)
+        // 6. GESTOS DE SWIPE UNIFICADOS
         // =========================================================================
         function configurarGestosSwipe() {
             const cards = document.querySelectorAll('.item-card');
@@ -860,7 +954,6 @@
                     }
 
                     card.style.transition = 'none';
-                    // Nota: Não chamamos setPointerCapture aqui para não travar o scroll vertical nativo!
                 });
 
                 card.addEventListener('pointermove', (e) => {
@@ -870,7 +963,6 @@
                     const diffX = currentX - startX;
                     const diffY = e.clientY - startY;
 
-                    // Captura o ponteiro apenas após confirmar intenção de arrasto horizontal
                     if (!movendoHorizontal && Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 8) {
                         movendoHorizontal = true;
                         try {

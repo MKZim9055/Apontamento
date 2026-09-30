@@ -1070,7 +1070,7 @@
                                 await LocalDB.salvarApontamento(novoApontamento);
                             }
                         } catch (eEnvio) {
-                            console.warn("Nuvem indisponível. Mantido no banco local pendente:", eEnvio);
+                            console.warn("Sem conexão internet. Tenta mais tarde...", eEnvio);
                         }
                     }
 
