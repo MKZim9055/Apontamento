@@ -302,13 +302,22 @@
         .card-line-1 {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
         }
 
-        .tags-group {
+        /* Bloco da O.S à esquerda */
+        .os-left-group {
             display: flex;
-            gap: 6px;
-            align-items: center;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        /* Bloco da Data e Setor abaixo à direita */
+        .meta-right-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
         }
 
         .badge-os {
@@ -318,6 +327,7 @@
             color: #00C48C;
             font-size: 16px;
             font-weight: 700;
+            width: fit-content;
         }
 
         .badge-setor {
@@ -326,6 +336,8 @@
             padding: 3px 8px;
             color: #CAD8E8;
             font-size: 14px;
+            font-weight: 600;
+            width: fit-content;
         }
 
         .data-text {
@@ -355,7 +367,7 @@
         }
 
         .matricula-label {
-            font-size: 10px;
+            font-size: 12px;
             color: #657D99;
         }
 
@@ -395,7 +407,7 @@
             color: #49B0F3;
             border-radius: 6px;
             padding: 2px 8px;
-            font-size: 11px;
+            font-size: 14px;
             font-weight: 700;
             width: fit-content;
         }
@@ -822,16 +834,20 @@
                                 <button class="swipe-btn btn-delete" onclick="onExcluirItemInvoked('${id}', '${os}')">Excluir</button>
                             </div>
                             <div class="item-card" data-open="false">
+                                <!-- Linha 1: O.S à esquerda; Data com Setor abaixo à direita -->
                                 <div class="card-line-1">
-                                    <div class="tags-group">
+                                    <div class="os-left-group">
                                         <span class="badge-os">${os}</span>
-                                        <span class="badge-setor">${setor}</span>
                                     </div>
-                                    <span class="data-text">${dataStr}</span>
+                                    <div class="meta-right-group">
+                                        <span class="data-text">${dataStr}</span>
+                                        <span class="badge-setor">Setor: ${setor}</span>
+                                    </div>
                                 </div>
 
                                 <div class="card-divider"></div>
 
+                                <!-- Linha 2: Matrícula e Horários + Grupo -->
                                 <div class="card-line-2">
                                     <div class="matricula-group">
                                         <span class="matricula-label">Matrícula:</span>
@@ -845,7 +861,7 @@
                                             <span class="ate-text">até</span>
                                             <span class="horario-text">${fim || '--:--'}</span>
                                         </div>
-                                        <span class="badge-grupo">${grupo}</span>
+                                        <span class="badge-grupo">Grupo: ${grupo}</span>
                                     </div>
                                 </div>
 

@@ -1,5 +1,5 @@
-﻿// Incremente a versão sempre que alterar arquivos do app
-const CACHE_NAME = 'apontamentos-cache-v4';
+﻿// Incremente sempre que fizer alterações que precisem forçar a limpeza imediata
+const CACHE_NAME = 'apontamentos-cache-v5';
 
 const ASSETS = [
     './',
@@ -10,10 +10,11 @@ const ASSETS = [
     './relatorios.html',
     './configuracoes.html',
     './direct.html',
-    './db.js',                       // ESSENCIAL: Camada IndexedDB local
+    './supabase-config.js',                             // Incluído para suporte offline
+    './db.js',                                         // Camada IndexedDB local
     './manifest.json',
     './icoapontamento.png',
-    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2' // ESSENCIAL: SDK do Supabase offline
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
 ];
 
 // 1. Instalação e Cache Inicial dos Assets
@@ -23,7 +24,7 @@ self.addEventListener('install', (event) => {
             return cache.addAll(ASSETS);
         })
     );
-    self.skipWaiting();
+    self.skipWaiting(); // Assume o controle imediatamente
 });
 
 // 2. Limpeza de Caches Antigos
@@ -35,20 +36,20 @@ self.addEventListener('activate', (event) => {
             );
         })
     );
-    self.clients.claim();
+    self.clients.claim(); // Força todas as abas e instâncias do PWA a usarem o novo SW
 });
 
 // 3. Interceptação de Requisições
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Ignora chamadas diretas à API REST do Supabase e métodos que não sejam GET
-    // (O tratamento offline dos dados é feito pelo db.js via IndexedDB)
+    // Ignora chamadas ao Supabase ou requisições que não sejam GET
     if (url.origin.includes('supabase.co') || event.request.method !== 'GET') {
         return;
     }
 
     // Estratégia Network First para Navegação (Páginas HTML)
+    // Se tiver rede, busca a tela nova na Vercel; se offline, serve o cache
     if (event.request.mode === 'navigate') {
         event.respondWith(
             fetch(event.request)
@@ -62,7 +63,6 @@ self.addEventListener('fetch', (event) => {
                     return networkResponse;
                 })
                 .catch(() => {
-                    // Sem internet: entrega a página salva em cache ou o fallback para login.html
                     return caches.match(event.request).then((cachedResponse) => {
                         return cachedResponse || caches.match('./login.html');
                     });
@@ -71,18 +71,23 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Estratégia Cache First com fallback de rede para scripts, CSS, CDN e imagens
+    // Estratégia Stale-While-Revalidate para Scripts, CSS, Imagens e CDNs
+    // Retorna o cache para ser rápido/offline, mas busca a versão nova na rede em segundo plano
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
-            return cachedResponse || fetch(event.request).then((networkResponse) => {
-                if (networkResponse && networkResponse.status === 200) {
-                    const responseClone = networkResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, responseClone);
-                    });
-                }
-                return networkResponse;
-            });
+            const fetchPromise = fetch(event.request)
+                .then((networkResponse) => {
+                    if (networkResponse && networkResponse.status === 200) {
+                        const responseClone = networkResponse.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(event.request, responseClone);
+                        });
+                    }
+                    return networkResponse;
+                })
+                .catch(() => null);
+
+            return cachedResponse || fetchPromise;
         })
     );
 });
