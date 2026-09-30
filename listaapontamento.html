@@ -249,13 +249,23 @@
         .card-line-1 {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
         }
 
-        .tags-group {
+        /* Bloco da OS e Status abaixo */
+        .os-status-group {
             display: flex;
-            gap: 6px;
-            align-items: center;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 5px;
+        }
+
+        /* Bloco da Data e Setor abaixo */
+        .meta-right-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
         }
 
         .badge-os {
@@ -265,6 +275,7 @@
             color: #00C48C;
             font-size: 15px;
             font-weight: 700;
+            width: fit-content;
         }
 
         .badge-setor {
@@ -272,14 +283,17 @@
             border-radius: 6px;
             padding: 3px 8px;
             color: #CAD8E8;
-            font-size: 11px;
+            font-size: 14px;
+            font-weight: 600;
+            width: fit-content;
         }
 
         .badge-status {
             border-radius: 6px;
             padding: 2px 6px;
-            font-size: 10px;
+            font-size: 14px;
             font-weight: 700;
+            width: fit-content;
         }
 
             .badge-status.pendente {
@@ -351,7 +365,7 @@
         }
 
         .ate-text {
-            font-size: 11px;
+            font-size: 12px;
             color: #657D99;
         }
 
@@ -367,7 +381,7 @@
 
         /* Linha 3: Observações */
         .card-obs {
-            font-size: 12px;
+            font-size: 14px;
             color: #8FA3BF;
             line-height: 1.3;
             display: -webkit-box;
@@ -509,7 +523,6 @@
         let isSyncing = false;
 
         document.addEventListener('DOMContentLoaded', async () => {
-            // Garante abertura da base local IndexedDB primeiro
             if (typeof LocalDB !== 'undefined' && LocalDB.abrirConexao) {
                 try { await LocalDB.abrirConexao(); } catch (_) { }
             }
@@ -518,7 +531,6 @@
             configurarPermissoesVisuais();
             await carregarDadosAsync();
 
-            // Sincroniza em segundo plano alterações remotas
             if (navigator.onLine) {
                 await atualizarEdicoesDoSupervisorAsync();
             }
@@ -588,14 +600,12 @@
 
                 let dados = await LocalDB.obterApontamentosLocais();
 
-                // Ordena por data decrescente e por ID decrescente
                 dados.sort((a, b) => {
                     const diffData = new Date(b.data || 0) - new Date(a.data || 0);
                     if (diffData !== 0) return diffData;
                     return (b.id || 0) - (a.id || 0);
                 });
 
-                // Restringe para o operador comum
                 if (isUsuario && matricula) {
                     dados = dados.filter(a => {
                         const matExec = String(a.matricula_executante || '').trim();
@@ -611,7 +621,7 @@
             }
         }
 
-        // 4. Baixa edições feitas por supervisores/administradores no Supabase (Espelho Local Garantido)
+        // 4. Baixa edições feitas por supervisores/administradores no Supabase
         async function atualizarEdicoesDoSupervisorAsync() {
             if (!navigator.onLine) return;
             const supabase = obterClienteSupabase();
@@ -624,7 +634,6 @@
                 const locais = await LocalDB.obterApontamentosLocais();
                 if (locais.length === 0) return;
 
-                // Busca apontamentos onde o usuário é executante OU cadastrador (autor)
                 const { data: remotos, error } = await supabase
                     .from('apontamentos')
                     .select('*')
@@ -641,7 +650,6 @@
                     const hIniRemota = formatarHora(remoto.horainicio || remoto.hora_inicio);
                     const matExecRemota = String(remoto.matricula_executante || '').trim();
 
-                    // Match por: ID remoto, O.S. ou Trio operacional
                     let local = locais.find(l => {
                         const idRem = l.remoto_id ?? l.id_remoto ?? l.remotoId;
                         if (idRem !== undefined && idRem !== null && Number(idRem) === remotoId) return true;
@@ -825,14 +833,16 @@
                                 <button class="swipe-btn btn-delete" onclick="excluirItem(${id})">Excluir</button>
                             </div>
                             <div class="item-card" data-open="false">
-                                <!-- Linha 1: O.S, Setor, Status e Data -->
+                                <!-- Linha 1: O.S com Status abaixo à esquerda; Data com Setor abaixo à direita -->
                                 <div class="card-line-1">
-                                    <div class="tags-group">
+                                    <div class="os-status-group">
                                         <span class="badge-os">${os}</span>
-                                        <span class="badge-setor">${setor}</span>
                                         <span class="badge-status ${statusClass}">${statusTexto}</span>
                                     </div>
-                                    <span class="data-text">${dataStr}</span>
+                                    <div class="meta-right-group">
+                                        <span class="data-text">${dataStr}</span>
+                                        <span class="badge-setor">Setor: ${setor}</span>
+                                    </div>
                                 </div>
 
                                 <!-- Divisor Interno Suave -->
@@ -852,7 +862,7 @@
                                             <span class="ate-text">até</span>
                                             <span class="horario-text">${fim || '--:--'}</span>
                                         </div>
-                                        <span class="badge-grupo">${grupo}</span>
+                                        <span class="badge-grupo">Grupo: ${grupo}</span>
                                     </div>
                                 </div>
 

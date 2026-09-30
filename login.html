@@ -289,6 +289,15 @@
         let _senhaOculta = true;
 
         document.addEventListener('DOMContentLoaded', async () => {
+            // Verifica se já existe sessão salva
+            const matriculaSalva = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula");
+            const token = localStorage.getItem("auth_token");
+
+            if (matriculaSalva && token) {
+                window.location.replace("index.html");
+                return;
+            }
+
             await checarAtualizacaoAsync();
         });
 
@@ -299,17 +308,17 @@
             const btnOlho = document.getElementById('btnToggleSenha');
 
             txtSenha.type = _senhaOculta ? "password" : "text";
-            btnOlho.style.color = _senhaOculta ? "#8FA3BF" : "#2F80ED";
+            btnOlho.style.color = _senhaOculta ? "#8FA3BF" : "#00C48C";
         }
 
         // Fluxo de Autenticação
         async function onEntrarClicked(e) {
             e.preventDefault();
 
-            const matricula = document.getElementById('txtMatricula').value.trim();
+            const matriculaRaw = document.getElementById('txtMatricula').value.trim();
             const senha = document.getElementById('txtSenha').value.trim();
 
-            if (!matricula || !senha) {
+            if (!matriculaRaw || !senha) {
                 alert("Atenção: Preencha matrícula e senha.");
                 return;
             }
@@ -323,15 +332,23 @@
                 loadingIndicator.style.display = "block";
                 lblBtnEntrar.textContent = "Conectando...";
 
-                // Consulta a tabela usuarios
+                // Suporta matrícula sendo coluna texto ou numérica no Supabase
+                const valorMatricula = isNaN(matriculaRaw) ? matriculaRaw : Number(matriculaRaw);
+
                 const { data: usuario, error } = await supabaseClient
                     .from('usuarios')
                     .select('*')
-                    .eq('matricula', matricula)
+                    .eq('matricula', valorMatricula)
                     .eq('senha', senha)
-                    .single();
+                    .maybeSingle();
 
-                if (error || !usuario) {
+                if (error) {
+                    console.error("Erro retornado pelo Supabase:", error);
+                    alert(`Falha no banco de dados: ${error.message}`);
+                    return;
+                }
+
+                if (!usuario) {
                     alert("Falha: Matrícula ou senha incorretos.");
                     return;
                 }
@@ -341,7 +358,7 @@
                 const grupoLimpo = String(usuario.grupo || "Mantenedor").trim();
                 const nomeLimpo = String(usuario.nome || matLimpa).trim();
 
-                // 1. Grava TODAS as chaves de sessão para compatibilidade total entre telas
+                // 1. Grava no localStorage
                 localStorage.setItem("auth_token", "session_" + Date.now());
                 localStorage.setItem("MatriculaUsuario", matLimpa);
                 localStorage.setItem("UsuarioMatricula", matLimpa);
@@ -350,13 +367,13 @@
                 localStorage.setItem("UsuarioGrupo", grupoLimpo);
                 localStorage.setItem("UsuarioNome", nomeLimpo);
 
-                // 2. Registro em segundo plano de notificações
-                try {
-                    await registrarDispositivoFcmAsync(matLimpa);
-                } catch (_) { }
+                // 2. Notificação roda em segundo plano sem travar o redirecionamento
+                registrarDispositivoFcmAsync(matLimpa).catch(err => {
+                    console.warn("[FCM] Ignorado em segundo plano:", err);
+                });
 
-                // 3. TODOS os usuários iniciam no Menu Principal (index.html)
-                window.location.replace("index.html");
+                // 3. Redirecionamento imediato para a página principal
+                window.location.href = "index.html";
 
             } catch (ex) {
                 console.error(ex);
