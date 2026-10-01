@@ -594,52 +594,33 @@
             }
         }
 
-        // 3. Consulta de mensagens com filtragem local
+        // Consulta mensagens usando a função segura criada no banco
         async function carregarMensagensAsync() {
             try {
-                const { data, error } = await supabaseClient
-                    .from('direct_mensagens')
-                    .select('*')
-                    .order('id', { ascending: false });
+                const minhaMat = _minhaMatricula || localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "";
+                const meuGrp = _meuGrupo || localStorage.getItem("UsuarioGrupo") || "";
 
-                if (error) throw error;
-
-                const todas = data || [];
-                let filtradas = [];
-
-                if (_ehAdministrador) {
-                    filtradas = todas;
-                } else {
-                    const minhaMat = _minhaMatricula.toLowerCase();
-                    const meuNom = _meuNome.toLowerCase();
-
-                    filtradas = todas.filter(m => {
-                        const tipo = String(m.tipo_destino || m.TipoDestino || "").trim().toLowerCase();
-                        const destino = String(m.destino || m.Destino || "").trim().toLowerCase();
-                        const remetenteMat = String(m.remetente_matricula || m.RemetenteMatricula || "").trim().toLowerCase();
-                        const remetenteNom = String(m.remetente_nome || m.RemetenteNome || "").trim().toLowerCase();
-
-                        if (tipo === "todos" || destino === "todos") return true;
-
-                        if (minhaMat && remetenteMat === minhaMat) return true;
-                        if (meuNom && remetenteNom === meuNom) return true;
-
-                        if (tipo === "usuario") {
-                            if (minhaMat && destino === minhaMat) return true;
-                            if (meuNom && destino === meuNom) return true;
-                        }
-
-                        if (tipo === "grupo") {
-                            if (_meuGrupo && destino === _meuGrupo.toLowerCase()) return true;
-                        }
-
-                        return false;
-                    });
+                if (!minhaMat) {
+                    console.warn("Nenhuma matrícula ativa encontrada para consulta.");
+                    return;
                 }
 
-                renderizarMensagens(filtradas);
+                // Chama a função RPC pelo nome e passa os parâmetros
+                const { data, error } = await supabaseClient
+                    .rpc('obter_mensagens_usuario', {
+                        p_matricula: minhaMat,
+                        p_grupo: meuGrp
+                    });
+
+                if (error) {
+                    console.error("Erro retornado pelo RPC:", error);
+                    throw error;
+                }
+
+                // O resultado já vem filtrado pelo próprio PostgreSQL
+                renderizarMensagens(data || []);
             } catch (ex) {
-                console.error("Falha ao carregar mensagens:", ex);
+                console.error("Falha ao carregar mensagens via RPC:", ex);
             }
         }
 
