@@ -54,6 +54,7 @@
             flex-direction: column;
             padding: calc(35px + env(safe-area-inset-top)) 20px calc(12px + env(safe-area-inset-bottom)) 20px;
             overflow: hidden;
+            position: relative;
         }
 
         .container {
@@ -66,6 +67,57 @@
             height: 100%;
             min-height: 0;
             overflow: hidden;
+        }
+
+        /* Banner de Alerta Flutuante (In-App Toast) */
+        .direct-toast {
+            position: fixed;
+            top: calc(15px + env(safe-area-inset-top));
+            left: 50%;
+            transform: translateX(-50%) translateY(-150%);
+            max-width: 460px;
+            width: calc(100% - 40px);
+            background-color: #1A3A68;
+            border: 1px solid #00C48C;
+            border-radius: 14px;
+            padding: 12px 14px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 9999;
+            transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+            pointer-events: none;
+        }
+
+            .direct-toast.show {
+                transform: translateX(-50%) translateY(0);
+            }
+
+        .direct-toast-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .direct-toast-content {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            overflow: hidden;
+        }
+
+        .direct-toast-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #00E5A3;
+        }
+
+        .direct-toast-body {
+            font-size: 12px;
+            color: #CAD8E8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         /* 1. Topo: Botão Voltar e Título */
@@ -387,6 +439,15 @@
 </head>
 <body>
 
+    <!-- Banner Toast Flutuante -->
+    <div id="toastNotificacao" class="direct-toast">
+        <span class="direct-toast-icon">💬</span>
+        <div class="direct-toast-content">
+            <span id="toastTitulo" class="direct-toast-title">Nova Mensagem</span>
+            <span id="toastCorpo" class="direct-toast-body">Conteúdo</span>
+        </div>
+    </div>
+
     <div class="container">
 
         <!-- 1. Topo: Botão Voltar e Título -->
@@ -487,23 +548,44 @@
         let _nivelUsuario = "";
         let _ehAdministrador = false;
         let isSending = false;
+        let audioContextDesbloqueado = null;
 
         document.addEventListener('DOMContentLoaded', async () => {
-            solicitarPermissaoNotificacao();
+            localStorage.setItem("UltimoAcessoDirect", new Date().toISOString());
+
             await carregarDadosSessaoAsync();
             await carregarUsuariosParaPickerAsync();
             await carregarMensagensAsync();
             inscreverRealtimeMensagens();
+
+            // Interação única para liberar permissão e som
+            document.body.addEventListener('click', () => {
+                solicitarPermissaoNotificacao();
+                desbloquearAudio();
+            }, { once: true });
         });
 
-        // Solicita permissão para exibir alertas no sistema operacional / navegador
-        function solicitarPermissaoNotificacao() {
+        function desbloquearAudio() {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtx && !audioContextDesbloqueado) {
+                    audioContextDesbloqueado = new AudioCtx();
+                }
+                if (audioContextDesbloqueado && audioContextDesbloqueado.state === 'suspended') {
+                    audioContextDesbloqueado.resume();
+                }
+            } catch (_) { }
+        }
+
+        async function solicitarPermissaoNotificacao() {
             if ("Notification" in window && Notification.permission === "default") {
-                Notification.requestPermission();
+                try {
+                    await Notification.requestPermission();
+                } catch (_) { }
             }
         }
 
-        // 1. Carrega dados de identificação e define rigorosamente o perfil
+        // 1. Carrega dados de identificação e perfil
         async function carregarDadosSessaoAsync() {
             _minhaMatricula = (localStorage.getItem("MatriculaUsuario") ||
                 localStorage.getItem("UsuarioMatricula") || "").trim();
@@ -594,7 +676,7 @@
             }
         }
 
-        // Consulta mensagens usando a função segura criada no banco
+        // 3. Consulta mensagens usando a função segura criada no banco (RPC)
         async function carregarMensagensAsync() {
             try {
                 const minhaMat = _minhaMatricula || localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "";
@@ -605,7 +687,6 @@
                     return;
                 }
 
-                // Chama a função RPC pelo nome e passa os parâmetros
                 const { data, error } = await supabaseClient
                     .rpc('obter_mensagens_usuario', {
                         p_matricula: minhaMat,
@@ -617,7 +698,6 @@
                     throw error;
                 }
 
-                // O resultado já vem filtrado pelo próprio PostgreSQL
                 renderizarMensagens(data || []);
             } catch (ex) {
                 console.error("Falha ao carregar mensagens via RPC:", ex);
@@ -719,6 +799,9 @@
         async function onEnviarMensagemClicked() {
             if (isSending) return;
 
+            solicitarPermissaoNotificacao();
+            desbloquearAudio();
+
             const txtMensagem = document.getElementById('txtMensagem');
             const texto = txtMensagem.value.trim();
 
@@ -729,6 +812,14 @@
 
             if (!_meuNome) {
                 await carregarDadosSessaoAsync();
+            }
+
+            const matriculaFinal = _minhaMatricula || localStorage.getItem("MatriculaUsuario") || "";
+            const nomeFinal = _meuNome || localStorage.getItem("UsuarioNome") || matriculaFinal || "Usuário";
+
+            if (!matriculaFinal) {
+                alert("Erro: Matrícula não identificada. Por favor, refaça o login.");
+                return;
             }
 
             const pkrTipo = parseInt(document.getElementById('pkrTipoDestino').value, 10);
@@ -759,8 +850,8 @@
 
             try {
                 const novaMsg = {
-                    remetente_matricula: _minhaMatricula,
-                    remetente_nome: _meuNome,
+                    remetente_matricula: matriculaFinal,
+                    remetente_nome: nomeFinal,
                     tipo_destino: tipoDestino,
                     destino: alvoDestino,
                     conteudo: texto,
@@ -774,6 +865,7 @@
                 if (error) throw error;
 
                 txtMensagem.value = "";
+                localStorage.setItem("UltimoAcessoDirect", new Date().toISOString());
                 await carregarMensagensAsync();
             } catch (ex) {
                 console.error("Erro ao enviar mensagem:", ex);
@@ -784,40 +876,105 @@
             }
         }
 
-        // Emite alerta sonoro / banner nativo para quem recebe
-        function dispararNotificacaoNativa(novaMsg) {
+        // Toca bipe sonoro sintetizado nativo
+        function tocarAlertaSonoro() {
+            try {
+                desbloquearAudio();
+                const ctx = audioContextDesbloqueado || new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
+
+                gain.gain.setValueAtTime(0.25, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start();
+                osc.stop(ctx.currentTime + 0.35);
+            } catch (_) { }
+        }
+
+        // Exibe banner flutuante em tela
+        function exibirToastEmTela(titulo, corpo) {
+            const toast = document.getElementById('toastNotificacao');
+            const lblTit = document.getElementById('toastTitulo');
+            const lblCor = document.getElementById('toastCorpo');
+
+            if (!toast || !lblTit || !lblCor) return;
+
+            lblTit.textContent = titulo;
+            lblCor.textContent = corpo;
+
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 4500);
+        }
+
+        // Dispara som, banner em tela e notificação do sistema
+        async function dispararNotificacaoNativa(novaMsg) {
+            if (!novaMsg) return;
+
             const remetenteMat = String(novaMsg.remetente_matricula || "").trim().toLowerCase();
             const remetenteNom = novaMsg.remetente_nome || "Mensagem Direct";
-            const tipo = String(novaMsg.tipo_destino || "").toLowerCase();
-            const destino = String(novaMsg.destino || "").toLowerCase();
+            const tipo = String(novaMsg.tipo_destino || "").toLowerCase().trim();
+            const destino = String(novaMsg.destino || "").toLowerCase().trim();
             const conteudo = novaMsg.conteudo || "Você recebeu um novo aviso.";
 
-            const minhaMat = _minhaMatricula.toLowerCase();
-            const meuGrupo = _meuGrupo.toLowerCase();
+            const minhaMat = (_minhaMatricula || localStorage.getItem("MatriculaUsuario") || "").trim().toLowerCase();
+            const meuGrupo = (_meuGrupo || localStorage.getItem("UsuarioGrupo") || "").trim().toLowerCase();
+            const meuNom = (_meuNome || localStorage.getItem("UsuarioNome") || "").trim().toLowerCase();
 
-            // 1. Não notifica a si próprio
+            // 1. Nunca notifica quem enviou
             if (minhaMat && remetenteMat === minhaMat) return;
 
-            // 2. Avalia se a mensagem é endereçada a este usuário
+            // 2. Avalia destinatário
             let devoReceber = false;
             if (tipo === "todos" || destino === "todos") devoReceber = true;
-            if (tipo === "usuario" && (destino === minhaMat || destino === _meuNome.toLowerCase())) devoReceber = true;
+            if (tipo === "usuario" && (destino === minhaMat || destino === meuNom)) devoReceber = true;
             if (tipo === "grupo" && meuGrupo && destino === meuGrupo) devoReceber = true;
 
             if (!devoReceber) return;
 
-            // 3. Dispara a notificação pelo navegador / SO
-            if ("Notification" in window && Notification.permission === "granted") {
-                const titulo = tipo === "todos" ? `📢 Aviso Geral (De: ${remetenteNom})` : `💬 Direct de ${remetenteNom}`;
-                new Notification(titulo, {
-                    body: conteudo,
-                    icon: "icoapontamento.png"
-                });
+            // Som e banner na interface
+            tocarAlertaSonoro();
+            const titulo = tipo === "todos" ? `📢 Aviso Geral (${remetenteNom})` : `💬 Direct de ${remetenteNom}`;
+            exibirToastEmTela(titulo, conteudo);
+
+            // Vibração física
+            if ("vibrate" in navigator) {
+                try { navigator.vibrate([200, 100, 200]); } catch (_) { }
             }
 
-            // 4. Vibração física no dispositivo Android/PWA
-            if ("vibrate" in navigator) {
-                navigator.vibrate([200, 100, 200]);
+            const opcoes = {
+                body: conteudo,
+                icon: "icoapontamento.png",
+                badge: "icoapontamento.png",
+                vibrate: [200, 100, 200],
+                tag: `msg-${novaMsg.id || Date.now()}`
+            };
+
+            // Notificação do sistema via Service Worker (PWA)
+            if ("serviceWorker" in navigator) {
+                try {
+                    const reg = await navigator.serviceWorker.ready;
+                    if (reg && reg.showNotification) {
+                        await reg.showNotification(titulo, opcoes);
+                        return;
+                    }
+                } catch (_) { }
+            }
+
+            // Fallback para notificação convencional da aba
+            if ("Notification" in window && Notification.permission === "granted") {
+                try {
+                    new Notification(titulo, opcoes);
+                } catch (_) { }
             }
         }
 
@@ -825,7 +982,7 @@
         function inscreverRealtimeMensagens() {
             try {
                 supabaseClient
-                    .channel('direct_mensagens_realtime')
+                    .channel('canal_direct_tempo_real')
                     .on(
                         'postgres_changes',
                         { event: 'INSERT', schema: 'public', table: 'direct_mensagens' },
@@ -843,7 +1000,9 @@
                             carregarMensagensAsync();
                         }
                     )
-                    .subscribe();
+                    .subscribe((status) => {
+                        console.log("Status Realtime Direct:", status);
+                    });
             } catch (e) {
                 console.warn("Realtime não inicializado:", e);
             }

@@ -202,6 +202,7 @@
             cursor: pointer;
             text-decoration: none;
             transition: transform 0.15s ease, filter 0.15s ease;
+            position: relative;
         }
 
             .card:active {
@@ -231,11 +232,48 @@
                 color: #FFFFFF;
             }
 
+        .card-chevron-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         .card-chevron {
             font-size: 28px;
             color: #FFFFFF;
             margin-right: 6px;
             line-height: 1;
+        }
+
+        /* Badge indicador de novas mensagens */
+        .badge-direct {
+            display: none;
+            background-color: #FF3B30;
+            color: #FFFFFF;
+            font-size: 11px;
+            font-weight: 800;
+            min-width: 22px;
+            height: 22px;
+            border-radius: 11px;
+            align-items: center;
+            justify-content: center;
+            padding: 0 6px;
+            box-shadow: 0 2px 8px rgba(255, 59, 48, 0.4);
+            animation: pulseBadge 1.8s infinite;
+        }
+
+        @keyframes pulseBadge {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.08);
+            }
+
+            100% {
+                transform: scale(1);
+            }
         }
 
         /* Cores dos Cartões */
@@ -396,14 +434,17 @@
                 <span class="card-chevron">›</span>
             </a>
 
-            <!-- Card 4: Direct (Disponível para todos os perfis) -->
-            <a href="direct.html" class="card card-direct" id="cardDirect">
+            <!-- Card 4: Direct (Disponível para todos os perfis com Badge) -->
+            <a href="direct.html" class="card card-direct" id="cardDirect" onclick="aoAbrirDirect()">
                 <div class="icon-box">💬</div>
                 <div class="card-text">
                     <span class="title">Direct</span>
                     <span class="subtitle">Mensagens e avisos entre usuários</span>
                 </div>
-                <span class="card-chevron">›</span>
+                <div class="card-chevron-box">
+                    <span id="badgeDirect" class="badge-direct">0</span>
+                    <span class="card-chevron">›</span>
+                </div>
             </a>
 
         </main>
@@ -419,6 +460,11 @@
     </div>
 
     <script>
+        // Configurações do Supabase para escuta e badge
+        const SUPABASE_URL = "https://mtlbrhmpiwvzjwbzaywi.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_qilTaEWSiDNr1L-N5uE5gA_NYyLkyBt";
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
         // 1. Registro de Service Worker PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -439,8 +485,8 @@
             document.getElementById('apkDownloadPrompt').style.display = 'flex';
         }
 
-        // 3. Aplica regras visuais de acesso baseado no nível
-        document.addEventListener('DOMContentLoaded', () => {
+        // 3. Aplica regras visuais de acesso e inicia a verificação do Direct
+        document.addEventListener('DOMContentLoaded', async () => {
             const nivelBruto = localStorage.getItem("NivelUsuario") || localStorage.getItem("UsuarioNivel") || "";
             const nivel = nivelBruto.trim().toLowerCase();
 
@@ -453,9 +499,74 @@
             } else if (isSupervisor) {
                 document.getElementById('cardRelatorios')?.classList.remove('hidden');
             }
+
+            // Verifica novas mensagens e assina atualizações instantâneas
+            await verificarNovasMensagensDirect();
+            inscreverRealtimeDirect();
         });
 
-        // 4. Logout limpa a sessão e retorna ao login
+        // 4. Checa se há mensagens novas no Direct destinadas ao usuário logado
+        async function verificarNovasMensagensDirect() {
+            const badge = document.getElementById('badgeDirect');
+            if (!badge) return;
+
+            const matricula = (localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "").trim();
+            const grupo = (localStorage.getItem("UsuarioGrupo") || "").trim();
+
+            if (!matricula) {
+                badge.style.display = 'none';
+                return;
+            }
+
+            try {
+                // Consulta via função RPC segura criada no PostgreSQL
+                const { data, error } = await supabaseClient.rpc('obter_mensagens_usuario', {
+                    p_matricula: matricula,
+                    p_grupo: grupo
+                });
+
+                if (error || !data) return;
+
+                // Data da última vez em que o usuário entrou na tela de Direct
+                const ultimoAcessoIso = localStorage.getItem("UltimoAcessoDirect") || "1970-01-01T00:00:00.000Z";
+                const ultimoAcessoTime = new Date(ultimoAcessoIso).getTime();
+
+                // Mensagens que chegaram após a última visualização (e não foram enviadas pelo próprio usuário)
+                const novasMensagens = data.filter(m => {
+                    const dataMsg = new Date(m.created_at).getTime();
+                    const remetente = String(m.remetente_matricula || '').trim().toLowerCase();
+                    return dataMsg > ultimoAcessoTime && remetente !== matricula.toLowerCase();
+                });
+
+                if (novasMensagens.length > 0) {
+                    badge.textContent = novasMensagens.length > 99 ? "99+" : String(novasMensagens.length);
+                    badge.style.display = 'inline-flex';
+                } else {
+                    badge.style.display = 'none';
+                }
+            } catch (e) {
+                console.warn("Falha ao checar badge do direct:", e);
+            }
+        }
+
+        // 5. Atualiza o badge em tempo real se alguém enviar uma mensagem enquanto o usuário está no menu
+        function inscreverRealtimeDirect() {
+            try {
+                supabaseClient
+                    .channel('index_direct_badge_channel')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_mensagens' }, () => {
+                        verificarNovasMensagensDirect();
+                    })
+                    .subscribe();
+            } catch (_) { }
+        }
+
+        // 6. Ao tocar no card, registra o acesso para zerar o contador
+        function aoAbrirDirect() {
+            localStorage.setItem("UltimoAcessoDirect", new Date().toISOString());
+        }
+
+        // 7. Logout limpa a sessão e retorna ao login
         async function fazerLogout() {
             try {
                 if (window.supabaseClient) {
@@ -472,6 +583,7 @@
             localStorage.removeItem("UsuarioMatricula");
             localStorage.removeItem("UsuarioNome");
             localStorage.removeItem("UsuarioGrupo");
+            localStorage.removeItem("UltimoAcessoDirect");
 
             window.location.replace("login.html");
         }
