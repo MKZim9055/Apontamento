@@ -551,14 +551,12 @@
         let audioContextDesbloqueado = null;
 
         document.addEventListener('DOMContentLoaded', async () => {
-            localStorage.setItem("UltimoAcessoDirect", new Date().toISOString());
-
             await carregarDadosSessaoAsync();
             await carregarUsuariosParaPickerAsync();
             await carregarMensagensAsync();
             inscreverRealtimeMensagens();
 
-            // Interação única para liberar permissão e som
+            // Interação única para autorizar notificações e áudio no mobile
             document.body.addEventListener('click', () => {
                 solicitarPermissaoNotificacao();
                 desbloquearAudio();
@@ -676,10 +674,26 @@
             }
         }
 
+        // Atualiza o maior ID visto pelo usuário para sincronizar com o badge do index.html
+        function marcarMensagensComoLidas(mensagens) {
+            if (!mensagens || mensagens.length === 0) return;
+
+            let maiorId = parseInt(localStorage.getItem("UltimoIdDirectLido") || "0", 10);
+
+            mensagens.forEach(m => {
+                const idNum = parseInt(m.id, 10);
+                if (idNum > maiorId) {
+                    maiorId = idNum;
+                }
+            });
+
+            localStorage.setItem("UltimoIdDirectLido", String(maiorId));
+        }
+
         // 3. Consulta mensagens usando a função segura criada no banco (RPC)
         async function carregarMensagensAsync() {
             try {
-                const minhaMat = _minhaMatricula || localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "";
+                const minhaMat = _minhaMatricula || localStorage.getItem("MatriculaUsuario") || "";
                 const meuGrp = _meuGrupo || localStorage.getItem("UsuarioGrupo") || "";
 
                 if (!minhaMat) {
@@ -698,7 +712,9 @@
                     throw error;
                 }
 
-                renderizarMensagens(data || []);
+                const msgs = data || [];
+                marcarMensagensComoLidas(msgs);
+                renderizarMensagens(msgs);
             } catch (ex) {
                 console.error("Falha ao carregar mensagens via RPC:", ex);
             }
@@ -858,14 +874,18 @@
                     created_at: new Date().toISOString()
                 };
 
-                const { error } = await supabaseClient
+                const { data, error } = await supabaseClient
                     .from('direct_mensagens')
-                    .insert([novaMsg]);
+                    .insert([novaMsg])
+                    .select();
 
                 if (error) throw error;
 
+                if (data && data.length > 0) {
+                    marcarMensagensComoLidas(data);
+                }
+
                 txtMensagem.value = "";
-                localStorage.setItem("UltimoAcessoDirect", new Date().toISOString());
                 await carregarMensagensAsync();
             } catch (ex) {
                 console.error("Erro ao enviar mensagem:", ex);
@@ -981,8 +1001,9 @@
         // 6. Atualização em tempo real via Realtime com notificação imediata
         function inscreverRealtimeMensagens() {
             try {
+                const canalNome = 'canal_direct_' + Date.now();
                 supabaseClient
-                    .channel('canal_direct_tempo_real')
+                    .channel(canalNome)
                     .on(
                         'postgres_changes',
                         { event: 'INSERT', schema: 'public', table: 'direct_mensagens' },

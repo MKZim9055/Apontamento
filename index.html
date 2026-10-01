@@ -505,7 +505,7 @@
             inscreverRealtimeDirect();
         });
 
-        // 4. Checa se há mensagens novas no Direct destinadas ao usuário logado
+        // 1. Checa novas mensagens comparando com o MAIOR ID já visto
         async function verificarNovasMensagensDirect() {
             const badge = document.getElementById('badgeDirect');
             if (!badge) return;
@@ -519,7 +519,6 @@
             }
 
             try {
-                // Consulta via função RPC segura criada no PostgreSQL
                 const { data, error } = await supabaseClient.rpc('obter_mensagens_usuario', {
                     p_matricula: matricula,
                     p_grupo: grupo
@@ -527,33 +526,32 @@
 
                 if (error || !data) return;
 
-                // Data da última vez em que o usuário entrou na tela de Direct
-                const ultimoAcessoIso = localStorage.getItem("UltimoAcessoDirect") || "1970-01-01T00:00:00.000Z";
-                const ultimoAcessoTime = new Date(ultimoAcessoIso).getTime();
+                // Recupera o último ID que o usuário visualizou
+                const ultimoIdLido = parseInt(localStorage.getItem("UltimoIdDirectLido") || "0", 10);
 
-                // Mensagens que chegaram após a última visualização (e não foram enviadas pelo próprio usuário)
-                const novasMensagens = data.filter(m => {
-                    const dataMsg = new Date(m.created_at).getTime();
+                // Mensagens cujo ID é maior que o último lido e que NÃO foram enviadas por ele mesmo
+                const naoLidas = data.filter(m => {
+                    const idMsg = parseInt(m.id, 10);
                     const remetente = String(m.remetente_matricula || '').trim().toLowerCase();
-                    return dataMsg > ultimoAcessoTime && remetente !== matricula.toLowerCase();
+                    return idMsg > ultimoIdLido && remetente !== matricula.toLowerCase();
                 });
 
-                if (novasMensagens.length > 0) {
-                    badge.textContent = novasMensagens.length > 99 ? "99+" : String(novasMensagens.length);
+                if (naoLidas.length > 0) {
+                    badge.textContent = naoLidas.length > 99 ? "99+" : String(naoLidas.length);
                     badge.style.display = 'inline-flex';
                 } else {
                     badge.style.display = 'none';
                 }
             } catch (e) {
-                console.warn("Falha ao checar badge do direct:", e);
+                console.warn("Falha ao checar badge direct:", e);
             }
         }
 
-        // 5. Atualiza o badge em tempo real se alguém enviar uma mensagem enquanto o usuário está no menu
+        // 2. Realtime na index com nome dinâmico para não colidir conexões
         function inscreverRealtimeDirect() {
             try {
                 supabaseClient
-                    .channel('index_direct_badge_channel')
+                    .channel('canal_badge_' + Date.now())
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_mensagens' }, () => {
                         verificarNovasMensagensDirect();
                     })
@@ -561,9 +559,8 @@
             } catch (_) { }
         }
 
-        // 6. Ao tocar no card, registra o acesso para zerar o contador
         function aoAbrirDirect() {
-            localStorage.setItem("UltimoAcessoDirect", new Date().toISOString());
+            // Ao clicar, o direct.html cuidará de marcar o maior ID como lido
         }
 
         // 7. Logout limpa a sessão e retorna ao login
