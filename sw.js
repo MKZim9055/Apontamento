@@ -1,5 +1,5 @@
 ﻿// Incremente sempre que fizer alterações que precisem forçar a limpeza imediata
-const CACHE_NAME = 'apontamentos-cache-v5';
+const CACHE_NAME = 'apontamentos-cache-v6';
 
 const ASSETS = [
     './',
@@ -10,8 +10,8 @@ const ASSETS = [
     './relatorios.html',
     './configuracoes.html',
     './direct.html',
-    './supabase-config.js',                             // Incluído para suporte offline
-    './db.js',                                         // Camada IndexedDB local
+    './supabase-config.js',                             // Suporte offline
+    './db.js',                                          // Camada IndexedDB local
     './manifest.json',
     './icoapontamento.png',
     'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
@@ -39,7 +39,7 @@ self.addEventListener('activate', (event) => {
     self.clients.claim(); // Força todas as abas e instâncias do PWA a usarem o novo SW
 });
 
-// 3. Interceptação de Requisições
+// 3. Interceptação de Requisições (Cache & Network)
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
@@ -49,7 +49,6 @@ self.addEventListener('fetch', (event) => {
     }
 
     // Estratégia Network First para Navegação (Páginas HTML)
-    // Se tiver rede, busca a tela nova na Vercel; se offline, serve o cache
     if (event.request.mode === 'navigate') {
         event.respondWith(
             fetch(event.request)
@@ -72,7 +71,6 @@ self.addEventListener('fetch', (event) => {
     }
 
     // Estratégia Stale-While-Revalidate para Scripts, CSS, Imagens e CDNs
-    // Retorna o cache para ser rápido/offline, mas busca a versão nova na rede em segundo plano
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
             const fetchPromise = fetch(event.request)
@@ -88,6 +86,67 @@ self.addEventListener('fetch', (event) => {
                 .catch(() => null);
 
             return cachedResponse || fetchPromise;
+        })
+    );
+});
+
+// 4. Recebimento de Push Notification (Tela apagada / App fechado)
+self.addEventListener('push', (event) => {
+    let payload = {
+        title: 'Direct & Avisos',
+        body: 'Você recebeu uma nova mensagem!',
+        url: './direct.html'
+    };
+
+    if (event.data) {
+        try {
+            payload = Object.assign(payload, event.data.json());
+        } catch (_) {
+            payload.body = event.data.text();
+        }
+    }
+
+    const options = {
+        body: payload.body,
+        icon: './icoapontamento.png',
+        badge: './icoapontamento.png',
+        vibrate: [200, 100, 200],
+        tag: `push-msg-${Date.now()}`,
+        renotify: true,
+        data: {
+            url: payload.url || './direct.html'
+        }
+    };
+
+    event.waitUntil(
+        self.registration.showNotification(payload.title, options)
+    );
+});
+
+// 5. Clique na Notificação (Foca na aba aberta ou abre o Direct)
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+
+    const targetUrl = new URL(event.notification.data?.url || './direct.html', self.location.origin).href;
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+            // Se já houver uma janela do app aberta, foca nela e navega para o direct
+            for (const client of windowClients) {
+                if (client.url.includes('direct.html') && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            for (const client of windowClients) {
+                if ('focus' in client && 'navigate' in client) {
+                    client.focus();
+                    return client.navigate(targetUrl);
+                }
+            }
+            // Se não houver janela aberta, abre uma nova
+            if (clients.openWindow) {
+                return clients.openWindow(targetUrl);
+            }
         })
     );
 });
