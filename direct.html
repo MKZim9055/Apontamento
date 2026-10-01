@@ -53,7 +53,7 @@
             display: flex;
             flex-direction: column;
             padding: calc(35px + env(safe-area-inset-top)) 20px calc(12px + env(safe-area-inset-bottom)) 20px;
-            overflow: hidden; /* Mantém cabeçalho e formulário fixos */
+            overflow: hidden;
         }
 
         .container {
@@ -64,7 +64,7 @@
             flex-direction: column;
             flex: 1;
             height: 100%;
-            min-height: 0; /* Permite que os filhos calculem overflow */
+            min-height: 0;
             overflow: hidden;
         }
 
@@ -127,7 +127,7 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-            flex-shrink: 0; /* Evita que o formulário amasse ao encher de mensagens */
+            flex-shrink: 0;
         }
 
         .card-header-tag {
@@ -275,7 +275,7 @@
         /* 4. Lista de Mensagens com Rolagem Ativa */
         .messages-list {
             flex: 1;
-            min-height: 0; /* Ativa o overflow dentro do flex */
+            min-height: 0;
             overflow-y: auto;
             overflow-x: hidden;
             display: flex;
@@ -294,7 +294,7 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
-            flex-shrink: 0; /* Impede distorção dos cards */
+            flex-shrink: 0;
         }
 
         .msg-card-top {
@@ -489,11 +489,19 @@
         let isSending = false;
 
         document.addEventListener('DOMContentLoaded', async () => {
+            solicitarPermissaoNotificacao();
             await carregarDadosSessaoAsync();
             await carregarUsuariosParaPickerAsync();
             await carregarMensagensAsync();
             inscreverRealtimeMensagens();
         });
+
+        // Solicita permissão para exibir alertas no sistema operacional / navegador
+        function solicitarPermissaoNotificacao() {
+            if ("Notification" in window && Notification.permission === "default") {
+                Notification.requestPermission();
+            }
+        }
 
         // 1. Carrega dados de identificação e define rigorosamente o perfil
         async function carregarDadosSessaoAsync() {
@@ -619,6 +627,10 @@
                         if (tipo === "usuario") {
                             if (minhaMat && destino === minhaMat) return true;
                             if (meuNom && destino === meuNom) return true;
+                        }
+
+                        if (tipo === "grupo") {
+                            if (_meuGrupo && destino === _meuGrupo.toLowerCase()) return true;
                         }
 
                         return false;
@@ -791,14 +803,61 @@
             }
         }
 
-        // 6. Atualização em tempo real via Realtime
+        // Emite alerta sonoro / banner nativo para quem recebe
+        function dispararNotificacaoNativa(novaMsg) {
+            const remetenteMat = String(novaMsg.remetente_matricula || "").trim().toLowerCase();
+            const remetenteNom = novaMsg.remetente_nome || "Mensagem Direct";
+            const tipo = String(novaMsg.tipo_destino || "").toLowerCase();
+            const destino = String(novaMsg.destino || "").toLowerCase();
+            const conteudo = novaMsg.conteudo || "Você recebeu um novo aviso.";
+
+            const minhaMat = _minhaMatricula.toLowerCase();
+            const meuGrupo = _meuGrupo.toLowerCase();
+
+            // 1. Não notifica a si próprio
+            if (minhaMat && remetenteMat === minhaMat) return;
+
+            // 2. Avalia se a mensagem é endereçada a este usuário
+            let devoReceber = false;
+            if (tipo === "todos" || destino === "todos") devoReceber = true;
+            if (tipo === "usuario" && (destino === minhaMat || destino === _meuNome.toLowerCase())) devoReceber = true;
+            if (tipo === "grupo" && meuGrupo && destino === meuGrupo) devoReceber = true;
+
+            if (!devoReceber) return;
+
+            // 3. Dispara a notificação pelo navegador / SO
+            if ("Notification" in window && Notification.permission === "granted") {
+                const titulo = tipo === "todos" ? `📢 Aviso Geral (De: ${remetenteNom})` : `💬 Direct de ${remetenteNom}`;
+                new Notification(titulo, {
+                    body: conteudo,
+                    icon: "icoapontamento.png"
+                });
+            }
+
+            // 4. Vibração física no dispositivo Android/PWA
+            if ("vibrate" in navigator) {
+                navigator.vibrate([200, 100, 200]);
+            }
+        }
+
+        // 6. Atualização em tempo real via Realtime com notificação imediata
         function inscreverRealtimeMensagens() {
             try {
                 supabaseClient
                     .channel('direct_mensagens_realtime')
                     .on(
                         'postgres_changes',
-                        { event: '*', schema: 'public', table: 'direct_mensagens' },
+                        { event: 'INSERT', schema: 'public', table: 'direct_mensagens' },
+                        (payload) => {
+                            if (payload && payload.new) {
+                                dispararNotificacaoNativa(payload.new);
+                            }
+                            carregarMensagensAsync();
+                        }
+                    )
+                    .on(
+                        'postgres_changes',
+                        { event: 'DELETE', schema: 'public', table: 'direct_mensagens' },
                         () => {
                             carregarMensagensAsync();
                         }
