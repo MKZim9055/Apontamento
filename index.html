@@ -23,19 +23,25 @@
         OneSignalDeferred.push(async function (OneSignal) {
             await OneSignal.init({
                 appId: "bd852b79-a4f3-42b1-bf06-8e8c90543281",
-                notifyButton: { enable: false }
+                allowLocalhostAsSecureOrigin: true // Permite testes locais
             });
 
-            // Sincroniza a matrícula do usuário com o OneSignal para entrega de push individual/grupo
             const matricula = (localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "").trim().toLowerCase();
             const grupo = (localStorage.getItem("UsuarioGrupo") || "").trim().toLowerCase();
 
+            // 1. Pede permissão explícita
+            if (!OneSignal.Notifications.permission) {
+                await OneSignal.Notifications.requestPermission();
+            }
+
+            // 2. Vincula a matrícula como External ID
             if (matricula) {
                 await OneSignal.login(matricula);
                 await OneSignal.User.addTags({
                     matricula: matricula,
                     grupo: grupo
                 });
+                console.log("OneSignal: Usuário autenticado com matrícula:", matricula);
             }
         });
     </script>
