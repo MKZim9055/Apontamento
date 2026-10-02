@@ -1,4 +1,8 @@
-﻿// Incremente sempre que fizer alterações que precisem forçar a limpeza imediata
+﻿importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+
+// Restante do seu sw.js normal (caches, assets, etc.)...
+
+// Incremente sempre que fizer alterações que precisem forçar a limpeza imediata
 const CACHE_NAME = 'apontamentos-cache-v6';
 
 const ASSETS = [

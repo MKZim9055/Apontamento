@@ -16,6 +16,30 @@
     <!-- Cliente Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+    <!-- OneSignal Web Push SDK -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+        window.OneSignalDeferred = window.OneSignalDeferred || [];
+        OneSignalDeferred.push(async function (OneSignal) {
+            await OneSignal.init({
+                appId: "bd852b79-a4f3-42b1-bf06-8e8c90543281",
+                notifyButton: { enable: false }
+            });
+
+            // Sincroniza a matrícula do usuário com o OneSignal para entrega de push individual/grupo
+            const matricula = (localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "").trim().toLowerCase();
+            const grupo = (localStorage.getItem("UsuarioGrupo") || "").trim().toLowerCase();
+
+            if (matricula) {
+                await OneSignal.login(matricula);
+                await OneSignal.User.addTags({
+                    matricula: matricula,
+                    grupo: grupo
+                });
+            }
+        });
+    </script>
+
     <!-- Guardião de Rota: Apenas valida se está logado -->
     <script>
         (function verificarAcessoImediato() {
@@ -465,9 +489,6 @@
         const SUPABASE_KEY = "sb_publishable_qilTaEWSiDNr1L-N5uE5gA_NYyLkyBt";
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // Chave pública VAPID (opcional, para ativação do Web Push nativo no navegador)
-        const CHAVE_PUBLICA_VAPID = "";
-
         // 1. Registro de Service Worker PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -505,11 +526,6 @@
 
             await verificarNovasMensagensDirect();
             inscreverRealtimeDirect();
-
-            // Solicita registro de push notification na primeira interação
-            document.body.addEventListener('click', () => {
-                solicitarRegistroPush();
-            }, { once: true });
         });
 
         // 4. Reavalia o badge quando a aba volta ao foco ou quando o usuário volta de outra página
@@ -523,7 +539,7 @@
             }
         });
 
-        // 5. Checa novas mensagens comparando com o MAIOR ID já visto
+        // 5. Checa novas mensagens comparando com o MAIOR ID já visto (com reset automático após TRUNCATE)
         async function verificarNovasMensagensDirect() {
             const badge = document.getElementById('badgeDirect');
             if (!badge) return;
@@ -542,10 +558,19 @@
                     p_grupo: grupo
                 });
 
-                if (error || !data) return;
+                if (error || !data || data.length === 0) {
+                    badge.style.display = 'none';
+                    return;
+                }
 
-                // Recupera o último ID que o usuário visualizou na tela de Direct
-                const ultimoIdLido = parseInt(localStorage.getItem("UltimoIdDirectLido") || "0", 10);
+                let ultimoIdLido = parseInt(localStorage.getItem("UltimoIdDirectLido") || "0", 10);
+
+                // Auto-correção caso a tabela tenha sido resetada (TRUNCATE) e os IDs voltaram do 1
+                const maiorIdAtual = Math.max(...data.map(m => parseInt(m.id, 10)));
+                if (ultimoIdLido > maiorIdAtual) {
+                    ultimoIdLido = 0;
+                    localStorage.setItem("UltimoIdDirectLido", "0");
+                }
 
                 // Mensagens cujo ID é maior que o último lido e que NÃO foram enviadas pelo próprio usuário
                 const naoLidas = data.filter(m => {
@@ -583,54 +608,14 @@
             // O direct.html atualizará o UltimoIdDirectLido automaticamente ao abrir
         }
 
-        // 8. Registro de inscrição para Web Push (Notificação com App fechado)
-        function urlBase64ToUint8Array(base64String) {
-            const padding = '='.repeat((4 - base64String.length % 4) % 4);
-            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-            const rawData = window.atob(base64);
-            const outputArray = new Uint8Array(rawData.length);
-            for (let i = 0; i < rawData.length; ++i) {
-                outputArray[i] = rawData.charCodeAt(i);
-            }
-            return outputArray;
-        }
-
-        async function solicitarRegistroPush() {
-            if (!CHAVE_PUBLICA_VAPID || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
-
-            const matricula = (localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "").trim();
-            const grupo = (localStorage.getItem("UsuarioGrupo") || "").trim();
-            if (!matricula) return;
-
-            try {
-                const reg = await navigator.serviceWorker.ready;
-                let sub = await reg.pushManager.getSubscription();
-
-                if (!sub) {
-                    sub = await reg.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: urlBase64ToUint8Array(CHAVE_PUBLICA_VAPID)
-                    });
-                }
-
-                // Salva a inscrição no Supabase vinculada ao usuário
-                await supabaseClient
-                    .from('notificacoes_inscricoes')
-                    .upsert({
-                        matricula: matricula,
-                        grupo: grupo,
-                        subscription: sub.toJSON()
-                    }, { onConflict: 'matricula,subscription' });
-
-                console.log("Push Notification registrado com sucesso!");
-            } catch (e) {
-                console.warn("Inscrição de Push ignorada ou cancelada:", e);
-            }
-        }
-
-        // 9. Logout limpa a sessão e retorna ao login
+        // 8. Logout limpa a sessão e desvincula do OneSignal
         async function fazerLogout() {
             try {
+                if (window.OneSignalDeferred) {
+                    window.OneSignalDeferred.push(async function (OneSignal) {
+                        await OneSignal.logout();
+                    });
+                }
                 if (window.supabaseClient) {
                     await window.supabaseClient.auth.signOut();
                 }
