@@ -857,7 +857,11 @@
             const executante = document.getElementById('txtMatriculaExecutante').value.trim();
             const hInicio = document.getElementById('txtHoraInicio').value.trim();
             const hFim = document.getElementById('txtHoraFim').value.trim();
-            const os = document.getElementById('txtOrdemServico').value.trim();
+
+            // Captura com fallback para "Aguardando OS" caso esteja vazio ou com traço
+            const osInput = document.getElementById('txtOrdemServico').value.trim();
+            const os = (osInput === '' || osInput === '-') ? 'Aguardando OS' : osInput;
+
             const setor = document.getElementById('pickerSetor').value.trim();
             const obs = document.getElementById('txtObservacoes').value.trim();
             const dataSql = document.getElementById('dpData').value;
