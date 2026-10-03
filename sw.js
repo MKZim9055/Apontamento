@@ -1,7 +1,7 @@
 ﻿// sw.js - Service Worker PWA com Suporte Nativo a Web Push (VAPID)
 
 // Incremente a versão para forçar a atualização imediata em todos os aparelhos
-const CACHE_NAME = 'apontamentos-cache-v7';
+const CACHE_NAME = 'apontamentos-cache-v8';
 
 const ASSETS = [
     './',
@@ -99,7 +99,7 @@ self.addEventListener('fetch', (event) => {
 // 4. Recebimento de Push Notification (Tela apagada / App fechado)
 self.addEventListener('push', (event) => {
     let payload = {
-        title: 'Direct & Avisos',
+        title: 'Apontamento',
         body: 'Você recebeu uma nova mensagem!',
         url: './direct.html'
     };
@@ -111,6 +111,9 @@ self.addEventListener('push', (event) => {
             payload.body = event.data.text();
         }
     }
+
+    // Força o título a ser sempre apenas "Apontamento"
+    const tituloFixo = 'Apontamento';
 
     const options = {
         body: payload.body,
@@ -125,7 +128,7 @@ self.addEventListener('push', (event) => {
     };
 
     event.waitUntil(
-        self.registration.showNotification(payload.title, options)
+        self.registration.showNotification(tituloFixo, options)
     );
 });
 
