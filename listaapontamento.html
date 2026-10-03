@@ -41,7 +41,6 @@
             user-select: text;
         }
 
-        /* 1. Trava o HTML e Body para o tamanho da tela */
         html {
             height: 100%;
         }
@@ -55,7 +54,7 @@
             display: flex;
             flex-direction: column;
             padding: calc(35px + env(safe-area-inset-top)) 20px calc(12px + env(safe-area-inset-bottom)) 20px;
-            overflow: hidden; /* Mantém cabeçalho e busca fixos */
+            overflow: hidden;
         }
 
         .container {
@@ -65,12 +64,12 @@
             display: flex;
             flex-direction: column;
             flex: 1;
-            min-height: 0; /* Essencial para flex children calcularem overflow */
+            min-height: 0;
             height: 100%;
             overflow: hidden;
         }
 
-        /* 1. Topo: Voltar, Título e Ações */
+        /* 1. Topo */
         .header-top {
             display: flex;
             align-items: center;
@@ -178,7 +177,7 @@
             color: #00C48C;
         }
 
-        /* 4. Lista e Swipe View com Scroll Habilitado */
+        /* 4. Lista e Swipe View */
         .list-container {
             flex: 1;
             min-height: 0;
@@ -255,7 +254,6 @@
                 cursor: grabbing;
             }
 
-        /* Linha 1 */
         .card-line-1 {
             display: flex;
             justify-content: space-between;
@@ -291,6 +289,12 @@
             font-weight: 700;
             width: fit-content;
         }
+
+            .badge-os.aguardando {
+                background-color: #3D2914;
+                color: #FFA447;
+                border: 1px solid rgba(255, 164, 71, 0.3);
+            }
 
         .badge-grupo-topo {
             background-color: #1A314E;
@@ -348,14 +352,12 @@
             color: #8FA3BF;
         }
 
-        /* Divisor Interno Suave */
         .card-divider {
             height: 1px;
             background-color: #162E4E;
             margin: 2px 0;
         }
 
-        /* Linha 2 */
         .card-line-2 {
             display: flex;
             justify-content: space-between;
@@ -488,12 +490,126 @@
             font-size: 32px;
             font-weight: bold;
             margin-top: -3px;
-            pointer-events: none; /* Garante que o clique seja absorvido pelo botão */
+            pointer-events: none;
         }
 
         .hidden {
             display: none !important;
         }
+
+        /* =========================================================================
+           MODAL DE ALERTA E CONFIRMAÇÃO PERSONALIZADO
+           ========================================================================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 9, 18, 0.78);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 24px;
+        }
+
+        .modal-card {
+            background-color: #0B1C33;
+            border: 1px solid #1B3352;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 340px;
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 12px;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+            animation: modalFadeIn 0.18s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.92);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-icon-badge {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            margin-bottom: 2px;
+        }
+
+            .modal-icon-badge.success {
+                background-color: rgba(0, 196, 140, 0.15);
+                border: 1px solid #00C48C;
+            }
+
+            .modal-icon-badge.error {
+                background-color: rgba(255, 59, 48, 0.15);
+                border: 1px solid #FF3B30;
+            }
+
+            .modal-icon-badge.warning {
+                background-color: rgba(255, 152, 56, 0.15);
+                border: 1px solid #FF9838;
+            }
+
+        .modal-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #FFFFFF;
+            line-height: 1.2;
+        }
+
+        .modal-card p {
+            font-size: 13px;
+            color: #CAD8E8;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        .modal-buttons-row {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            margin-top: 6px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            height: 48px;
+            border-radius: 12px;
+            border: none;
+            background-color: #FF7A00;
+            color: #FFFFFF;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+
+            .modal-btn.secondary {
+                background-color: #0E223D;
+                border: 1px solid #1F3A60;
+                color: #8FA3BF;
+            }
+
+            .modal-btn:active {
+                transform: scale(0.97);
+            }
     </style>
 </head>
 <body>
@@ -550,7 +666,93 @@
 
     </div>
 
+    <!-- Modal Customizado -->
+    <div id="modalAviso" class="modal-overlay">
+        <div class="modal-card">
+            <div id="modalIcone" class="modal-icon-badge success">✓</div>
+            <h3 id="modalTitulo">Apontamento</h3>
+            <p id="modalMensagem">Mensagem informativa...</p>
+            <div class="modal-buttons-row">
+                <button id="btnModalCancelar" class="modal-btn secondary" style="display: none;">Cancelar</button>
+                <button id="btnModalOk" class="modal-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // =========================================================================
+        // 0. DIÁLOGOS CUSTOMIZADOS (Substitui alert e confirm nativos)
+        // =========================================================================
+        function exibirAviso(titulo, mensagem, tipo = 'success') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('modalAviso');
+                const lblTitulo = document.getElementById('modalTitulo');
+                const lblMensagem = document.getElementById('modalMensagem');
+                const icone = document.getElementById('modalIcone');
+                const btnOk = document.getElementById('btnModalOk');
+                const btnCancelar = document.getElementById('btnModalCancelar');
+
+                lblTitulo.textContent = titulo;
+                lblMensagem.textContent = mensagem;
+                btnCancelar.style.display = 'none';
+                btnOk.textContent = 'OK';
+
+                if (tipo === 'success') {
+                    icone.className = 'modal-icon-badge success';
+                    icone.textContent = '✓';
+                    btnOk.style.backgroundColor = '#FF7A00';
+                } else if (tipo === 'error') {
+                    icone.className = 'modal-icon-badge error';
+                    icone.textContent = '✕';
+                    btnOk.style.backgroundColor = '#FF3B30';
+                } else {
+                    icone.className = 'modal-icon-badge warning';
+                    icone.textContent = '⚠️';
+                    btnOk.style.backgroundColor = '#FF7A00';
+                }
+
+                modal.style.display = 'flex';
+
+                btnOk.onclick = () => {
+                    modal.style.display = 'none';
+                    resolve();
+                };
+            });
+        }
+
+        function exibirConfirmacao(titulo, mensagem, textoBotaoOk = 'Confirmar') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('modalAviso');
+                const lblTitulo = document.getElementById('modalTitulo');
+                const lblMensagem = document.getElementById('modalMensagem');
+                const icone = document.getElementById('modalIcone');
+                const btnOk = document.getElementById('btnModalOk');
+                const btnCancelar = document.getElementById('btnModalCancelar');
+
+                lblTitulo.textContent = titulo;
+                lblMensagem.textContent = mensagem;
+
+                icone.className = 'modal-icon-badge warning';
+                icone.textContent = '?';
+
+                btnCancelar.style.display = 'block';
+                btnOk.textContent = textoBotaoOk;
+                btnOk.style.backgroundColor = '#FF7A00';
+
+                modal.style.display = 'flex';
+
+                btnOk.onclick = () => {
+                    modal.style.display = 'none';
+                    resolve(true);
+                };
+
+                btnCancelar.onclick = () => {
+                    modal.style.display = 'none';
+                    resolve(false);
+                };
+            });
+        }
+
         // =========================================================================
         // 1. CAPTURA ROBUSTA DO CLIENTE SUPABASE
         // =========================================================================
@@ -583,7 +785,6 @@
             });
         });
 
-        // 1. Validação do Usuário Ativo
         async function validarUsuarioAtivo() {
             if (!navigator.onLine) return;
 
@@ -600,7 +801,7 @@
                     .eq('matricula', matricula);
 
                 if (!error && (!data || data.length === 0)) {
-                    alert("Acesso Revogado: Sessão encerrada: usuário não encontrado no servidor.");
+                    await exibirAviso("Acesso Revogado", "Sessão encerrada: usuário não encontrado no servidor.", "error");
                     desconectar();
                     window.location.replace("login.html");
                 }
@@ -609,7 +810,6 @@
             }
         }
 
-        // 2. Permissões de Visibilidade
         function configurarPermissoesVisuais() {
             const btnVoltar = document.getElementById('btnVoltar');
             if (btnVoltar) {
@@ -617,7 +817,6 @@
             }
         }
 
-        // 3. Consulta de Registros Locais (IndexedDB)
         async function carregarDadosAsync() {
             try {
                 if (typeof LocalDB === 'undefined') {
@@ -657,7 +856,6 @@
             }
         }
 
-        // 4. Baixa edições feitas por supervisores/administradores no Supabase (CORRIGIDO)
         async function atualizarEdicoesDoSupervisorAsync() {
             if (!navigator.onLine) return;
             const supabase = obterClienteSupabase();
@@ -691,7 +889,7 @@
                         if (idRem !== undefined && idRem !== null && Number(idRem) === remotoId) return true;
 
                         const osLoc = extrairOrdemServico(l);
-                        if (osRemota !== '-' && osLoc !== '-' && osLoc.toLowerCase() === osRemota.toLowerCase()) return true;
+                        if (osRemota !== 'Aguardando OS' && osLoc !== 'Aguardando OS' && osLoc.toLowerCase() === osRemota.toLowerCase()) return true;
 
                         const lData = String(l.data || '').substring(0, 10);
                         const lHora = formatarHora(l.horainicio || l.hora_inicio);
@@ -709,7 +907,7 @@
                             alterou = true;
                         }
 
-                        if (osRemota !== '-' && (local.ordemservico !== osRemota || local.ordem_servico !== osRemota)) {
+                        if (osRemota !== 'Aguardando OS' && (local.ordemservico !== osRemota || local.ordem_servico !== osRemota)) {
                             local.ordemservico = osRemota;
                             local.ordem_servico = osRemota;
                             alterou = true;
@@ -795,8 +993,9 @@
             return s;
         }
 
+        // Extração de OS com substituição de '-' por 'Aguardando OS'
         function extrairOrdemServico(item) {
-            if (!item) return '-';
+            if (!item) return 'Aguardando OS';
             const candidatos = [
                 item.ordemservico,
                 item.ordem_servico,
@@ -807,11 +1006,14 @@
                 item.OS
             ];
             for (const val of candidatos) {
-                if (val !== undefined && val !== null && String(val).trim() !== '') {
-                    return String(val).trim();
+                if (val !== undefined && val !== null) {
+                    const str = String(val).trim();
+                    if (str !== '' && str !== '-') {
+                        return str;
+                    }
                 }
             }
-            return '-';
+            return 'Aguardando OS';
         }
 
         // 5. Renderização da Lista
@@ -856,6 +1058,7 @@
                 const isSincronizado = !!item.data_sincronizado;
                 const statusTexto = isSincronizado ? "✅ Enviado" : "⏳ Pendente";
                 const statusClass = isSincronizado ? "enviado" : "pendente";
+                const osClasseDestaque = (os === 'Aguardando OS') ? 'badge-os aguardando' : 'badge-os';
 
                 const botaoSyncFrente = !isSincronizado
                     ? `<button type="button" class="btn-sync-card" onclick="onEnviarItemClicked(${id})" title="Enviar agora para banco dados">Enviar ☁️</button>`
@@ -870,7 +1073,7 @@
                             <div class="item-card" data-open="false">
                                 <div class="card-line-1">
                                     <div class="os-status-group">
-                                        <span class="badge-os">${os}</span>
+                                        <span class="${osClasseDestaque}">${os}</span>
                                         <div class="status-actions-row">
                                             <span class="badge-status ${statusClass}">${statusTexto}</span>
                                             ${botaoSyncFrente}
@@ -914,7 +1117,7 @@
         }
 
         // =========================================================================
-        // 6. GESTOS DE SWIPE UNIFICADOS
+        // 6. GESTOS DE SWIPE
         // =========================================================================
         function configurarGestosSwipe() {
             const cards = document.querySelectorAll('.item-card');
@@ -1039,7 +1242,7 @@
         }
 
         // =========================================================================
-        // 7. SINCRONIZAÇÃO INDIVIDUAL E EM LOTE
+        // 7. SINCRONIZAÇÃO
         // =========================================================================
         async function onEnviarItemClicked(id) {
             if (isSyncing) return;
@@ -1053,18 +1256,19 @@
 
                 if (!item || item.data_sincronizado) {
                     const osIdent = extrairOrdemServico(item);
-                    alert(`O registro ${osIdent !== '-' ? osIdent : '#' + id} já foi transmitido.`);
+                    await exibirAviso("Aviso", `O registro "${osIdent}" já foi transmitido para o servidor.`, "warning");
                     await carregarDadosAsync();
                     return;
                 }
 
                 const osNome = extrairOrdemServico(item);
-                const rotuloMsg = osNome !== '-' ? `a O.S. ${osNome}` : `o apontamento #${id}`;
+                const rotuloMsg = `o apontamento (${osNome})`;
 
-                if (!confirm(`Deseja transmitir ${rotuloMsg} para a nuvem agora?`)) return;
+                const confirmou = await exibirConfirmacao("Transmitir Apontamento", `Deseja enviar ${rotuloMsg} para a nuvem agora?`, "Enviar ☁️");
+                if (!confirmou) return;
 
                 if (!navigator.onLine || !supabase) {
-                    alert("Sem conexão: O dispositivo está sem internet no momento.");
+                    await exibirAviso("Sem Conexão", "O dispositivo está sem conexão com a internet no momento.", "error");
                     return;
                 }
 
@@ -1073,7 +1277,7 @@
                 const itemRemoto = {
                     matricula_usuario: item.matricula_usuario || matriculaLogada,
                     data: item.data,
-                    ordemservico: osNome !== '-' ? osNome : '',
+                    ordemservico: osNome,
                     matricula_executante: item.matricula_executante || '',
                     horainicio: formatarHora(item.horainicio || item.hora_inicio),
                     horafim: formatarHora(item.horafim || item.hora_fim),
@@ -1097,12 +1301,12 @@
 
                 await LocalDB.salvarApontamento(item);
 
-                alert("Sucesso: Apontamento sincronizado com sucesso!");
+                await exibirAviso("Sincronizado!", "Apontamento enviado para o servidor com sucesso.", "success");
                 await carregarDadosAsync();
 
             } catch (ex) {
                 console.error(ex);
-                alert(`Erro ao sincronizar: ${ex.message || ex}`);
+                await exibirAviso("Erro na Sincronização", ex.message || String(ex), "error");
             } finally {
                 isSyncing = false;
             }
@@ -1119,23 +1323,24 @@
                 const pendentes = todos.filter(a => !a.data_sincronizado);
 
                 if (pendentes.length === 0) {
-                    alert("Não há apontamentos pendentes para transmissão.");
+                    await exibirAviso("Tudo em Dia", "Não há apontamentos pendentes para transmissão.", "success");
                     return;
                 }
 
                 if (!navigator.onLine || !supabase) {
-                    alert("Sem conexão à internet no momento.");
+                    await exibirAviso("Sem Conexão", "Dispositivo sem conexão com a internet no momento.", "error");
                     return;
                 }
 
-                if (!confirm(`Transmitir ${pendentes.length} apontamento(s) pendente(s) agora?`)) return;
+                const confirmou = await exibirConfirmacao("Sincronização em Lote", `Deseja transmitir ${pendentes.length} apontamento(s) pendente(s) agora?`, "Transmitir ☁️");
+                if (!confirmou) return;
 
                 const matriculaLogada = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "---";
 
                 const loteRemoto = pendentes.map(p => ({
                     matricula_usuario: p.matricula_usuario || matriculaLogada,
                     data: p.data,
-                    ordemservico: extrairOrdemServico(p) !== '-' ? extrairOrdemServico(p) : '',
+                    ordemservico: extrairOrdemServico(p),
                     matricula_executante: p.matricula_executante || '',
                     horainicio: formatarHora(p.horainicio || p.hora_inicio),
                     horafim: formatarHora(p.horafim || p.hora_fim),
@@ -1162,12 +1367,12 @@
                     await LocalDB.salvarApontamento(item);
                 }
 
-                alert(`Sucesso: ${pendentes.length} apontamento(s) sincronizado(s)!`);
+                await exibirAviso("Lote Transmitido!", `${pendentes.length} apontamento(s) sincronizado(s) com sucesso.`, "success");
                 await carregarDadosAsync();
 
             } catch (ex) {
                 console.error(ex);
-                alert(`Falha ao sincronizar lote: ${ex.message || ex}`);
+                await exibirAviso("Erro no Envio", `Falha ao sincronizar lote: ${ex.message || ex}`, "error");
             } finally {
                 isSyncing = false;
             }
@@ -1200,13 +1405,15 @@
             const item = todos.find(x => x.id === id);
             const os = item ? extrairOrdemServico(item) : "Sem O.S.";
 
-            if (!confirm(`Excluir Localmente: Deseja excluir a O.S. ${os}?`)) return;
+            const confirmou = await exibirConfirmacao("Excluir Apontamento", `Deseja excluir localmente a O.S. "${os}"?`, "Excluir");
+            if (!confirmou) return;
 
             try {
                 await LocalDB.excluirApontamento(id);
+                await exibirAviso("Excluído", "Registro removido do banco local com sucesso.", "success");
                 await carregarDadosAsync();
             } catch (err) {
-                alert(`Erro ao excluir: ${err.message || err}`);
+                await exibirAviso("Erro ao Excluir", err.message || String(err), "error");
             }
         }
 

@@ -44,7 +44,7 @@
             display: flex;
             flex-direction: column;
             padding: calc(35px + env(safe-area-inset-top)) 20px calc(12px + env(safe-area-inset-bottom)) 20px;
-            overflow: hidden; /* Evita que a tela inteira dance */
+            overflow: hidden;
         }
 
         .container {
@@ -55,7 +55,7 @@
             flex-direction: column;
             flex: 1;
             height: 100%;
-            min-height: 0; /* Permite que o container respeite limites flex */
+            min-height: 0;
             overflow: hidden;
         }
 
@@ -118,7 +118,7 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-            flex-shrink: 0; /* Impede que os filtros sejam espremidos */
+            flex-shrink: 0;
         }
 
         .filter-title {
@@ -237,14 +237,14 @@
         /* 4. Lista e Scroll Ativo */
         .list-container {
             flex: 1;
-            min-height: 0; /* FUNDAMENTAL: permite calcular o overflow dentro do flex */
+            min-height: 0;
             overflow-y: auto;
             overflow-x: hidden;
             display: flex;
             flex-direction: column;
             gap: 10px;
             padding-bottom: 24px;
-            -webkit-overflow-scrolling: touch; /* Suavidade no iOS */
+            -webkit-overflow-scrolling: touch;
             overscroll-behavior-y: contain;
         }
 
@@ -253,7 +253,7 @@
             border-radius: 14px;
             overflow: hidden;
             background-color: #081426;
-            flex-shrink: 0; /* Não deforma os cards */
+            flex-shrink: 0;
         }
 
         .swipe-actions {
@@ -301,7 +301,7 @@
             flex-direction: column;
             gap: 8px;
             z-index: 2;
-            touch-action: pan-y; /* Permite rolar verticalmente livremente */
+            touch-action: pan-y;
             will-change: transform;
             backface-visibility: hidden;
             cursor: grab;
@@ -342,6 +342,12 @@
             display: inline-flex;
             align-items: center;
         }
+
+            .badge-os.aguardando {
+                background-color: #3D2914;
+                color: #FFA447;
+                border: 1px solid rgba(255, 164, 71, 0.3);
+            }
 
         .badge-grupo-topo {
             background-color: #1A314E;
@@ -475,6 +481,120 @@
             display: none;
             flex-shrink: 0;
         }
+
+        /* =========================================================================
+           MODAL DE ALERTA E CONFIRMAÇÃO PERSONALIZADO
+           ========================================================================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 9, 18, 0.78);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 24px;
+        }
+
+        .modal-card {
+            background-color: #0B1C33;
+            border: 1px solid #1B3352;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 340px;
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 12px;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+            animation: modalFadeIn 0.18s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.92);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-icon-badge {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            margin-bottom: 2px;
+        }
+
+            .modal-icon-badge.success {
+                background-color: rgba(0, 196, 140, 0.15);
+                border: 1px solid #00C48C;
+            }
+
+            .modal-icon-badge.error {
+                background-color: rgba(255, 59, 48, 0.15);
+                border: 1px solid #FF3B30;
+            }
+
+            .modal-icon-badge.warning {
+                background-color: rgba(255, 152, 56, 0.15);
+                border: 1px solid #FF9838;
+            }
+
+        .modal-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #FFFFFF;
+            line-height: 1.2;
+        }
+
+        .modal-card p {
+            font-size: 13px;
+            color: #CAD8E8;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        .modal-buttons-row {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            margin-top: 6px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            height: 48px;
+            border-radius: 12px;
+            border: none;
+            background-color: #FF7A00;
+            color: #FFFFFF;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+
+            .modal-btn.secondary {
+                background-color: #0E223D;
+                border: 1px solid #1F3A60;
+                color: #8FA3BF;
+            }
+
+            .modal-btn:active {
+                transform: scale(0.97);
+            }
     </style>
 </head>
 <body>
@@ -545,7 +665,93 @@
 
     </div>
 
+    <!-- Modal Customizado -->
+    <div id="modalAviso" class="modal-overlay">
+        <div class="modal-card">
+            <div id="modalIcone" class="modal-icon-badge success">✓</div>
+            <h3 id="modalTitulo">Relatório</h3>
+            <p id="modalMensagem">Mensagem informativa...</p>
+            <div class="modal-buttons-row">
+                <button id="btnModalCancelar" class="modal-btn secondary" style="display: none;">Cancelar</button>
+                <button id="btnModalOk" class="modal-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // =========================================================================
+        // 0. DIÁLOGOS CUSTOMIZADOS (Substitui alert e confirm nativos)
+        // =========================================================================
+        function exibirAviso(titulo, mensagem, tipo = 'success') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('modalAviso');
+                const lblTitulo = document.getElementById('modalTitulo');
+                const lblMensagem = document.getElementById('modalMensagem');
+                const icone = document.getElementById('modalIcone');
+                const btnOk = document.getElementById('btnModalOk');
+                const btnCancelar = document.getElementById('btnModalCancelar');
+
+                lblTitulo.textContent = titulo;
+                lblMensagem.textContent = mensagem;
+                btnCancelar.style.display = 'none';
+                btnOk.textContent = 'OK';
+
+                if (tipo === 'success') {
+                    icone.className = 'modal-icon-badge success';
+                    icone.textContent = '✓';
+                    btnOk.style.backgroundColor = '#FF7A00';
+                } else if (tipo === 'error') {
+                    icone.className = 'modal-icon-badge error';
+                    icone.textContent = '✕';
+                    btnOk.style.backgroundColor = '#FF3B30';
+                } else {
+                    icone.className = 'modal-icon-badge warning';
+                    icone.textContent = '⚠️';
+                    btnOk.style.backgroundColor = '#FF7A00';
+                }
+
+                modal.style.display = 'flex';
+
+                btnOk.onclick = () => {
+                    modal.style.display = 'none';
+                    resolve();
+                };
+            });
+        }
+
+        function exibirConfirmacao(titulo, mensagem, textoBotaoOk = 'Confirmar') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('modalAviso');
+                const lblTitulo = document.getElementById('modalTitulo');
+                const lblMensagem = document.getElementById('modalMensagem');
+                const icone = document.getElementById('modalIcone');
+                const btnOk = document.getElementById('btnModalOk');
+                const btnCancelar = document.getElementById('btnModalCancelar');
+
+                lblTitulo.textContent = titulo;
+                lblMensagem.textContent = mensagem;
+
+                icone.className = 'modal-icon-badge warning';
+                icone.textContent = '?';
+
+                btnCancelar.style.display = 'block';
+                btnOk.textContent = textoBotaoOk;
+                btnOk.style.backgroundColor = '#FF7A00';
+
+                modal.style.display = 'flex';
+
+                btnOk.onclick = () => {
+                    modal.style.display = 'none';
+                    resolve(true);
+                };
+
+                btnCancelar.onclick = () => {
+                    modal.style.display = 'none';
+                    resolve(false);
+                };
+            });
+        }
+
         // =========================================================================
         // 1. CONFIGURAÇÕES SUPABASE
         // =========================================================================
@@ -650,7 +856,7 @@
                             .maybeSingle();
 
                         if (error || !data) {
-                            alert("Acesso Revogado: Sessão encerrada: usuário não encontrado no servidor.");
+                            await exibirAviso("Acesso Revogado", "Sessão encerrada: usuário não encontrado no servidor.", "error");
                             localStorage.removeItem("MatriculaUsuario");
                             localStorage.removeItem("NivelUsuario");
                             window.location.replace("login.html");
@@ -688,7 +894,7 @@
                 aplicarFiltrosEmMemoria();
             } catch (ex) {
                 console.error(ex);
-                alert(`Erro: Falha ao buscar apontamentos: ${ex.message || ex}`);
+                await exibirAviso("Erro na Busca", `Falha ao buscar apontamentos: ${ex.message || ex}`, "error");
                 lblTotalRegistros.textContent = 'Erro ao carregar';
             } finally {
                 refreshIndicator.style.display = 'none';
@@ -704,8 +910,9 @@
                 .toLowerCase();
         }
 
+        // Extração de OS com substituição de '-' por 'Aguardando OS'
         function extrairOrdemServico(item) {
-            if (!item) return '-';
+            if (!item) return 'Aguardando OS';
             const candidatos = [
                 item.ordemservico,
                 item.ordem_servico,
@@ -717,11 +924,14 @@
             ];
 
             for (const val of candidatos) {
-                if (val !== undefined && val !== null && String(val).trim() !== '') {
-                    return String(val).trim();
+                if (val !== undefined && val !== null) {
+                    const str = String(val).trim();
+                    if (str !== '' && str !== '-') {
+                        return str;
+                    }
                 }
             }
-            return '-';
+            return 'Aguardando OS';
         }
 
         function formatarData(valorData) {
@@ -834,6 +1044,7 @@
                 const grupo = item.grupo || item.Grupo || '-';
                 const dataStr = formatarData(item.data || item.Data);
                 const matricula = item.matricula_executante || item.MatriculaExecutante || '-';
+                const osClasseDestaque = (os === 'Aguardando OS') ? 'badge-os aguardando' : 'badge-os';
 
                 const inicioRaw = item.horainicio
                     ?? item.hora_inicio
@@ -859,7 +1070,7 @@
                                 <!-- Linha 1: O.S e Data/Grupo -->
                                 <div class="card-line-1">
                                     <div class="os-left-group">
-                                        <span class="badge-os">${os}</span>
+                                        <span class="${osClasseDestaque}">${os}</span>
                                     </div>
                                     <div class="meta-right-group">
                                         <span class="data-text">${dataStr}</span>
@@ -906,11 +1117,12 @@
         // =========================================================================
         async function onExcluirItemInvoked(id, os) {
             if (!navigator.onLine) {
-                alert("Sem Conexão: Você precisa de conexão à internet para excluir registros no Banco Dados.");
+                await exibirAviso("Sem Conexão", "Você precisa de conexão à internet para excluir registros no Banco de Dados.", "error");
                 return;
             }
 
-            const confirmar = confirm(`Deseja excluir permanentemente a O.S. ${os} do Banco de Dados e do aparelho?`);
+            const rotuloOS = (os === 'Aguardando OS') ? 'este apontamento (Aguardando OS)' : `a O.S. ${os}`;
+            const confirmar = await exibirConfirmacao("Excluir Apontamento", `Deseja excluir permanentemente ${rotuloOS} do Banco de Dados e deste aparelho?`, "Excluir");
             if (!confirmar) return;
 
             const supabase = obterClienteSupabase();
@@ -931,7 +1143,7 @@
                             const idRemoto = x.remoto_id ?? x.id_remoto ?? x.remotoId;
                             if (idRemoto && String(idRemoto) === String(id)) return true;
                             const osLoc = extrairOrdemServico(x);
-                            return (os && os !== '-' && osLoc === os);
+                            return (os && os !== 'Aguardando OS' && osLoc === os);
                         });
 
                         if (localEncontrado && localEncontrado.id) {
@@ -944,15 +1156,15 @@
 
                 _listaOriginal = _listaOriginal.filter(item => String(item.id) !== String(id));
                 aplicarFiltrosEmMemoria();
-                alert("Sucesso: Registro excluído com sucesso!");
+                await exibirAviso("Excluído com Sucesso", "Registro removido da nuvem e do aparelho.", "success");
             } catch (ex) {
-                alert(`Erro ao excluir registro: ${ex.message || ex}`);
+                await exibirAviso("Erro ao Excluir", ex.message || String(ex), "error");
             }
         }
 
         function onEditarItemInvoked(id) {
             if (!navigator.onLine) {
-                alert("Sem Conexão: Você precisa de conexão à internet para editar registros no Banco Dados.");
+                exibirAviso("Sem Conexão", "Você precisa de conexão à internet para editar registros no Banco de Dados.", "error");
                 return;
             }
 
@@ -960,7 +1172,7 @@
         }
 
         // =========================================================================
-        // 8. GESTOS DE SWIPE UNIFICADOS (COM LIBERAÇÃO DE SCROLL VERTICAL)
+        // 8. GESTOS DE SWIPE UNIFICADOS
         // =========================================================================
         function configurarGestosSwipe() {
             const cards = document.querySelectorAll('.item-card');
@@ -998,7 +1210,6 @@
                     }
 
                     card.style.transition = 'none';
-                    // Nota: setPointerCapture só deve ser chamado se o arraste for horizontal confirmado
                 });
 
                 card.addEventListener('pointermove', (e) => {
@@ -1008,7 +1219,6 @@
                     const diffX = currentX - startX;
                     const diffY = e.clientY - startY;
 
-                    // Confirma se o usuário quer mover horizontal ou se está apenas rolando verticalmente
                     if (!movendoHorizontal && Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 8) {
                         movendoHorizontal = true;
                         try {

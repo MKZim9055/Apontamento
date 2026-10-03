@@ -267,6 +267,103 @@
                 cursor: not-allowed;
                 opacity: 0.6;
             }
+
+        /* =========================================================================
+           MODAL DE ALERTA PERSONALIZADO (Substitui o alert padrão)
+           ========================================================================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 9, 18, 0.78);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 24px;
+        }
+
+        .modal-card {
+            background-color: #0B1C33;
+            border: 1px solid #1B3352;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 340px;
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 12px;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+            animation: modalFadeIn 0.18s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.92);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-icon-badge {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            margin-bottom: 2px;
+        }
+
+            .modal-icon-badge.success {
+                background-color: rgba(0, 196, 140, 0.15);
+                border: 1px solid #00C48C;
+            }
+
+            .modal-icon-badge.error {
+                background-color: rgba(255, 59, 48, 0.15);
+                border: 1px solid #FF3B30;
+            }
+
+        .modal-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #FFFFFF;
+            line-height: 1.2;
+        }
+
+        .modal-card p {
+            font-size: 13px;
+            color: #CAD8E8;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        .modal-btn {
+            width: 100%;
+            height: 48px;
+            border-radius: 12px;
+            border: none;
+            background-color: #FF7A00;
+            color: #FFFFFF;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 6px;
+            transition: transform 0.1s ease;
+        }
+
+            .modal-btn:active {
+                transform: scale(0.97);
+            }
     </style>
 </head>
 <body>
@@ -408,7 +505,50 @@
 
     </div>
 
+    <!-- Modal Customizado -->
+    <div id="modalAviso" class="modal-overlay">
+        <div class="modal-card">
+            <div id="modalIcone" class="modal-icon-badge success">✓</div>
+            <h3 id="modalTitulo">Apontamento</h3>
+            <p id="modalMensagem">Mensagem informativa...</p>
+            <button id="btnModalOk" class="modal-btn">OK</button>
+        </div>
+    </div>
+
     <script>
+        // =========================================================================
+        // 0. DIÁLOGO CUSTOMIZADO (Substitui alert nativo)
+        // =========================================================================
+        function exibirAviso(titulo, mensagem, tipo = 'success') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('modalAviso');
+                const lblTitulo = document.getElementById('modalTitulo');
+                const lblMensagem = document.getElementById('modalMensagem');
+                const icone = document.getElementById('modalIcone');
+                const btnOk = document.getElementById('btnModalOk');
+
+                lblTitulo.textContent = titulo;
+                lblMensagem.textContent = mensagem;
+
+                if (tipo === 'success') {
+                    icone.className = 'modal-icon-badge success';
+                    icone.textContent = '✓';
+                    btnOk.style.backgroundColor = '#FF7A00';
+                } else {
+                    icone.className = 'modal-icon-badge error';
+                    icone.textContent = '✕';
+                    btnOk.style.backgroundColor = '#FF3B30';
+                }
+
+                modal.style.display = 'flex';
+
+                btnOk.onclick = () => {
+                    modal.style.display = 'none';
+                    resolve();
+                };
+            });
+        }
+
         // =========================================================================
         // 1. CAPTURA ROBUSTA DO SUPABASE
         // =========================================================================
@@ -682,7 +822,9 @@
             const chaves = ['ordemservico', 'ordem_servico', 'OrdemServico', 'numero_os', 'num_os', 'os', 'OS', 'nr_os'];
             for (const chave of chaves) {
                 if (item[chave] !== undefined && item[chave] !== null && String(item[chave]).trim() !== '') {
-                    return String(item[chave]).trim();
+                    const valor = String(item[chave]).trim();
+                    if (valor === 'Aguardando OS' || valor === '-') return '';
+                    return valor;
                 }
             }
             return '';
@@ -731,7 +873,7 @@
 
             if (remotoId) {
                 if (!_temPermissaoGestor) {
-                    alert("Acesso Negado: Apenas Administradores e Supervisores podem editar registros no servidor.");
+                    await exibirAviso("Acesso Negado", "Apenas Administradores e Supervisores podem editar registros no servidor.", "error");
                     window.location.replace("listaapontamento.html");
                     return;
                 }
@@ -750,12 +892,12 @@
                         _apontamentoRemotoEdicao = data;
                         carregarDadosRemotosParaEdicao(data);
                     } else {
-                        alert("Registro não encontrado no servidor.");
+                        await exibirAviso("Não Encontrado", "Registro não encontrado no servidor.", "error");
                         window.location.replace("relatorios.html");
                     }
                 } catch (err) {
                     console.error("Erro ao carregar dados remotos:", err);
-                    alert("Não foi possível carregar os dados da nuvem.");
+                    await exibirAviso("Erro de Conexão", "Não foi possível carregar os dados da nuvem.", "error");
                 }
                 return;
             }
@@ -765,7 +907,7 @@
                     const item = await LocalDB.obterApontamentoPorId(localId);
                     if (item) {
                         if (item.data_sincronizado) {
-                            alert("Este apontamento já foi transmitido para a nuvem. Editando cópia local sincronizada.");
+                            await exibirAviso("Atenção", "Este apontamento já foi transmitido para a nuvem. Editando cópia local sincronizada.", "success");
                         }
                         _apontamentoEdicao = item;
                         carregarDadosParaEdicao(item);
@@ -876,28 +1018,28 @@
             }
 
             if (_temPermissaoGestor && !grupoFinal) {
-                alert("Campo Obrigatório: Selecione um Grupo.");
+                await exibirAviso("Atenção", "Campo Obrigatório: Selecione um Grupo.", "error");
                 return;
             }
 
             if (!setor) {
-                alert("Campo Obrigatório: Selecione um Setor.");
+                await exibirAviso("Atenção", "Campo Obrigatório: Selecione um Setor.", "error");
                 return;
             }
 
             if (!executante) {
-                alert("Campo Obrigatório: Informe a Matrícula do Executante.");
+                await exibirAviso("Atenção", "Campo Obrigatório: Informe a Matrícula do Executante.", "error");
                 return;
             }
 
             if (!hInicio || !hFim) {
-                alert("Campos Obrigatórios: Preencha os horários Inicial e Final.");
+                await exibirAviso("Atenção", "Campos Obrigatórios: Preencha os horários Inicial e Final.", "error");
                 return;
             }
 
             const regexHora = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
             if (!regexHora.test(hInicio) || !regexHora.test(hFim)) {
-                alert("Formato Inválido: Use HH:mm (Ex: 07:30).");
+                await exibirAviso("Formato Inválido", "Use o formato HH:mm (Ex: 07:30).", "error");
                 return;
             }
 
@@ -907,12 +1049,12 @@
             const totalMinFim = hFimH * 60 + hFimM;
 
             if (totalMinFim <= totalMinIni) {
-                alert("Horário Incoerente: Hora Final deve ser maior que Hora Inicial.");
+                await exibirAviso("Horário Incoerente", "Hora Final deve ser maior que Hora Inicial.", "error");
                 return;
             }
 
             if (!obs) {
-                alert("Campo Obrigatório: Preencha a Tarefa.");
+                await exibirAviso("Atenção", "Campo Obrigatório: Preencha a Tarefa.", "error");
                 return;
             }
 
@@ -938,13 +1080,13 @@
                 // -----------------------------------------------------------
                 if (_apontamentoRemotoEdicao != null) {
                     if (!_temPermissaoGestor) {
-                        alert("Permissão Insuficiente.");
+                        await exibirAviso("Permissão Negada", "Você não tem autorização para esta ação.", "error");
                         btnSalvar.disabled = false;
                         return;
                     }
 
                     if (!navigator.onLine || !supabase) {
-                        alert("Sem Conexão: Conecte-se à internet para atualizar no servidor.");
+                        await exibirAviso("Sem Conexão", "Conecte-se à internet para atualizar no servidor.", "error");
                         btnSalvar.disabled = false;
                         return;
                     }
@@ -1028,7 +1170,7 @@
                         }
                     }
 
-                    alert("Sucesso: Apontamento atualizado!");
+                    await exibirAviso("Apontamento Atualizado!", "Dados sincronizados com o servidor.", "success");
                     window.location.href = "relatorios.html";
                     return;
                 }
@@ -1078,7 +1220,7 @@
                         }
                     }
 
-                    alert("Sucesso: Apontamento gravado com sucesso!");
+                    await exibirAviso("Apontamento Gravado!", "Registro realizado com sucesso.", "success");
                 } else {
                     _apontamentoEdicao.ordemservico = os;
                     _apontamentoEdicao.ordem_servico = os;
@@ -1109,13 +1251,13 @@
                     }
 
                     await LocalDB.salvarApontamento(_apontamentoEdicao);
-                    alert("Sucesso: Apontamento local atualizado com sucesso!");
+                    await exibirAviso("Apontamento Atualizado!", "Registro local modificado com sucesso.", "success");
                 }
 
                 window.location.href = "listaapontamento.html";
             } catch (ex) {
                 console.error(ex);
-                alert(`Erro ao salvar dados: ${ex.message || ex}`);
+                await exibirAviso("Erro ao Salvar", ex.message || String(ex), "error");
             } finally {
                 btnSalvar.disabled = false;
             }
