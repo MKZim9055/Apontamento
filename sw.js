@@ -1,9 +1,7 @@
-﻿importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+﻿// sw.js - Service Worker PWA com Suporte Nativo a Web Push (VAPID)
 
-// Restante do seu sw.js normal (caches, assets, etc.)...
-
-// Incremente sempre que fizer alterações que precisem forçar a limpeza imediata
-const CACHE_NAME = 'apontamentos-cache-v6';
+// Incremente a versão para forçar a atualização imediata em todos os aparelhos
+const CACHE_NAME = 'apontamentos-cache-v7';
 
 const ASSETS = [
     './',
@@ -14,21 +12,21 @@ const ASSETS = [
     './relatorios.html',
     './configuracoes.html',
     './direct.html',
-    './supabase-config.js',                             // Suporte offline
-    './db.js',                                          // Camada IndexedDB local
+    './supabase-config.js',
+    './db.js',
     './manifest.json',
     './icoapontamento.png',
     'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
 ];
 
-// 1. Instalação e Cache Inicial dos Assets
+// 1. Instalação e Pré-cache dos Assets
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             return cache.addAll(ASSETS);
         })
     );
-    self.skipWaiting(); // Assume o controle imediatamente
+    self.skipWaiting(); // Assume controle imediato sem esperar fechar as abas
 });
 
 // 2. Limpeza de Caches Antigos
@@ -40,15 +38,19 @@ self.addEventListener('activate', (event) => {
             );
         })
     );
-    self.clients.claim(); // Força todas as abas e instâncias do PWA a usarem o novo SW
+    self.clients.claim(); // Força todas as páginas abertas a usarem este SW ativo
 });
 
 // 3. Interceptação de Requisições (Cache & Network)
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Ignora chamadas ao Supabase ou requisições que não sejam GET
-    if (url.origin.includes('supabase.co') || event.request.method !== 'GET') {
+    // Ignora requisições de API, chamadas ao Supabase, Vercel APIs e métodos não-GET
+    if (
+        url.origin.includes('supabase.co') ||
+        url.pathname.startsWith('/api/') ||
+        event.request.method !== 'GET'
+    ) {
         return;
     }
 
@@ -135,19 +137,20 @@ self.addEventListener('notificationclick', (event) => {
 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-            // Se já houver uma janela do app aberta, foca nela e navega para o direct
+            // Se já houver aba aberta no direct, foca nela
             for (const client of windowClients) {
                 if (client.url.includes('direct.html') && 'focus' in client) {
                     return client.focus();
                 }
             }
+            // Se houver qualquer outra aba do app aberta, foca e redireciona para o direct
             for (const client of windowClients) {
                 if ('focus' in client && 'navigate' in client) {
                     client.focus();
                     return client.navigate(targetUrl);
                 }
             }
-            // Se não houver janela aberta, abre uma nova
+            // Se o app estiver totalmente fechado, abre uma nova janela/aba
             if (clients.openWindow) {
                 return clients.openWindow(targetUrl);
             }

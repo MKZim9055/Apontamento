@@ -2,7 +2,6 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8" />
-    <!-- viewport-fit=cover garante que o gradiente cubra o Notch e a Dynamic Island -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
     <title>Apontamento</title>
 
@@ -15,36 +14,6 @@
 
     <!-- Cliente Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <!-- OneSignal Web Push SDK -->
-    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-    <script>
-        window.OneSignalDeferred = window.OneSignalDeferred || [];
-        OneSignalDeferred.push(async function (OneSignal) {
-            await OneSignal.init({
-                appId: "bd852b79-a4f3-42b1-bf06-8e8c90543281",
-                allowLocalhostAsSecureOrigin: true // Permite testes locais
-            });
-
-            const matricula = (localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "").trim().toLowerCase();
-            const grupo = (localStorage.getItem("UsuarioGrupo") || "").trim().toLowerCase();
-
-            // 1. Pede permissão explícita
-            if (!OneSignal.Notifications.permission) {
-                await OneSignal.Notifications.requestPermission();
-            }
-
-            // 2. Vincula a matrícula como External ID
-            if (matricula) {
-                await OneSignal.login(matricula);
-                await OneSignal.User.addTags({
-                    matricula: matricula,
-                    grupo: grupo
-                });
-                console.log("OneSignal: Usuário autenticado com matrícula:", matricula);
-            }
-        });
-    </script>
 
     <!-- Guardião de Rota: Apenas valida se está logado -->
     <script>
@@ -81,6 +50,56 @@
             padding-left: 24px;
             padding-right: 24px;
         }
+
+        /* Banner de ativação de notificações Push */
+        .push-prompt-banner {
+            display: none;
+            background: linear-gradient(90deg, #1C3352 0%, #0E223D 100%);
+            border: 1px solid #2F80ED;
+            border-radius: 14px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .push-prompt-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+            .push-prompt-info .push-icon {
+                font-size: 24px;
+            }
+
+        .push-prompt-text h4 {
+            font-size: 13px;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        .push-prompt-text p {
+            font-size: 11px;
+            color: #CAD8E8;
+        }
+
+        .btn-ativar-push {
+            background-color: #2F80ED;
+            color: #FFFFFF;
+            font-weight: bold;
+            font-size: 11px;
+            padding: 7px 12px;
+            border-radius: 20px;
+            border: none;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+            .btn-ativar-push:active {
+                transform: scale(0.96);
+            }
 
         /* Banner de instalação no iOS */
         .ios-tip {
@@ -307,7 +326,6 @@
         }
 
         /* Cores dos Cartões */
-        /* Card 1: Configurações */
         .card-configuracoes {
             background-color: #0D3559;
         }
@@ -321,7 +339,6 @@
                 color: #B0C4DE;
             }
 
-        /* Card 2: Relatórios */
         .card-relatorios {
             background-color: #0B4242;
         }
@@ -335,7 +352,6 @@
                 color: #A3D9C9;
             }
 
-        /* Card 3: Apontamento */
         .card-apontamento {
             background-color: #5A3518;
         }
@@ -349,7 +365,6 @@
                 color: #E2BA9D;
             }
 
-        /* Card 4: Direct */
         .card-direct {
             background-color: #351C5E;
         }
@@ -363,12 +378,11 @@
                 color: #D1B3FF;
             }
 
-        /* Oculta cartões bloqueados por nível */
         .hidden {
             display: none !important;
         }
 
-        /* 3. Rodapé: Linhas e Versão */
+        /* 3. Rodapé */
         .footer {
             display: flex;
             align-items: center;
@@ -404,13 +418,25 @@
 
     <div class="main-container">
 
+        <!-- Banner para Solicitar/Ativar Push Notifications -->
+        <div id="pushPrompt" class="push-prompt-banner">
+            <div class="push-prompt-info">
+                <span class="push-icon">🔔</span>
+                <div class="push-prompt-text">
+                    <h4>Ativar Notificações</h4>
+                    <p>Receba avisos e directs no celular</p>
+                </div>
+            </div>
+            <button class="btn-ativar-push" onclick="ativarNotificacoesPush(true)">Ativar</button>
+        </div>
+
         <!-- Banner com instrução para adicionar à tela de início no iOS -->
         <div id="iosPrompt" class="ios-tip">
             <span>Toque em ⎋ (Compartilhar) e depois em <strong>"Adicionar à Tela de Início"</strong> para instalar o app.</span>
             <button onclick="document.getElementById('iosPrompt').style.display='none'">✕</button>
         </div>
 
-        <!-- Banner de Download do APK Oficial .NET MAUI -->
+        <!-- Banner de Download do APK Android -->
         <a href="distribuicao/com.companyname.apontamento-Signed.apk" id="apkDownloadPrompt" class="apk-download-banner" download>
             <div class="apk-download-info">
                 <span class="apk-icon">🤖</span>
@@ -434,7 +460,7 @@
         <!-- 2. Meio: Lista de Ações -->
         <main class="cards-list">
 
-            <!-- Card 1: Configurações (Apenas Administrador / Nível 1) -->
+            <!-- Card 1: Configurações -->
             <a href="configuracoes.html" class="card card-configuracoes hidden" id="cardConfiguracoes">
                 <div class="icon-box">⚙️</div>
                 <div class="card-text">
@@ -444,7 +470,7 @@
                 <span class="card-chevron">›</span>
             </a>
 
-            <!-- Card 2: Relatórios (Administrador e Supervisor / Níveis 1 e 2) -->
+            <!-- Card 2: Relatórios -->
             <a href="relatorios.html" class="card card-relatorios hidden" id="cardRelatorios">
                 <div class="icon-box">📊</div>
                 <div class="card-text">
@@ -454,7 +480,7 @@
                 <span class="card-chevron">›</span>
             </a>
 
-            <!-- Card 3: Apontamento (Disponível para todos os perfis) -->
+            <!-- Card 3: Apontamento -->
             <a href="listaapontamento.html" class="card card-apontamento" id="cardApontamento">
                 <div class="icon-box">📝</div>
                 <div class="card-text">
@@ -464,7 +490,7 @@
                 <span class="card-chevron">›</span>
             </a>
 
-            <!-- Card 4: Direct (Disponível para todos os perfis com Badge) -->
+            <!-- Card 4: Direct com Badge -->
             <a href="direct.html" class="card card-direct" id="cardDirect" onclick="aoAbrirDirect()">
                 <div class="icon-box">💬</div>
                 <div class="card-text">
@@ -490,19 +516,109 @@
     </div>
 
     <script>
-        // Configurações do Supabase para escuta e badge
+        // Configurações do Supabase
         const SUPABASE_URL = "https://mtlbrhmpiwvzjwbzaywi.supabase.co";
         const SUPABASE_KEY = "sb_publishable_qilTaEWSiDNr1L-N5uE5gA_NYyLkyBt";
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // 1. Registro de Service Worker PWA
+        // ATENÇÃO: Substitua pela sua VAPID_PUBLIC_KEY idêntica à cadastrada na Vercel
+        const VAPID_PUBLIC_KEY = "SUA_CHAVE_VAPID_PUBLICA_AQUI";
+
+        // 1. Registro do Service Worker e Verificação de Inscrição Push
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(console.error);
+            window.addEventListener('load', async () => {
+                try {
+                    await navigator.serviceWorker.register('./sw.js');
+                    await verificarStatusInscricaoPush();
+                } catch (e) {
+                    console.error("Falha ao registrar Service Worker:", e);
+                }
             });
         }
 
-        // 2. Detecção de Plataforma (iOS vs Android)
+        // 2. Auxiliar para conversão da chave pública VAPID
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        // 3. Verifica se o navegador já possui permissão e inscrição
+        async function verificarStatusInscricaoPush() {
+            if (!('PushManager' in window) || !('Notification' in window)) return;
+
+            if (Notification.permission === 'granted') {
+                // Já concedeu permissão antes, garante que as chaves estão salvas na tabela do Supabase
+                await ativarNotificacoesPush(false);
+            } else if (Notification.permission !== 'denied') {
+                // Ainda não respondeu, exibe o banner para incentivar o clique
+                const promptBanner = document.getElementById('pushPrompt');
+                if (promptBanner) promptBanner.style.display = 'flex';
+            }
+        }
+
+        // 4. Inscrição do Aparelho no Supabase (pwa_push_subscriptions)
+        async function ativarNotificacoesPush(solicitadoPeloUsuario = false) {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                if (solicitadoPeloUsuario) alert('Este navegador não suporta notificações Push.');
+                return;
+            }
+
+            try {
+                const permissao = await Notification.requestPermission();
+                if (permissao !== 'granted') {
+                    if (solicitadoPeloUsuario) alert('Permissão de notificações não concedida.');
+                    return;
+                }
+
+                // Oculta o banner de convite após aceitar
+                const promptBanner = document.getElementById('pushPrompt');
+                if (promptBanner) promptBanner.style.display = 'none';
+
+                const reg = await navigator.serviceWorker.ready;
+
+                let sub = await reg.pushManager.getSubscription();
+                if (!sub) {
+                    sub = await reg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                    });
+                }
+
+                const subJson = sub.toJSON();
+                const matricula = (localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "").trim();
+                const grupo = (localStorage.getItem("UsuarioGrupo") || "Geral").trim();
+
+                if (!matricula) return;
+
+                // Salva / atualiza no Supabase
+                const { error } = await supabaseClient
+                    .from('pwa_push_subscriptions')
+                    .upsert({
+                        endpoint: subJson.endpoint,
+                        p256dh: subJson.keys.p256dh,
+                        auth: subJson.keys.auth,
+                        matricula: matricula,
+                        grupo: grupo
+                    }, { onConflict: 'endpoint' });
+
+                if (error) {
+                    console.warn("Erro ao salvar inscrição no Supabase:", error);
+                } else if (solicitadoPeloUsuario) {
+                    alert('Notificações ativadas com sucesso neste aparelho!');
+                }
+            } catch (err) {
+                console.error("Falha ao registrar Push Notification:", err);
+                if (solicitadoPeloUsuario) alert('Erro ao ativar notificações: ' + err.message);
+            }
+        }
+
+        // 5. Detecção de Plataforma (iOS vs Android)
         const isIos = () => /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
         const isAndroid = () => /android/.test(window.navigator.userAgent.toLowerCase());
         const isStandalone = () => ('standalone' in window.navigator) || window.matchMedia('(display-mode: standalone)').matches;
@@ -515,7 +631,7 @@
             document.getElementById('apkDownloadPrompt').style.display = 'flex';
         }
 
-        // 3. Aplica regras visuais de acesso e inicia a verificação do Direct
+        // 6. Aplica regras visuais de acesso e inicia a verificação do Direct
         document.addEventListener('DOMContentLoaded', async () => {
             const nivelBruto = localStorage.getItem("NivelUsuario") || localStorage.getItem("UsuarioNivel") || "";
             const nivel = nivelBruto.trim().toLowerCase();
@@ -534,7 +650,7 @@
             inscreverRealtimeDirect();
         });
 
-        // 4. Reavalia o badge quando a aba volta ao foco ou quando o usuário volta de outra página
+        // 7. Reavalia o badge quando a aba volta ao foco
         window.addEventListener('pageshow', () => {
             verificarNovasMensagensDirect();
         });
@@ -545,7 +661,7 @@
             }
         });
 
-        // 5. Checa novas mensagens comparando com o MAIOR ID já visto (com reset automático após TRUNCATE)
+        // 8. Checa novas mensagens comparando com o MAIOR ID lido
         async function verificarNovasMensagensDirect() {
             const badge = document.getElementById('badgeDirect');
             if (!badge) return;
@@ -570,15 +686,13 @@
                 }
 
                 let ultimoIdLido = parseInt(localStorage.getItem("UltimoIdDirectLido") || "0", 10);
-
-                // Auto-correção caso a tabela tenha sido resetada (TRUNCATE) e os IDs voltaram do 1
                 const maiorIdAtual = Math.max(...data.map(m => parseInt(m.id, 10)));
+
                 if (ultimoIdLido > maiorIdAtual) {
                     ultimoIdLido = 0;
                     localStorage.setItem("UltimoIdDirectLido", "0");
                 }
 
-                // Mensagens cujo ID é maior que o último lido e que NÃO foram enviadas pelo próprio usuário
                 const naoLidas = data.filter(m => {
                     const idMsg = parseInt(m.id, 10);
                     const remetente = String(m.remetente_matricula || '').trim().toLowerCase();
@@ -596,7 +710,7 @@
             }
         }
 
-        // 6. Atualização em tempo real do badge usando canal exclusivo
+        // 9. Atualização em tempo real do badge
         function inscreverRealtimeDirect() {
             try {
                 const canalNome = 'canal_index_badge_' + Date.now();
@@ -609,24 +723,30 @@
             } catch (_) { }
         }
 
-        // 7. Ao abrir a tela de Direct
         function aoAbrirDirect() {
-            // O direct.html atualizará o UltimoIdDirectLido automaticamente ao abrir
+            // direct.html atualiza UltimoIdDirectLido ao abrir
         }
 
-        // 8. Logout limpa a sessão e desvincula do OneSignal
+        // 10. Logout limpa a sessão e a inscrição de push deste aparelho no Supabase
         async function fazerLogout() {
             try {
-                if (window.OneSignalDeferred) {
-                    window.OneSignalDeferred.push(async function (OneSignal) {
-                        await OneSignal.logout();
-                    });
+                if ('serviceWorker' in navigator) {
+                    const reg = await navigator.serviceWorker.ready;
+                    const sub = await reg.pushManager.getSubscription();
+                    if (sub) {
+                        // Remove este endpoint do Supabase para não receber notificações após sair
+                        await supabaseClient
+                            .from('pwa_push_subscriptions')
+                            .delete()
+                            .eq('endpoint', sub.endpoint);
+                        await sub.unsubscribe();
+                    }
                 }
                 if (window.supabaseClient) {
                     await window.supabaseClient.auth.signOut();
                 }
             } catch (e) {
-                console.warn(e);
+                console.warn("Erro ao desinscrever no logout:", e);
             }
 
             localStorage.removeItem("auth_token");

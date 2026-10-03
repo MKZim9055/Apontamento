@@ -17,8 +17,13 @@ module.exports = async (req, res) => {
             } catch (_) { }
         }
 
-        const record = bodyData?.record;
-        if (!record) {
+        // Substitua:
+        // const record = bodyData?.record;
+
+        // Por:
+        const record = bodyData?.record || bodyData;
+
+        if (!record || (!record.conteudo && !record.tipo_destino)) {
             return res.status(400).json({ error: 'Nenhum registro encontrado no payload' });
         }
 
