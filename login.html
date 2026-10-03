@@ -209,6 +209,114 @@
                 transform: rotate(360deg);
             }
         }
+
+        /* =========================================================================
+           MODAL DE ALERTA PERSONALIZADO
+           ========================================================================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 9, 18, 0.78);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 24px;
+        }
+
+        .modal-card {
+            background-color: #0B1C33;
+            border: 1px solid #1B3352;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 340px;
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 12px;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+            animation: modalFadeIn 0.18s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.92);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-icon-badge {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            margin-bottom: 2px;
+        }
+
+            .modal-icon-badge.success {
+                background-color: rgba(0, 196, 140, 0.15);
+                border: 1px solid #00C48C;
+            }
+
+            .modal-icon-badge.error {
+                background-color: rgba(255, 59, 48, 0.15);
+                border: 1px solid #FF3B30;
+            }
+
+            .modal-icon-badge.warning {
+                background-color: rgba(255, 152, 56, 0.15);
+                border: 1px solid #FF9838;
+            }
+
+        .modal-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #FFFFFF;
+            line-height: 1.2;
+        }
+
+        .modal-card p {
+            font-size: 13px;
+            color: #CAD8E8;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        .modal-buttons-row {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            margin-top: 6px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            height: 48px;
+            border-radius: 12px;
+            border: none;
+            background-color: #00C48C;
+            color: #020912;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+
+            .modal-btn:active {
+                transform: scale(0.97);
+            }
     </style>
 </head>
 <body>
@@ -217,7 +325,7 @@
 
         <!-- Banner de Atualização Encontrada -->
         <div id="updateBanner" class="update-banner">
-            <span id="updateMsg">Nova versão encontrada!</span>
+            <span id="updateMsg">Nova versão disponível!</span>
             <a href="distribuicao/com.companyname.apontamento-Signed.apk" download>Atualizar</a>
         </div>
 
@@ -233,7 +341,7 @@
         <!-- Formulário -->
         <form onsubmit="onEntrarClicked(event)" style="display:flex; flex-direction:column; gap:16px;">
 
-            <!-- Campo Matrícula -->
+            <!-- Campo Matrícula com Teclado Numérico -->
             <div class="input-group">
                 <label for="txtMatricula">Matrícula</label>
                 <div class="input-box">
@@ -241,19 +349,22 @@
                            id="txtMatricula"
                            placeholder="Ex: 1024"
                            inputmode="numeric"
+                           pattern="[0-9]*"
                            autocomplete="username"
                            spellcheck="false"
                            required />
                 </div>
             </div>
 
-            <!-- Campo Senha -->
+            <!-- Campo Senha com Teclado Numérico -->
             <div class="input-group">
                 <label for="txtSenha">Senha</label>
                 <div class="input-box">
                     <input type="password"
                            id="txtSenha"
                            placeholder="••••••••"
+                           inputmode="numeric"
+                           pattern="[0-9]*"
                            autocomplete="current-password"
                            spellcheck="false"
                            required />
@@ -277,7 +388,59 @@
 
     </div>
 
+    <!-- Modal Customizado -->
+    <div id="modalAviso" class="modal-overlay">
+        <div class="modal-card">
+            <div id="modalIcone" class="modal-icon-badge warning">⚠️</div>
+            <h3 id="modalTitulo">Atenção</h3>
+            <p id="modalMensagem">Mensagem aqui...</p>
+            <div class="modal-buttons-row">
+                <button id="btnModalOk" class="modal-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // =========================================================================
+        // 0. DIÁLOGO CUSTOMIZADO
+        // =========================================================================
+        function exibirAviso(titulo, mensagem, tipo = 'warning') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('modalAviso');
+                const lblTitulo = document.getElementById('modalTitulo');
+                const lblMensagem = document.getElementById('modalMensagem');
+                const icone = document.getElementById('modalIcone');
+                const btnOk = document.getElementById('btnModalOk');
+
+                lblTitulo.textContent = titulo;
+                lblMensagem.textContent = mensagem;
+
+                if (tipo === 'success') {
+                    icone.className = 'modal-icon-badge success';
+                    icone.textContent = '✓';
+                    btnOk.style.backgroundColor = '#00C48C';
+                    btnOk.style.color = '#020912';
+                } else if (tipo === 'error') {
+                    icone.className = 'modal-icon-badge error';
+                    icone.textContent = '✕';
+                    btnOk.style.backgroundColor = '#FF3B30';
+                    btnOk.style.color = '#FFFFFF';
+                } else {
+                    icone.className = 'modal-icon-badge warning';
+                    icone.textContent = '⚠️';
+                    btnOk.style.backgroundColor = '#FF7A00';
+                    btnOk.style.color = '#FFFFFF';
+                }
+
+                modal.style.display = 'flex';
+
+                btnOk.onclick = () => {
+                    modal.style.display = 'none';
+                    resolve();
+                };
+            });
+        }
+
         // =========================================================================
         // 1. CONFIGURAÇÕES SUPABASE
         // =========================================================================
@@ -289,7 +452,6 @@
         let _senhaOculta = true;
 
         document.addEventListener('DOMContentLoaded', async () => {
-            // Verifica se já existe sessão salva
             const matriculaSalva = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula");
             const token = localStorage.getItem("auth_token");
 
@@ -319,7 +481,7 @@
             const senha = document.getElementById('txtSenha').value.trim();
 
             if (!matriculaRaw || !senha) {
-                alert("Atenção: Preencha matrícula e senha.");
+                await exibirAviso("Campos Obrigatórios", "Por favor, preencha a matrícula e a senha.", "warning");
                 return;
             }
 
@@ -332,7 +494,6 @@
                 loadingIndicator.style.display = "block";
                 lblBtnEntrar.textContent = "Conectando...";
 
-                // Suporta matrícula sendo coluna texto ou numérica no Supabase
                 const valorMatricula = isNaN(matriculaRaw) ? matriculaRaw : Number(matriculaRaw);
 
                 const { data: usuario, error } = await supabaseClient
@@ -344,12 +505,13 @@
 
                 if (error) {
                     console.error("Erro retornado pelo Supabase:", error);
-                    alert(`Falha no banco de dados: ${error.message}`);
+                    await exibirAviso("Erro no Servidor", `Falha ao consultar banco: ${error.message}`, "error");
                     return;
                 }
 
                 if (!usuario) {
-                    alert("Falha: Matrícula ou senha incorretos.");
+                    // Modal estilizado com mensagem amigável
+                    await exibirAviso("Falha no Acesso", "Matrícula ou senha incorretos. Verifique e tente novamente.", "error");
                     return;
                 }
 
@@ -367,17 +529,17 @@
                 localStorage.setItem("UsuarioGrupo", grupoLimpo);
                 localStorage.setItem("UsuarioNome", nomeLimpo);
 
-                // 2. Notificação roda em segundo plano sem travar o redirecionamento
+                // 2. Notificação roda em segundo plano sem travar
                 registrarDispositivoFcmAsync(matLimpa).catch(err => {
                     console.warn("[FCM] Ignorado em segundo plano:", err);
                 });
 
-                // 3. Redirecionamento imediato para a página principal
+                // 3. Redirecionamento
                 window.location.href = "index.html";
 
             } catch (ex) {
                 console.error(ex);
-                alert(`Erro de Conexão: Não foi possível conectar ao servidor: ${ex.message || ex}`);
+                await exibirAviso("Sem Conexão", `Não foi possível conectar ao servidor: ${ex.message || ex}`, "error");
             } finally {
                 loadingIndicator.style.display = "none";
                 lblBtnEntrar.textContent = "Acessar";
