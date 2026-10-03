@@ -766,12 +766,14 @@
 
         let _listaOriginal = [];
         let isSyncing = false;
+        let _temPermissaoGestor = false;
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (typeof LocalDB !== 'undefined' && LocalDB.abrirConexao) {
                 try { await LocalDB.abrirConexao(); } catch (_) { }
             }
 
+            verificarPermissaoGestor();
             await validarUsuarioAtivo();
             configurarPermissoesVisuais();
             await carregarDadosAsync();
@@ -784,6 +786,22 @@
                 await atualizarEdicoesDoSupervisorAsync();
             });
         });
+
+        function verificarPermissaoGestor() {
+            const nivel = (
+                localStorage.getItem("NivelAcesso") ||
+                localStorage.getItem("UsuarioNivel") ||
+                localStorage.getItem("NivelUsuario") ||
+                sessionStorage.getItem("NivelAcesso") ||
+                "Usuario"
+            ).toLowerCase();
+
+            const grupo = (localStorage.getItem("UsuarioGrupo") || "").toLowerCase();
+
+            _temPermissaoGestor = nivel.includes("admin") || nivel.includes("supervisor") ||
+                grupo.includes("admin") || grupo.includes("supervisor") ||
+                nivel === "1" || nivel === "2";
+        }
 
         async function validarUsuarioAtivo() {
             if (!navigator.onLine) return;
@@ -993,7 +1011,6 @@
             return s;
         }
 
-        // Extração de OS com substituição de '-' por 'Aguardando OS'
         function extrairOrdemServico(item) {
             if (!item) return 'Aguardando OS';
             const candidatos = [
@@ -1016,7 +1033,7 @@
             return 'Aguardando OS';
         }
 
-        // 5. Renderização da Lista
+        // 5. Renderização da Lista (Badge de grupo condicional)
         function filtrarLista() {
             const termo = document.getElementById('txtBusca')?.value?.trim().toLowerCase() || "";
             const container = document.getElementById('listaApontamentos');
@@ -1064,6 +1081,11 @@
                     ? `<button type="button" class="btn-sync-card" onclick="onEnviarItemClicked(${id})" title="Enviar agora para banco dados">Enviar ☁️</button>`
                     : ``;
 
+                // Badge de grupo visível APENAS para Supervisor e Administrador
+                const badgeGrupoHtml = _temPermissaoGestor
+                    ? `<span class="badge-grupo-topo">Grupo: ${grupo}</span>`
+                    : '';
+
                 return `
                         <div class="swipe-container" id="card-${id}">
                             <div class="swipe-actions" data-buttons="2">
@@ -1081,7 +1103,7 @@
                                     </div>
                                     <div class="meta-right-group">
                                         <span class="data-text">${dataStr}</span>
-                                        <span class="badge-grupo-topo">Grupo: ${grupo}</span>
+                                        ${badgeGrupoHtml}
                                     </div>
                                 </div>
 
