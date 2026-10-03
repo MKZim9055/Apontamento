@@ -256,12 +256,13 @@
             flex-shrink: 0;
         }
 
+        /* Ajustado de 140px para 70px para comportar apenas 1 botão */
         .swipe-actions {
             position: absolute;
             top: 0;
             right: 0;
             bottom: 0;
-            width: 140px;
+            width: 70px;
             display: flex;
             z-index: 1;
         }
@@ -285,10 +286,6 @@
 
         .btn-edit {
             background-color: #1F6FEB;
-        }
-
-        .btn-delete {
-            background-color: #DA3633;
         }
 
         .item-card {
@@ -482,9 +479,7 @@
             flex-shrink: 0;
         }
 
-        /* =========================================================================
-           MODAL DE ALERTA E CONFIRMAÇÃO PERSONALIZADO
-           ========================================================================= */
+        /* Modal Customizado */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -680,7 +675,7 @@
 
     <script>
         // =========================================================================
-        // 0. DIÁLOGOS CUSTOMIZADOS (Substitui alert e confirm nativos)
+        // 0. DIÁLOGOS CUSTOMIZADOS
         // =========================================================================
         function exibirAviso(titulo, mensagem, tipo = 'success') {
             return new Promise((resolve) => {
@@ -715,39 +710,6 @@
                 btnOk.onclick = () => {
                     modal.style.display = 'none';
                     resolve();
-                };
-            });
-        }
-
-        function exibirConfirmacao(titulo, mensagem, textoBotaoOk = 'Confirmar') {
-            return new Promise((resolve) => {
-                const modal = document.getElementById('modalAviso');
-                const lblTitulo = document.getElementById('modalTitulo');
-                const lblMensagem = document.getElementById('modalMensagem');
-                const icone = document.getElementById('modalIcone');
-                const btnOk = document.getElementById('btnModalOk');
-                const btnCancelar = document.getElementById('btnModalCancelar');
-
-                lblTitulo.textContent = titulo;
-                lblMensagem.textContent = mensagem;
-
-                icone.className = 'modal-icon-badge warning';
-                icone.textContent = '?';
-
-                btnCancelar.style.display = 'block';
-                btnOk.textContent = textoBotaoOk;
-                btnOk.style.backgroundColor = '#FF7A00';
-
-                modal.style.display = 'flex';
-
-                btnOk.onclick = () => {
-                    modal.style.display = 'none';
-                    resolve(true);
-                };
-
-                btnCancelar.onclick = () => {
-                    modal.style.display = 'none';
-                    resolve(false);
                 };
             });
         }
@@ -1022,7 +984,7 @@
         }
 
         // =========================================================================
-        // 6. RENDERIZAÇÃO NA TELA
+        // 6. RENDERIZAÇÃO NA TELA (Apenas Botão Editar)
         // =========================================================================
         function renderizar(itens) {
             lblTotalRegistros.textContent = `${itens.length} registro(s)`;
@@ -1064,7 +1026,6 @@
                         <div class="swipe-container" id="card-${id}">
                             <div class="swipe-actions">
                                 <button class="swipe-btn btn-edit" onclick="onEditarItemInvoked('${id}')">Editar</button>
-                                <button class="swipe-btn btn-delete" onclick="onExcluirItemInvoked('${id}', '${os}')">Excluir</button>
                             </div>
                             <div class="item-card" data-open="false">
                                 <!-- Linha 1: O.S e Data/Grupo -->
@@ -1113,55 +1074,8 @@
         }
 
         // =========================================================================
-        // 7. EXCLUSÃO COM ESPELHO NO BANCO LOCAL (INDEXEDDB)
+        // 7. EDIÇÃO
         // =========================================================================
-        async function onExcluirItemInvoked(id, os) {
-            if (!navigator.onLine) {
-                await exibirAviso("Sem Conexão", "Você precisa de conexão à internet para excluir registros no Banco de Dados.", "error");
-                return;
-            }
-
-            const rotuloOS = (os === 'Aguardando OS') ? 'este apontamento (Aguardando OS)' : `a O.S. ${os}`;
-            const confirmar = await exibirConfirmacao("Excluir Apontamento", `Deseja excluir permanentemente ${rotuloOS} do Banco de Dados e deste aparelho?`, "Excluir");
-            if (!confirmar) return;
-
-            const supabase = obterClienteSupabase();
-            if (!supabase) return;
-
-            try {
-                const { error } = await supabase
-                    .from(NOME_TABELA)
-                    .delete()
-                    .eq('id', id);
-
-                if (error) throw error;
-
-                if (typeof LocalDB !== 'undefined' && LocalDB.obterApontamentosLocais) {
-                    try {
-                        const locais = await LocalDB.obterApontamentosLocais();
-                        const localEncontrado = locais.find(x => {
-                            const idRemoto = x.remoto_id ?? x.id_remoto ?? x.remotoId;
-                            if (idRemoto && String(idRemoto) === String(id)) return true;
-                            const osLoc = extrairOrdemServico(x);
-                            return (os && os !== 'Aguardando OS' && osLoc === os);
-                        });
-
-                        if (localEncontrado && localEncontrado.id) {
-                            await LocalDB.excluirApontamento(localEncontrado.id);
-                        }
-                    } catch (eLocal) {
-                        console.warn("[LocalDB] Aviso ao excluir localmente:", eLocal);
-                    }
-                }
-
-                _listaOriginal = _listaOriginal.filter(item => String(item.id) !== String(id));
-                aplicarFiltrosEmMemoria();
-                await exibirAviso("Excluído com Sucesso", "Registro removido da nuvem e do aparelho.", "success");
-            } catch (ex) {
-                await exibirAviso("Erro ao Excluir", ex.message || String(ex), "error");
-            }
-        }
-
         function onEditarItemInvoked(id) {
             if (!navigator.onLine) {
                 exibirAviso("Sem Conexão", "Você precisa de conexão à internet para editar registros no Banco de Dados.", "error");
@@ -1172,12 +1086,12 @@
         }
 
         // =========================================================================
-        // 8. GESTOS DE SWIPE UNIFICADOS
+        // 8. GESTOS DE SWIPE UNIFICADOS (70px para o botão Editar)
         // =========================================================================
         function configurarGestosSwipe() {
             const cards = document.querySelectorAll('.item-card');
-            const LARGURA_BOTOES = 140;
-            const GATILHO_ABERTURA = 45;
+            const LARGURA_BOTOES = 70;
+            const GATILHO_ABERTURA = 35;
 
             let isDragging = false;
             let startX = 0;

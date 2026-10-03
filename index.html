@@ -524,7 +524,7 @@
         // ATENÇÃO: Substitua pela sua VAPID_PUBLIC_KEY idêntica à cadastrada na Vercel
         const VAPID_PUBLIC_KEY = "BG-FDvOBBsvlcRJP991vAMGqBrLRY-N_HPUfjq71K0b63TipFd1r9tVO6L_mKTCHKvxVCQag_gxgPnkMAYqnCFU";
 
-        // 1. Registro do Service Worker e Verificação de Inscrição Push
+        // 1. Registro do Service Worker sem disparar prompt automático
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
@@ -548,21 +548,28 @@
             return outputArray;
         }
 
-        // 3. Verifica se o navegador já possui permissão e inscrição
+        // 3. Apenas exibe o banner customizado, sem chamar requestPermission() automaticamente
         async function verificarStatusInscricaoPush() {
             if (!('PushManager' in window) || !('Notification' in window)) return;
 
-            if (Notification.permission === 'granted') {
-                // Já concedeu permissão antes, garante que as chaves estão salvas na tabela do Supabase
-                await ativarNotificacoesPush(false);
-            } else if (Notification.permission !== 'denied') {
-                // Ainda não respondeu, exibe o banner para incentivar o clique
-                const promptBanner = document.getElementById('pushPrompt');
+            const promptBanner = document.getElementById('pushPrompt');
+
+            // Se o usuário ainda não decidiu, exibe o banner visual para ele escolher clicar
+            if (Notification.permission === 'default') {
                 if (promptBanner) promptBanner.style.display = 'flex';
+            } else if (Notification.permission === 'granted') {
+                // Já concedido anteriormente: apenas atualiza o registro no Supabase em silêncio
+                try {
+                    const reg = await navigator.serviceWorker.ready;
+                    const sub = await reg.pushManager.getSubscription();
+                    if (sub) {
+                        await salvarSubscriptionNoSupabase(sub);
+                    }
+                } catch (_) { }
             }
         }
 
-        // 4. Inscrição do Aparelho no Supabase (pwa_push_subscriptions)
+        // 4. Invocado APENAS pelo clique explícito do usuário no botão "Ativar"
         async function ativarNotificacoesPush(solicitadoPeloUsuario = false) {
             if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
                 if (solicitadoPeloUsuario) alert('Este navegador não suporta notificações Push.');
@@ -571,12 +578,13 @@
 
             try {
                 const permissao = await Notification.requestPermission();
+
                 if (permissao !== 'granted') {
                     if (solicitadoPeloUsuario) alert('Permissão de notificações não concedida.');
                     return;
                 }
 
-                // Oculta o banner de convite após aceitar
+                // Oculta o banner após o aceite
                 const promptBanner = document.getElementById('pushPrompt');
                 if (promptBanner) promptBanner.style.display = 'none';
 
@@ -590,14 +598,27 @@
                     });
                 }
 
+                await salvarSubscriptionNoSupabase(sub);
+
+                if (solicitadoPeloUsuario) {
+                    alert('Notificações ativadas com sucesso neste aparelho!');
+                }
+            } catch (err) {
+                console.error("Falha ao registrar Push Notification:", err);
+                if (solicitadoPeloUsuario) alert('Erro ao ativar notificações: ' + err.message);
+            }
+        }
+
+        // Função isolada para salvar ou atualizar a subscrição no Supabase
+        async function salvarSubscriptionNoSupabase(sub) {
+            try {
                 const subJson = sub.toJSON();
                 const matricula = (localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "").trim();
                 const grupo = (localStorage.getItem("UsuarioGrupo") || "Geral").trim();
 
-                if (!matricula) return;
+                if (!matricula || !subJson.keys) return;
 
-                // Salva / atualiza no Supabase
-                const { error } = await supabaseClient
+                await supabaseClient
                     .from('pwa_push_subscriptions')
                     .upsert({
                         endpoint: subJson.endpoint,
@@ -606,15 +627,8 @@
                         matricula: matricula,
                         grupo: grupo
                     }, { onConflict: 'endpoint' });
-
-                if (error) {
-                    console.warn("Erro ao salvar inscrição no Supabase:", error);
-                } else if (solicitadoPeloUsuario) {
-                    alert('Notificações ativadas com sucesso neste aparelho!');
-                }
             } catch (err) {
-                console.error("Falha ao registrar Push Notification:", err);
-                if (solicitadoPeloUsuario) alert('Erro ao ativar notificações: ' + err.message);
+                console.warn("Erro ao salvar inscrição no Supabase:", err);
             }
         }
 
@@ -734,7 +748,6 @@
                     const reg = await navigator.serviceWorker.ready;
                     const sub = await reg.pushManager.getSubscription();
                     if (sub) {
-                        // Remove este endpoint do Supabase para não receber notificações após sair
                         await supabaseClient
                             .from('pwa_push_subscriptions')
                             .delete()
