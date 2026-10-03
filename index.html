@@ -412,6 +412,114 @@
             text-decoration: underline;
             padding: 0 4px;
         }
+
+        /* =========================================================================
+           MODAL DE ALERTA PERSONALIZADO (Padrão NovoApontamento / Relatórios)
+           ========================================================================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 9, 18, 0.78);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 24px;
+        }
+
+        .modal-card {
+            background-color: #0B1C33;
+            border: 1px solid #1B3352;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 340px;
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 12px;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+            animation: modalFadeIn 0.18s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.92);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-icon-badge {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            margin-bottom: 2px;
+        }
+
+            .modal-icon-badge.success {
+                background-color: rgba(0, 196, 140, 0.15);
+                border: 1px solid #00C48C;
+            }
+
+            .modal-icon-badge.error {
+                background-color: rgba(255, 59, 48, 0.15);
+                border: 1px solid #FF3B30;
+            }
+
+            .modal-icon-badge.warning {
+                background-color: rgba(255, 152, 56, 0.15);
+                border: 1px solid #FF9838;
+            }
+
+        .modal-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #FFFFFF;
+            line-height: 1.2;
+        }
+
+        .modal-card p {
+            font-size: 13px;
+            color: #CAD8E8;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        .modal-buttons-row {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            margin-top: 6px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            height: 48px;
+            border-radius: 12px;
+            border: none;
+            background-color: #FF7A00;
+            color: #FFFFFF;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+
+            .modal-btn:active {
+                transform: scale(0.97);
+            }
     </style>
 </head>
 <body>
@@ -515,7 +623,59 @@
 
     </div>
 
+    <!-- Modal Customizado de Alerta -->
+    <div id="modalAviso" class="modal-overlay">
+        <div class="modal-card">
+            <div id="modalIcone" class="modal-icon-badge success">✓</div>
+            <h3 id="modalTitulo">Notificação</h3>
+            <p id="modalMensagem">Mensagem informativa...</p>
+            <div class="modal-buttons-row">
+                <button id="btnModalOk" class="modal-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // =========================================================================
+        // 0. DIÁLOGO CUSTOMIZADO (Substitui alert nativo)
+        // =========================================================================
+        function exibirAviso(titulo, mensagem, tipo = 'success') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('modalAviso');
+                const lblTitulo = document.getElementById('modalTitulo');
+                const lblMensagem = document.getElementById('modalMensagem');
+                const icone = document.getElementById('modalIcone');
+                const btnOk = document.getElementById('btnModalOk');
+
+                lblTitulo.textContent = titulo;
+                lblMensagem.textContent = mensagem;
+
+                if (tipo === 'success') {
+                    icone.className = 'modal-icon-badge success';
+                    icone.textContent = '✓';
+                    btnOk.style.backgroundColor = '#00C48C';
+                    btnOk.style.color = '#020912';
+                } else if (tipo === 'error') {
+                    icone.className = 'modal-icon-badge error';
+                    icone.textContent = '✕';
+                    btnOk.style.backgroundColor = '#FF3B30';
+                    btnOk.style.color = '#FFFFFF';
+                } else {
+                    icone.className = 'modal-icon-badge warning';
+                    icone.textContent = '⚠️';
+                    btnOk.style.backgroundColor = '#FF7A00';
+                    btnOk.style.color = '#FFFFFF';
+                }
+
+                modal.style.display = 'flex';
+
+                btnOk.onclick = () => {
+                    modal.style.display = 'none';
+                    resolve();
+                };
+            });
+        }
+
         // Configurações do Supabase
         const SUPABASE_URL = "https://mtlbrhmpiwvzjwbzaywi.supabase.co";
         const SUPABASE_KEY = "sb_publishable_qilTaEWSiDNr1L-N5uE5gA_NYyLkyBt";
@@ -554,11 +714,11 @@
 
             const promptBanner = document.getElementById('pushPrompt');
 
-            // Se o usuário ainda não decidiu, exibe o banner visual para ele escolher clicar
+            // Se o usuário ainda não decidiu, exibe o banner visual
             if (Notification.permission === 'default') {
                 if (promptBanner) promptBanner.style.display = 'flex';
             } else if (Notification.permission === 'granted') {
-                // Já concedido anteriormente: apenas atualiza o registro no Supabase em silêncio
+                // Já concedido: sincroniza silenciosamente no Supabase
                 try {
                     const reg = await navigator.serviceWorker.ready;
                     const sub = await reg.pushManager.getSubscription();
@@ -569,10 +729,12 @@
             }
         }
 
-        // 4. Invocado APENAS pelo clique explícito do usuário no botão "Ativar"
+        // 4. Invocado APENAS pelo clique explícito no botão "Ativar"
         async function ativarNotificacoesPush(solicitadoPeloUsuario = false) {
             if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-                if (solicitadoPeloUsuario) alert('Este navegador não suporta notificações Push.');
+                if (solicitadoPeloUsuario) {
+                    await exibirAviso('Não Suportado', 'Este navegador não suporta notificações Push.', 'warning');
+                }
                 return;
             }
 
@@ -580,7 +742,9 @@
                 const permissao = await Notification.requestPermission();
 
                 if (permissao !== 'granted') {
-                    if (solicitadoPeloUsuario) alert('Permissão de notificações não concedida.');
+                    if (solicitadoPeloUsuario) {
+                        await exibirAviso('Permissão Negada', 'Permissão de notificações não concedida.', 'warning');
+                    }
                     return;
                 }
 
@@ -601,11 +765,13 @@
                 await salvarSubscriptionNoSupabase(sub);
 
                 if (solicitadoPeloUsuario) {
-                    alert('Notificações ativadas com sucesso neste aparelho!');
+                    await exibirAviso('Notificações Ativas', 'Notificações ativadas com sucesso neste aparelho!', 'success');
                 }
             } catch (err) {
                 console.error("Falha ao registrar Push Notification:", err);
-                if (solicitadoPeloUsuario) alert('Erro ao ativar notificações: ' + err.message);
+                if (solicitadoPeloUsuario) {
+                    await exibirAviso('Erro de Notificação', 'Erro ao ativar notificações: ' + (err.message || err), 'error');
+                }
             }
         }
 

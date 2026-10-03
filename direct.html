@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
-    <title>Direct & Avisos</title>
+    <title>Apontamento</title>
 
     <!-- Configurações PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -324,7 +324,7 @@
             cursor: pointer;
         }
 
-        /* 4. Lista de Mensagens com Rolagem Ativa */
+        /* 4. Lista de Mensagens com Rolagem Habilitada */
         .messages-list {
             flex: 1;
             min-height: 0;
@@ -435,15 +435,123 @@
         .hidden {
             display: none !important;
         }
+
+        /* =========================================================================
+           MODAL DE ALERTA PERSONALIZADO
+           ========================================================================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 9, 18, 0.78);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 24px;
+        }
+
+        .modal-card {
+            background-color: #0B1C33;
+            border: 1px solid #1B3352;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 340px;
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 12px;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+            animation: modalFadeIn 0.18s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.92);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-icon-badge {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            margin-bottom: 2px;
+        }
+
+            .modal-icon-badge.success {
+                background-color: rgba(0, 196, 140, 0.15);
+                border: 1px solid #00C48C;
+            }
+
+            .modal-icon-badge.error {
+                background-color: rgba(255, 59, 48, 0.15);
+                border: 1px solid #FF3B30;
+            }
+
+            .modal-icon-badge.warning {
+                background-color: rgba(255, 152, 56, 0.15);
+                border: 1px solid #FF9838;
+            }
+
+        .modal-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #FFFFFF;
+            line-height: 1.2;
+        }
+
+        .modal-card p {
+            font-size: 13px;
+            color: #CAD8E8;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        .modal-buttons-row {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            margin-top: 6px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            height: 48px;
+            border-radius: 12px;
+            border: none;
+            background-color: #8A2BE2;
+            color: #FFFFFF;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+
+            .modal-btn:active {
+                transform: scale(0.97);
+            }
     </style>
 </head>
 <body>
 
-    <!-- Banner Toast Flutuante -->
+    <!-- Banner Toast Flutuante com Título Fixo "Apontamento" -->
     <div id="toastNotificacao" class="direct-toast">
         <span class="direct-toast-icon">💬</span>
         <div class="direct-toast-content">
-            <span id="toastTitulo" class="direct-toast-title">Nova Mensagem</span>
+            <span id="toastTitulo" class="direct-toast-title">Apontamento</span>
             <span id="toastCorpo" class="direct-toast-body">Conteúdo</span>
         </div>
     </div>
@@ -533,7 +641,59 @@
 
     </div>
 
+    <!-- Modal Customizado de Alerta -->
+    <div id="modalAviso" class="modal-overlay">
+        <div class="modal-card">
+            <div id="modalIcone" class="modal-icon-badge warning">⚠️</div>
+            <h3 id="modalTitulo">Atenção</h3>
+            <p id="modalMensagem">Mensagem informativa...</p>
+            <div class="modal-buttons-row">
+                <button id="btnModalOk" class="modal-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // =========================================================================
+        // 0. DIÁLOGOS CUSTOMIZADOS
+        // =========================================================================
+        function exibirAviso(titulo, mensagem, tipo = 'warning') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('modalAviso');
+                const lblTitulo = document.getElementById('modalTitulo');
+                const lblMensagem = document.getElementById('modalMensagem');
+                const icone = document.getElementById('modalIcone');
+                const btnOk = document.getElementById('btnModalOk');
+
+                lblTitulo.textContent = titulo;
+                lblMensagem.textContent = mensagem;
+
+                if (tipo === 'success') {
+                    icone.className = 'modal-icon-badge success';
+                    icone.textContent = '✓';
+                    btnOk.style.backgroundColor = '#00C48C';
+                    btnOk.style.color = '#020912';
+                } else if (tipo === 'error') {
+                    icone.className = 'modal-icon-badge error';
+                    icone.textContent = '✕';
+                    btnOk.style.backgroundColor = '#FF3B30';
+                    btnOk.style.color = '#FFFFFF';
+                } else {
+                    icone.className = 'modal-icon-badge warning';
+                    icone.textContent = '⚠️️';
+                    btnOk.style.backgroundColor = '#8A2BE2';
+                    btnOk.style.color = '#FFFFFF';
+                }
+
+                modal.style.display = 'flex';
+
+                btnOk.onclick = () => {
+                    modal.style.display = 'none';
+                    resolve();
+                };
+            });
+        }
+
         // =========================================================================
         // 1. CONFIGURAÇÕES SUPABASE
         // =========================================================================
@@ -822,7 +982,7 @@
             const texto = txtMensagem.value.trim();
 
             if (!texto) {
-                alert("Atenção: Digite o conteúdo da mensagem.");
+                await exibirAviso("Campo Obrigatório", "Digite o conteúdo da mensagem.", "warning");
                 return;
             }
 
@@ -834,7 +994,7 @@
             const nomeFinal = _meuNome || localStorage.getItem("UsuarioNome") || matriculaFinal || "Usuário";
 
             if (!matriculaFinal) {
-                alert("Erro: Matrícula não identificada. Por favor, refaça o login.");
+                await exibirAviso("Erro de Identificação", "Matrícula não identificada. Por favor, refaça o login.", "error");
                 return;
             }
 
@@ -845,7 +1005,7 @@
             if (pkrTipo === 1) { // Grupo
                 const selGrupo = document.getElementById('pkrAlvoGrupo').value;
                 if (!selGrupo) {
-                    alert("Atenção: Selecione o grupo de destino.");
+                    await exibirAviso("Seleção Obrigatória", "Selecione o grupo de destino.", "warning");
                     return;
                 }
                 tipoDestino = "grupo";
@@ -853,7 +1013,7 @@
             } else if (pkrTipo === 2) { // Usuário Individual
                 const selUsuario = document.getElementById('pkrAlvoUsuario').value;
                 if (!selUsuario) {
-                    alert("Atenção: Selecione o usuário destinatário.");
+                    await exibirAviso("Seleção Obrigatória", "Selecione o usuário destinatário.", "warning");
                     return;
                 }
                 tipoDestino = "usuario";
@@ -889,7 +1049,7 @@
                 await carregarMensagensAsync();
             } catch (ex) {
                 console.error("Erro ao enviar mensagem:", ex);
-                alert(`Erro: Falha ao enviar mensagem: ${ex.message || ex}`);
+                await exibirAviso("Erro ao Enviar", `Falha ao enviar mensagem: ${ex.message || ex}`, "error");
             } finally {
                 btnEnviar.disabled = false;
                 isSending = false;
@@ -919,7 +1079,7 @@
             } catch (_) { }
         }
 
-        // Exibe banner flutuante em tela
+        // Exibe banner flutuante em tela com título "Apontamento"
         function exibirToastEmTela(titulo, corpo) {
             const toast = document.getElementById('toastNotificacao');
             const lblTit = document.getElementById('toastTitulo');
@@ -936,12 +1096,12 @@
             }, 4500);
         }
 
-        // Dispara som, banner em tela e notificação do sistema
+        // Dispara som, banner em tela e notificação do sistema com título fixo "Apontamento"
         async function dispararNotificacaoNativa(novaMsg) {
             if (!novaMsg) return;
 
             const remetenteMat = String(novaMsg.remetente_matricula || "").trim().toLowerCase();
-            const remetenteNom = novaMsg.remetente_nome || "Mensagem Direct";
+            const remetenteNom = novaMsg.remetente_nome || "Usuário";
             const tipo = String(novaMsg.tipo_destino || "").toLowerCase().trim();
             const destino = String(novaMsg.destino || "").toLowerCase().trim();
             const conteudo = novaMsg.conteudo || "Você recebeu um novo aviso.";
@@ -961,10 +1121,13 @@
 
             if (!devoReceber) return;
 
+            // Título unificado e fixo
+            const tituloFixo = "Apontamento";
+            const corpoFormatado = `${remetenteNom}: ${conteudo}`;
+
             // Som e banner na interface
             tocarAlertaSonoro();
-            const titulo = tipo === "todos" ? `📢 Aviso Geral (${remetenteNom})` : `💬 Direct de ${remetenteNom}`;
-            exibirToastEmTela(titulo, conteudo);
+            exibirToastEmTela(tituloFixo, corpoFormatado);
 
             // Vibração física
             if ("vibrate" in navigator) {
@@ -972,19 +1135,19 @@
             }
 
             const opcoes = {
-                body: conteudo,
+                body: corpoFormatado,
                 icon: "icoapontamento.png",
                 badge: "icoapontamento.png",
                 vibrate: [200, 100, 200],
                 tag: `msg-${novaMsg.id || Date.now()}`
             };
 
-            // Notificação do sistema via Service Worker (PWA)
+            // Notificação do sistema via Service Worker (PWA em segundo plano)
             if ("serviceWorker" in navigator) {
                 try {
                     const reg = await navigator.serviceWorker.ready;
                     if (reg && reg.showNotification) {
-                        await reg.showNotification(titulo, opcoes);
+                        await reg.showNotification(tituloFixo, opcoes);
                         return;
                     }
                 } catch (_) { }
@@ -993,7 +1156,7 @@
             // Fallback para notificação convencional da aba
             if ("Notification" in window && Notification.permission === "granted") {
                 try {
-                    new Notification(titulo, opcoes);
+                    new Notification(tituloFixo, opcoes);
                 } catch (_) { }
             }
         }
