@@ -96,8 +96,16 @@
             gap: 2px;
         }
 
+        /* Linha horizontal para título e botão Gráfico */
+        .header-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
             .header-titles h1 {
-                font-size: 20px;
+                font-size: 19px;
                 font-weight: 700;
                 color: #FFFFFF;
                 line-height: 1.2;
@@ -106,6 +114,30 @@
             .header-titles p {
                 font-size: 12px;
                 color: #8FA3BF;
+            }
+
+        /* Botão Gráfico */
+        .btn-grafico {
+            background-color: #0E223D;
+            border: 1px solid #1F3A60;
+            color: #00C48C;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 6px 10px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background-color 0.15s ease, transform 0.12s ease, border-color 0.15s ease;
+        }
+
+            .btn-grafico:active {
+                transform: scale(0.95);
+                background-color: #173763;
+                border-color: #00C48C;
             }
 
         /* 2. Painel de Filtros e Busca */
@@ -599,7 +631,14 @@
         <header class="header-top">
             <button type="button" class="btn-voltar" onclick="onVoltarTapped()" title="Voltar">←</button>
             <div class="header-titles">
-                <h1>Relatório de Apontamentos</h1>
+                <div class="header-title-row">
+                    <h1>Relatório de Apontamentos</h1>
+                    <!-- Botão Gráfico Ativo -->
+                    <a href="grafico.html" class="btn-grafico" title="Visualizar Gráficos">
+                        <span>📊</span>
+                        <span>Gráfico</span>
+                    </a>
+                </div>
                 <p>Consulta e gerenciamento na nuvem</p>
             </div>
         </header>
@@ -1227,12 +1266,8 @@
         dpDataFim.addEventListener('change', aplicarFiltrosEmMemoria);
         pkrGrupo.addEventListener('change', aplicarFiltrosEmMemoria);
 
-        function onVoltarTapped() {
-            if (window.history.length > 1) {
-                window.history.back();
-            } else {
-                window.location.href = "index.html";
-            }
+        function onVoltarTapped() {        
+           window.location.href = "index.html";            
         }
     </script>
 </body>
