@@ -1,0 +1,580 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <title>Dashboard de Apontamentos</title>
+
+    <!-- Supabase JS, Banco Local e Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="db.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        input, select {
+            user-select: text;
+        }
+
+        body {
+            background: linear-gradient(135deg, #081426 0%, #020912 50%, #0A1D38 100%);
+            color: #FFFFFF;
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding: calc(30px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom)) 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .header {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 2px;
+        }
+
+        .btn-voltar {
+            background-color: #0E223D;
+            border: 1px solid #1F3A60;
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #FFFFFF;
+            font-size: 20px;
+            text-decoration: none;
+        }
+
+        .header-titles h1 {
+            font-size: 19px;
+            font-weight: 700;
+            color: #FFFFFF;
+            line-height: 1.2;
+        }
+
+        .header-titles p {
+            font-size: 12px;
+            color: #8FA3BF;
+        }
+
+        .badge-status {
+            font-size: 11px;
+            font-weight: 700;
+            color: #00C48C;
+            background-color: rgba(0, 196, 140, 0.15);
+            border: 1px solid #00C48C;
+            border-radius: 20px;
+            padding: 4px 10px;
+        }
+
+        /* Banner de Diagnóstico / Erro */
+        .status-banner {
+            background-color: #1A2E47;
+            border: 1px solid #2B4E7A;
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #CAD8E8;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+            .status-banner.error {
+                background-color: rgba(255, 59, 48, 0.15);
+                border-color: #FF3B30;
+                color: #FF6B6B;
+            }
+
+        /* Painel de Filtros */
+        .filter-card {
+            background-color: #0B1C33;
+            border: 1px solid #173154;
+            border-radius: 16px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .filter-label-top {
+            font-size: 11px;
+            font-weight: 700;
+            color: #00C48C;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-limpar-datas {
+            background: transparent;
+            border: none;
+            color: #49B0F3;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .date-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+            .input-group label {
+                font-size: 11px;
+                font-weight: 700;
+                color: #CAD8E8;
+            }
+
+        .input-box {
+            background-color: #061221;
+            border: 1px solid #1B3352;
+            border-radius: 8px;
+            height: 38px;
+            padding: 0 8px;
+            display: flex;
+            align-items: center;
+        }
+
+            .input-box input[type="date"],
+            .input-box select {
+                width: 100%;
+                background: transparent;
+                border: none;
+                outline: none;
+                color: #FFFFFF;
+                font-size: 12px;
+            }
+
+            .input-box input[type="date"] {
+                color-scheme: dark;
+            }
+
+            .input-box select {
+                cursor: pointer;
+            }
+
+                .input-box select option {
+                    background-color: #061221;
+                    color: #FFFFFF;
+                }
+
+        /* KPIs */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .kpi-card {
+            background-color: #0B1C33;
+            border: 1px solid #173154;
+            border-radius: 14px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .kpi-label {
+            font-size: 11px;
+            color: #8FA3BF;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .kpi-val {
+            font-size: 22px;
+            font-weight: 700;
+            color: #00C48C;
+        }
+
+        /* Gráfico */
+        .chart-card {
+            background-color: #0B1C33;
+            border: 1px solid #173154;
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .chart-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #CAD8E8;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            height: 260px;
+        }
+
+        .empty-view {
+            text-align: center;
+            font-size: 13px;
+            color: #8FA3BF;
+            padding: 30px 16px;
+            background-color: #0B1C33;
+            border: 1px dashed #1B3352;
+            border-radius: 16px;
+            display: none;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+
+        <!-- Topo -->
+        <header class="header">
+            <a href="relatorios.html" class="btn-voltar" title="Voltar">←</a>
+            <div class="header-titles">
+                <h1>Painel de Indicadores</h1>
+                <p>Estatísticas de produção e manutenção</p>
+            </div>
+            <span class="badge-status">Nuvem</span>
+        </header>
+
+        <!-- Barra de Estado / Diagnóstico -->
+        <div id="statusBanner" class="status-banner">
+            <span id="txtStatusBanner">Carregando dados do Supabase...</span>
+            <button type="button" class="btn-limpar-datas" onclick="buscarDadosSupabase()">🔄 Recarregar</button>
+        </div>
+
+        <!-- Filtros de Análise -->
+        <section class="filter-card">
+            <div class="filter-header">
+                <span class="filter-label-top">FILTROS DE ANÁLISE</span>
+                <button type="button" class="btn-limpar-datas" onclick="limparFiltroDatas()">Ver Todos (Sem Datas)</button>
+            </div>
+
+            <div class="date-grid">
+                <div class="input-group">
+                    <label for="dpInicio">Data Inicial</label>
+                    <div class="input-box">
+                        <input type="date" id="dpInicio" />
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="dpFim">Data Final</label>
+                    <div class="input-box">
+                        <input type="date" id="dpFim" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="selGrupo">Grupo / Especialidade</label>
+                <div class="input-box">
+                    <select id="selGrupo">
+                        <option value="Todos os Grupos">Todos os Grupos</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <!-- Indicadores Rápidos -->
+        <div class="kpi-row">
+            <div class="kpi-card">
+                <span class="kpi-label">Horas Trabalhadas</span>
+                <span class="kpi-val" id="lblKpiHoras">0.0h</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Apontamentos</span>
+                <span class="kpi-val" id="lblKpiTotal">0</span>
+            </div>
+        </div>
+
+        <!-- Mensagem de Vazio -->
+        <div id="msgSemDados" class="empty-view">
+            Nenhum apontamento encontrado com os filtros selecionados.<br>
+            <span style="font-size: 11px; color: #49B0F3; cursor: pointer; text-decoration: underline;" onclick="limparFiltroDatas()">
+                Clique aqui para limpar as datas e exibir todos os registros
+            </span>
+        </div>
+
+        <!-- Gráfico Único: Horas por Setor -->
+        <div class="chart-card" id="cardChartSetores">
+            <span class="chart-title">Horas Gastas por Setor</span>
+            <div class="canvas-wrapper">
+                <canvas id="chartSetores"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function obterClienteSupabase() {
+            if (window.supabaseClient) return window.supabaseClient;
+            if (window.supabase && typeof window.SUPABASE_URL !== 'undefined') {
+                return window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+            }
+            return null;
+        }
+
+        let _dadosOriginais = [];
+        let _chartSetoresInstance = null;
+
+        const dpInicio = document.getElementById('dpInicio');
+        const dpFim = document.getElementById('dpFim');
+        const selGrupo = document.getElementById('selGrupo');
+        const lblKpiHoras = document.getElementById('lblKpiHoras');
+        const lblKpiTotal = document.getElementById('lblKpiTotal');
+        const msgSemDados = document.getElementById('msgSemDados');
+        const cardChartSetores = document.getElementById('cardChartSetores');
+        const statusBanner = document.getElementById('statusBanner');
+        const txtStatusBanner = document.getElementById('txtStatusBanner');
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            configurarValoresPadrao7Dias();
+
+            if (typeof LocalDB !== 'undefined' && LocalDB.abrirConexao) {
+                try { await LocalDB.abrirConexao(); } catch (_) { }
+            }
+
+            dpInicio.addEventListener('change', recalcularGraficos);
+            dpFim.addEventListener('change', recalcularGraficos);
+            selGrupo.addEventListener('change', recalcularGraficos);
+
+            await buscarDadosSupabase();
+        });
+
+        function configurarValoresPadrao7Dias() {
+            const agora = new Date();
+            const seteDiasAtras = new Date();
+            seteDiasAtras.setDate(agora.getDate() - 7);
+
+            const formatarIso = (d) => {
+                const ano = d.getFullYear();
+                const mes = String(d.getMonth() + 1).padStart(2, '0');
+                const dia = String(d.getDate()).padStart(2, '0');
+                return `${ano}-${mes}-${dia}`;
+            };
+
+            dpInicio.value = formatarIso(seteDiasAtras);
+            dpFim.value = formatarIso(agora);
+        }
+
+        function limparFiltroDatas() {
+            dpInicio.value = '';
+            dpFim.value = '';
+            recalcularGraficos();
+        }
+
+        function calcularDuracaoHoras(hInicio, hFim) {
+            if (!hInicio || !hFim) return 0;
+            const sIni = String(hInicio).trim();
+            const sFim = String(hFim).trim();
+
+            const p1 = sIni.split(':').map(Number);
+            const p2 = sFim.split(':').map(Number);
+
+            if (p1.length < 2 || p2.length < 2 || isNaN(p1[0]) || isNaN(p2[0])) return 0;
+
+            const minutos = (p2[0] * 60 + p2[1]) - (p1[0] * 60 + p1[1]);
+            return minutos > 0 ? (minutos / 60) : 0;
+        }
+
+        async function buscarDadosSupabase() {
+            txtStatusBanner.textContent = "Conectando ao Supabase...";
+            statusBanner.className = "status-banner";
+
+            const supabase = obterClienteSupabase();
+            if (!supabase) {
+                txtStatusBanner.textContent = "Erro: Configuração do Supabase ausente (supabase-config.js).";
+                statusBanner.className = "status-banner error";
+                return;
+            }
+
+            try {
+                // Consulta sem limite para trazer todo o histórico
+                const { data, error } = await supabase
+                    .from('apontamentos')
+                    .select('*')
+                    .order('data', { ascending: false });
+
+                if (error) throw error;
+
+                _dadosOriginais = data || [];
+                txtStatusBanner.textContent = `Carregados ${_dadosOriginais.length} registros no total da nuvem.`;
+
+                // Carrega grupos existentes na base
+                await popularSelectGrupos();
+                recalcularGraficos();
+            } catch (err) {
+                console.error("Falha ao buscar apontamentos:", err);
+                txtStatusBanner.textContent = `Erro Supabase: ${err.message || err}`;
+                statusBanner.className = "status-banner error";
+            }
+        }
+
+        async function popularSelectGrupos() {
+            const gruposUnicos = new Set();
+
+            // 1. Grupos cadastrados nos apontamentos retornados
+            _dadosOriginais.forEach(item => {
+                const g = (item.grupo || item.Grupo || '').trim();
+                if (g) gruposUnicos.add(g);
+            });
+
+            // 2. Grupos da tabela 'grupos' se disponível
+            const supabase = obterClienteSupabase();
+            if (supabase && navigator.onLine) {
+                try {
+                    const { data } = await supabase.from('grupos').select('grupo');
+                    if (data) {
+                        data.forEach(item => {
+                            const g = (item.grupo || '').trim();
+                            if (g) gruposUnicos.add(g);
+                        });
+                    }
+                } catch (_) { }
+            }
+
+            const listaOrdenada = [...gruposUnicos].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+            const valorAtual = selGrupo.value;
+            selGrupo.innerHTML = '<option value="Todos os Grupos">Todos os Grupos</option>';
+            listaOrdenada.forEach(grupo => {
+                const opt = document.createElement('option');
+                opt.value = grupo;
+                opt.textContent = grupo;
+                selGrupo.appendChild(opt);
+            });
+
+            if (listaOrdenada.includes(valorAtual)) {
+                selGrupo.value = valorAtual;
+            }
+        }
+
+        function recalcularGraficos() {
+            const dtIni = dpInicio.value;
+            const dtFim = dpFim.value;
+            const grupoFiltro = selGrupo.value;
+            const filtrarPorGrupo = grupoFiltro && grupoFiltro.toLowerCase() !== 'todos os grupos';
+
+            const filtrados = _dadosOriginais.filter(item => {
+                const raw = item.data || item.Data;
+                if (!raw) return true;
+
+                const dIso = String(raw).substring(0, 10);
+                if (dtIni && dIso < dtIni) return false;
+                if (dtFim && dIso > dtFim) return false;
+
+                if (filtrarPorGrupo) {
+                    const g = (item.grupo || item.Grupo || '').trim();
+                    if (g.toLowerCase() !== grupoFiltro.toLowerCase()) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+
+            if (filtrados.length === 0) {
+                lblKpiHoras.textContent = "0.0h";
+                lblKpiTotal.textContent = "0";
+                msgSemDados.style.display = 'block';
+                cardChartSetores.style.display = 'none';
+                return;
+            }
+
+            msgSemDados.style.display = 'none';
+            cardChartSetores.style.display = 'flex';
+
+            let totalHoras = 0;
+            const horasPorSetor = {};
+
+            filtrados.forEach(item => {
+                const hIni = item.horainicio || item.hora_inicio || '';
+                const hFim = item.horafim || item.hora_fim || '';
+                const duracao = calcularDuracaoHoras(hIni, hFim);
+                totalHoras += duracao;
+
+                const setor = (item.setor || item.Setor || 'Outros').trim();
+                horasPorSetor[setor] = (horasPorSetor[setor] || 0) + duracao;
+            });
+
+            lblKpiHoras.textContent = totalHoras.toFixed(1) + 'h';
+            lblKpiTotal.textContent = filtrados.length;
+
+            renderizarGraficoSetores(horasPorSetor);
+        }
+
+        function renderizarGraficoSetores(dadosMap) {
+            if (_chartSetoresInstance) {
+                _chartSetoresInstance.destroy();
+            }
+
+            const ctx = document.getElementById('chartSetores').getContext('2d');
+            _chartSetoresInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(dadosMap),
+                    datasets: [{
+                        label: 'Horas',
+                        data: Object.values(dadosMap).map(v => Number(v.toFixed(1))),
+                        backgroundColor: '#00C48C',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#8FA3BF', font: { size: 11 } },
+                            grid: { display: false }
+                        },
+                        y: {
+                            ticks: { color: '#8FA3BF', font: { size: 11 } },
+                            grid: { color: '#162E4E' }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

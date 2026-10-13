@@ -1,0 +1,622 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <title>Apontamento - Login</title>
+
+    <!-- Configurações PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Apontamento" />
+    <link rel="apple-touch-icon" href="icoapontamento.png" />
+    <link rel="manifest" href="manifest.json" />
+
+    <!-- Supabase JS Client Oficial -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        input {
+            user-select: text;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            background: linear-gradient(135deg, #081426 0%, #020912 50%, #0A1D38 100%);
+            color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            background-color: #0B1C33;
+            border: 1px solid #173154;
+            border-radius: 20px;
+            padding: 32px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .header-logo {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 6px;
+        }
+
+        .logo-box {
+            width: 64px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 4px;
+        }
+
+            .logo-box img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+            }
+
+        .header-logo h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        .header-logo p {
+            font-size: 13px;
+            color: #8FA3BF;
+        }
+
+        /* Banner de Atualização Disponível */
+        .update-banner {
+            display: none;
+            background: linear-gradient(90deg, #103328 0%, #0A221C 100%);
+            border: 1px solid #00C48C;
+            border-radius: 12px;
+            padding: 10px 14px;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+
+            .update-banner a {
+                color: #00C48C;
+                font-weight: bold;
+                text-decoration: underline;
+            }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+            .input-group label {
+                font-size: 12px;
+                font-weight: 700;
+                color: #8FA3BF;
+            }
+
+        .input-box {
+            background-color: #061221;
+            border: 1px solid #1B3352;
+            border-radius: 12px;
+            height: 50px;
+            padding: 0 14px;
+            display: flex;
+            align-items: center;
+            transition: border-color 0.2s ease;
+        }
+
+            .input-box:focus-within {
+                border-color: #00C48C;
+            }
+
+            .input-box input {
+                width: 100%;
+                height: 100%;
+                background: transparent;
+                border: none;
+                outline: none;
+                color: #FFFFFF;
+                font-size: 14px;
+            }
+
+                .input-box input::placeholder {
+                    color: #4B6382;
+                }
+
+        /* Botão Alternar Visibilidade da Senha */
+        .btn-toggle-senha {
+            background: transparent;
+            border: none;
+            color: #8FA3BF;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.15s ease;
+        }
+
+        .btn-entrar {
+            background-color: #00C48C;
+            color: #020912;
+            border: none;
+            border-radius: 14px;
+            height: 52px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: transform 0.12s ease, opacity 0.15s ease;
+        }
+
+            .btn-entrar:active {
+                transform: scale(0.98);
+            }
+
+            .btn-entrar:disabled {
+                background-color: #0B4232;
+                color: #5A7B70;
+                cursor: not-allowed;
+                opacity: 0.7;
+            }
+
+        /* Spinner */
+        .spinner {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid #020912;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: girar 0.7s linear infinite;
+        }
+
+        @keyframes girar {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* =========================================================================
+           MODAL DE ALERTA PERSONALIZADO
+           ========================================================================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 9, 18, 0.78);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 24px;
+        }
+
+        .modal-card {
+            background-color: #0B1C33;
+            border: 1px solid #1B3352;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 340px;
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 12px;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+            animation: modalFadeIn 0.18s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.92);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-icon-badge {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            margin-bottom: 2px;
+        }
+
+            .modal-icon-badge.success {
+                background-color: rgba(0, 196, 140, 0.15);
+                border: 1px solid #00C48C;
+            }
+
+            .modal-icon-badge.error {
+                background-color: rgba(255, 59, 48, 0.15);
+                border: 1px solid #FF3B30;
+            }
+
+            .modal-icon-badge.warning {
+                background-color: rgba(255, 152, 56, 0.15);
+                border: 1px solid #FF9838;
+            }
+
+        .modal-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #FFFFFF;
+            line-height: 1.2;
+        }
+
+        .modal-card p {
+            font-size: 13px;
+            color: #CAD8E8;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        .modal-buttons-row {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            margin-top: 6px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            height: 48px;
+            border-radius: 12px;
+            border: none;
+            background-color: #00C48C;
+            color: #020912;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+
+            .modal-btn:active {
+                transform: scale(0.97);
+            }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+
+        <!-- Banner de Atualização Encontrada -->
+        <div id="updateBanner" class="update-banner">
+            <span id="updateMsg">Nova versão disponível!</span>
+            <a href="distribuicao/com.companyname.apontamento-Signed.apk" download>Atualizar</a>
+        </div>
+
+        <!-- Cabeçalho -->
+        <header class="header-logo">
+            <div class="logo-box">
+                <img src="icoapontamento.png" alt="Logo" onerror="this.outerHTML='<span style=\'font-size:42px;\'>📋</span>'" />
+            </div>
+            <h1>Apontamento</h1>
+            <p>Mais organização para o seu dia a dia</p>
+        </header>
+
+        <!-- Formulário -->
+        <form onsubmit="onEntrarClicked(event)" style="display:flex; flex-direction:column; gap:16px;">
+
+            <!-- Campo Matrícula com Teclado Numérico -->
+            <div class="input-group">
+                <label for="txtMatricula">Matrícula</label>
+                <div class="input-box">
+                    <input type="text"
+                           id="txtMatricula"
+                           placeholder="Ex: 1024"
+                           inputmode="numeric"
+                           pattern="[0-9]*"
+                           autocomplete="username"
+                           spellcheck="false"
+                           required />
+                </div>
+            </div>
+
+            <!-- Campo Senha com Teclado Numérico -->
+            <div class="input-group">
+                <label for="txtSenha">Senha</label>
+                <div class="input-box">
+                    <input type="password"
+                           id="txtSenha"
+                           placeholder="••••••••"
+                           inputmode="numeric"
+                           pattern="[0-9]*"
+                           autocomplete="current-password"
+                           spellcheck="false"
+                           required />
+                    <button type="button"
+                            id="btnToggleSenha"
+                            class="btn-toggle-senha"
+                            onclick="onAlternarSenhaTapped()"
+                            title="Mostrar/Ocultar Senha">
+                        👁
+                    </button>
+                </div>
+            </div>
+
+            <!-- Botão Entrar -->
+            <button type="submit" id="btnEntrar" class="btn-entrar">
+                <div id="loadingIndicator" class="spinner"></div>
+                <span id="lblBtnEntrar">Acessar</span>
+            </button>
+
+        </form>
+
+    </div>
+
+    <!-- Modal Customizado -->
+    <div id="modalAviso" class="modal-overlay">
+        <div class="modal-card">
+            <div id="modalIcone" class="modal-icon-badge warning">⚠️</div>
+            <h3 id="modalTitulo">Atenção</h3>
+            <p id="modalMensagem">Mensagem aqui...</p>
+            <div class="modal-buttons-row">
+                <button id="btnModalOk" class="modal-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================================
+        // 0. DIÁLOGO CUSTOMIZADO
+        // =========================================================================
+        function exibirAviso(titulo, mensagem, tipo = 'warning') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('modalAviso');
+                const lblTitulo = document.getElementById('modalTitulo');
+                const lblMensagem = document.getElementById('modalMensagem');
+                const icone = document.getElementById('modalIcone');
+                const btnOk = document.getElementById('btnModalOk');
+
+                lblTitulo.textContent = titulo;
+                lblMensagem.textContent = mensagem;
+
+                if (tipo === 'success') {
+                    icone.className = 'modal-icon-badge success';
+                    icone.textContent = '✓';
+                    btnOk.style.backgroundColor = '#00C48C';
+                    btnOk.style.color = '#020912';
+                } else if (tipo === 'error') {
+                    icone.className = 'modal-icon-badge error';
+                    icone.textContent = '✕';
+                    btnOk.style.backgroundColor = '#FF3B30';
+                    btnOk.style.color = '#FFFFFF';
+                } else {
+                    icone.className = 'modal-icon-badge warning';
+                    icone.textContent = '⚠️';
+                    btnOk.style.backgroundColor = '#FF7A00';
+                    btnOk.style.color = '#FFFFFF';
+                }
+
+                modal.style.display = 'flex';
+
+                btnOk.onclick = () => {
+                    modal.style.display = 'none';
+                    resolve();
+                };
+            });
+        }
+
+        // =========================================================================
+        // 1. CONFIGURAÇÕES SUPABASE
+        // =========================================================================
+        const SUPABASE_URL = "https://mtlbrhmpiwvzjwbzaywi.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_qilTaEWSiDNr1L-N5uE5gA_NYyLkyBt";
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const VERSAO_LOCAL_APP = "1.0.5";
+        let _senhaOculta = true;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const matriculaSalva = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula");
+            const token = localStorage.getItem("auth_token");
+
+            if (matriculaSalva && token) {
+                window.location.replace("index.html");
+                return;
+            }
+
+            await checarAtualizacaoAsync();
+        });
+
+        // Alternar Visibilidade da Senha
+        function onAlternarSenhaTapped() {
+            _senhaOculta = !_senhaOculta;
+            const txtSenha = document.getElementById('txtSenha');
+            const btnOlho = document.getElementById('btnToggleSenha');
+
+            txtSenha.type = _senhaOculta ? "password" : "text";
+            btnOlho.style.color = _senhaOculta ? "#8FA3BF" : "#00C48C";
+        }
+
+        // Fluxo de Autenticação
+        async function onEntrarClicked(e) {
+            e.preventDefault();
+
+            const matriculaRaw = document.getElementById('txtMatricula').value.trim();
+            const senha = document.getElementById('txtSenha').value.trim();
+
+            if (!matriculaRaw || !senha) {
+                await exibirAviso("Campos Obrigatórios", "Por favor, preencha a matrícula e a senha.", "warning");
+                return;
+            }
+
+            const btnEntrar = document.getElementById('btnEntrar');
+            const lblBtnEntrar = document.getElementById('lblBtnEntrar');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+
+            try {
+                btnEntrar.disabled = true;
+                loadingIndicator.style.display = "block";
+                lblBtnEntrar.textContent = "Conectando...";
+
+                const valorMatricula = isNaN(matriculaRaw) ? matriculaRaw : Number(matriculaRaw);
+
+                const { data: usuario, error } = await supabaseClient
+                    .from('usuarios')
+                    .select('*')
+                    .eq('matricula', valorMatricula)
+                    .eq('senha', senha)
+                    .maybeSingle();
+
+                if (error) {
+                    console.error("Erro retornado pelo Supabase:", error);
+                    await exibirAviso("Erro no Servidor", `Falha ao consultar banco: ${error.message}`, "error");
+                    return;
+                }
+
+                if (!usuario) {
+                    // Modal estilizado com mensagem amigável
+                    await exibirAviso("Falha no Acesso", "Matrícula ou senha incorretos. Verifique e tente novamente.", "error");
+                    return;
+                }
+
+                const matLimpa = String(usuario.matricula).trim();
+                const nivelLimpo = String(usuario.nivel || "Usuario").trim();
+                const grupoLimpo = String(usuario.grupo || "Mantenedor").trim();
+                const nomeLimpo = String(usuario.nome || matLimpa).trim();
+
+                // 1. Grava no localStorage
+                localStorage.setItem("auth_token", "session_" + Date.now());
+                localStorage.setItem("MatriculaUsuario", matLimpa);
+                localStorage.setItem("UsuarioMatricula", matLimpa);
+                localStorage.setItem("NivelUsuario", nivelLimpo);
+                localStorage.setItem("UsuarioNivel", nivelLimpo);
+                localStorage.setItem("UsuarioGrupo", grupoLimpo);
+                localStorage.setItem("UsuarioNome", nomeLimpo);
+
+                // 2. Notificação roda em segundo plano sem travar
+                registrarDispositivoFcmAsync(matLimpa).catch(err => {
+                    console.warn("[FCM] Ignorado em segundo plano:", err);
+                });
+
+                // 3. Redirecionamento
+                window.location.href = "index.html";
+
+            } catch (ex) {
+                console.error(ex);
+                await exibirAviso("Sem Conexão", `Não foi possível conectar ao servidor: ${ex.message || ex}`, "error");
+            } finally {
+                loadingIndicator.style.display = "none";
+                lblBtnEntrar.textContent = "Acessar";
+                btnEntrar.disabled = false;
+            }
+        }
+
+        // Registro de Dispositivo Push
+        async function registrarDispositivoFcmAsync(matricula) {
+            try {
+                if (!("Notification" in window)) return;
+
+                let permission = Notification.permission;
+                if (permission !== "granted" && permission !== "denied") {
+                    permission = await Notification.requestPermission();
+                }
+
+                let pushToken = localStorage.getItem("WebPush_Token") || "";
+
+                if ('serviceWorker' in navigator && permission === "granted") {
+                    const reg = await navigator.serviceWorker.ready;
+                    let sub = await reg.pushManager.getSubscription();
+
+                    if (!sub && reg.pushManager) {
+                        try {
+                            sub = await reg.pushManager.subscribe({
+                                userVisibleOnly: true,
+                                applicationServerKey: null
+                            });
+                        } catch (e) {
+                            console.warn("Inscrição push sem VAPID:", e);
+                        }
+                    }
+
+                    if (sub) {
+                        pushToken = JSON.stringify(sub);
+                        localStorage.setItem("WebPush_Token", pushToken);
+                    }
+                }
+
+                const tokenFinal = pushToken || `web-client-${navigator.userAgent.slice(0, 50)}`;
+
+                await supabaseClient.from('usuario_dispositivos').upsert({
+                    matricula: matricula.trim(),
+                    fcm_token: tokenFinal,
+                    atualizado_em: new Date().toISOString()
+                });
+
+            } catch (exPush) {
+                console.warn(`[FCM_LOGIN] Erro ao registrar dispositivo: ${exPush.message || exPush}`);
+            }
+        }
+
+        // Checar Atualizações do App
+        async function checarAtualizacaoAsync() {
+            if (!navigator.onLine) return;
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('versoes_app')
+                    .select('versao, link_download')
+                    .order('id', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (!error && data && data.versao) {
+                    if (data.versao.trim() !== VERSAO_LOCAL_APP) {
+                        const banner = document.getElementById('updateBanner');
+                        const msg = document.getElementById('updateMsg');
+                        msg.textContent = `Nova versão disponível: v${data.versao}`;
+                        banner.style.display = 'flex';
+                    }
+                }
+            } catch (e) {
+                console.warn("Sem verificação de versão no momento:", e);
+            }
+        }
+    </script>
+</body>
+</html>

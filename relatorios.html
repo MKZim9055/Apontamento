@@ -1,0 +1,1239 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <title>Relatório de Apontamentos</title>
+
+    <!-- Configurações PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Apontamento" />
+    <link rel="apple-touch-icon" href="icoapontamento.png" />
+    <link rel="manifest" href="manifest.json" />
+
+    <!-- SDK oficial do Supabase e Gerenciador IndexedDB -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="db.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        input, select {
+            user-select: text;
+        }
+
+        /* Trava a altura da tela inteira para scroll interno limpo */
+        html {
+            height: 100%;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            height: 100vh;
+            height: 100dvh;
+            background: linear-gradient(135deg, #081426 0%, #020912 50%, #0A1D38 100%);
+            color: #FFFFFF;
+            display: flex;
+            flex-direction: column;
+            padding: calc(35px + env(safe-area-inset-top)) 20px calc(12px + env(safe-area-inset-bottom)) 20px;
+            overflow: hidden;
+        }
+
+        .container {
+            max-width: 500px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* 1. Topo: Botão Voltar e Cabeçalho */
+        .header-top {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-shrink: 0;
+        }
+
+        .btn-voltar {
+            background-color: #0E223D;
+            border: 1px solid #1F3A60;
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #FFFFFF;
+            font-size: 20px;
+            text-decoration: none;
+            transition: background 0.15s ease, transform 0.12s ease;
+        }
+
+            .btn-voltar:active {
+                transform: scale(0.95);
+                background-color: #173763;
+            }
+
+        .header-titles {
+            margin-left: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+            .header-titles h1 {
+                font-size: 20px;
+                font-weight: 700;
+                color: #FFFFFF;
+                line-height: 1.2;
+            }
+
+            .header-titles p {
+                font-size: 12px;
+                color: #8FA3BF;
+            }
+
+        /* 2. Painel de Filtros e Busca */
+        .filter-panel {
+            background-color: #0B1C33;
+            border: 1px solid #173154;
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .filter-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #00C48C;
+            letter-spacing: 0.5px;
+        }
+
+        .search-box {
+            background-color: #061221;
+            border: 1px solid #1B3352;
+            border-radius: 10px;
+            height: 44px;
+            padding: 0 10px;
+            display: flex;
+            align-items: center;
+            transition: border-color 0.2s ease;
+        }
+
+            .search-box:focus-within {
+                border-color: #00C48C;
+            }
+
+            .search-box input {
+                width: 100%;
+                background: transparent;
+                border: none;
+                outline: none;
+                color: #FFFFFF;
+                font-size: 13px;
+            }
+
+                .search-box input::placeholder {
+                    color: #475C75;
+                }
+
+        /* Datas lado a lado */
+        .date-filters {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            column-gap: 10px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+            .input-group label {
+                font-size: 11px;
+                font-weight: 700;
+                color: #CAD8E8;
+            }
+
+        .input-box-sm {
+            background-color: #061221;
+            border: 1px solid #1B3352;
+            border-radius: 8px;
+            height: 40px;
+            padding: 0 8px;
+            display: flex;
+            align-items: center;
+            transition: border-color 0.2s ease;
+        }
+
+            .input-box-sm:focus-within {
+                border-color: #00C48C;
+            }
+
+            .input-box-sm input,
+            .input-box-sm select {
+                width: 100%;
+                background: transparent;
+                border: none;
+                outline: none;
+                color: #FFFFFF;
+                font-size: 12px;
+            }
+
+                .input-box-sm input[type="date"] {
+                    color-scheme: dark;
+                }
+
+            .input-box-sm select {
+                cursor: pointer;
+            }
+
+                .input-box-sm select option {
+                    background-color: #061221;
+                    color: #FFFFFF;
+                }
+
+        /* 3. Contador de Registros */
+        .counter-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 0 4px 8px 4px;
+            flex-shrink: 0;
+        }
+
+        .counter-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #8FA3BF;
+        }
+
+        .counter-value {
+            font-size: 11px;
+            font-weight: 700;
+            color: #00C48C;
+        }
+
+        /* 4. Lista e Scroll Ativo */
+        .list-container {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-bottom: 24px;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
+        }
+
+        .swipe-container {
+            position: relative;
+            border-radius: 14px;
+            overflow: hidden;
+            background-color: #081426;
+            flex-shrink: 0;
+        }
+
+        .swipe-actions {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 70px;
+            display: flex;
+            z-index: 1;
+        }
+
+        .swipe-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #FFFFFF;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: opacity 0.15s ease;
+        }
+
+            .swipe-btn:active {
+                opacity: 0.8;
+            }
+
+        .btn-edit {
+            background-color: #1F6FEB;
+        }
+
+        .item-card {
+            position: relative;
+            background-color: #0D2542;
+            border: 1px solid #17365D;
+            border-radius: 14px;
+            padding: 14px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 2;
+            touch-action: pan-y;
+            will-change: transform;
+            backface-visibility: hidden;
+            cursor: grab;
+            user-select: none;
+        }
+
+            .item-card:active {
+                cursor: grabbing;
+            }
+
+        /* Linha 1 */
+        .card-line-1 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .os-left-group {
+            display: flex;
+            align-items: center;
+        }
+
+        .meta-right-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .badge-os {
+            background-color: #0B4242;
+            border-radius: 6px;
+            padding: 4px 10px;
+            color: #00C48C;
+            font-size: 16px;
+            font-weight: 700;
+            width: fit-content;
+            display: inline-flex;
+            align-items: center;
+        }
+
+            .badge-os.aguardando {
+                background-color: #3D2914;
+                color: #FFA447;
+                border: 1px solid rgba(255, 164, 71, 0.3);
+            }
+
+        .badge-grupo-topo {
+            background-color: #1A314E;
+            color: #49B0F3;
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-size: 14px;
+            font-weight: 700;
+            width: fit-content;
+        }
+
+        .data-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: #8FA3BF;
+        }
+
+        /* Divisor */
+        .card-divider {
+            height: 1px;
+            background-color: #162E4E;
+            margin: 2px 0;
+        }
+
+        /* Linha 2 */
+        .card-line-2 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .matricula-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .matricula-label {
+            font-size: 12px;
+            color: #657D99;
+        }
+
+        .matricula-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        .horarios-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .horarios-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .horario-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: #CAD8E8;
+        }
+
+        .ate-text {
+            font-size: 11px;
+            color: #657D99;
+        }
+
+        /* Linha Setor */
+        .card-setor-row {
+            display: flex;
+            align-items: center;
+            margin-top: 2px;
+        }
+
+        .badge-setor-bloco {
+            background-color: #162E4A;
+            border-radius: 6px;
+            padding: 3px 8px;
+            color: #CAD8E8;
+            font-size: 14px;
+            font-weight: 600;
+            width: fit-content;
+        }
+
+        /* Linha 3: Observações */
+        .card-obs {
+            font-size: 14px;
+            color: #8FA3BF;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-top: 2px;
+        }
+
+            .card-obs strong {
+                color: #CAD8E8;
+            }
+
+        /* EmptyView */
+        .empty-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 50px;
+            color: #8FA3BF;
+        }
+
+            .empty-view .icon {
+                font-size: 40px;
+            }
+
+            .empty-view p {
+                font-size: 14px;
+            }
+
+        /* Indicador de Refresh */
+        .refresh-status {
+            text-align: center;
+            font-size: 11px;
+            color: #00C48C;
+            margin-bottom: 6px;
+            display: none;
+            flex-shrink: 0;
+        }
+
+        /* Modal Customizado */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 9, 18, 0.78);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 24px;
+        }
+
+        .modal-card {
+            background-color: #0B1C33;
+            border: 1px solid #1B3352;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 340px;
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 12px;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+            animation: modalFadeIn 0.18s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.92);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-icon-badge {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            margin-bottom: 2px;
+        }
+
+            .modal-icon-badge.success {
+                background-color: rgba(0, 196, 140, 0.15);
+                border: 1px solid #00C48C;
+            }
+
+            .modal-icon-badge.error {
+                background-color: rgba(255, 59, 48, 0.15);
+                border: 1px solid #FF3B30;
+            }
+
+            .modal-icon-badge.warning {
+                background-color: rgba(255, 152, 56, 0.15);
+                border: 1px solid #FF9838;
+            }
+
+        .modal-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #FFFFFF;
+            line-height: 1.2;
+        }
+
+        .modal-card p {
+            font-size: 13px;
+            color: #CAD8E8;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        .modal-buttons-row {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            margin-top: 6px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            height: 48px;
+            border-radius: 12px;
+            border: none;
+            background-color: #FF7A00;
+            color: #FFFFFF;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+
+            .modal-btn.secondary {
+                background-color: #0E223D;
+                border: 1px solid #1F3A60;
+                color: #8FA3BF;
+            }
+
+            .modal-btn:active {
+                transform: scale(0.97);
+            }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+
+        <!-- 1. Topo: Botão Voltar e Cabeçalho -->
+        <header class="header-top">
+            <button type="button" class="btn-voltar" onclick="onVoltarTapped()" title="Voltar">←</button>
+            <div class="header-titles">
+                <h1>Relatório de Apontamentos</h1>
+                <p>Consulta e gerenciamento na nuvem</p>
+            </div>
+        </header>
+
+        <!-- 2. Painel de Filtros e Busca -->
+        <section class="filter-panel">
+            <div class="filter-title">FILTROS DE PESQUISA</div>
+
+            <!-- Campo de Busca por O.S ou Matrícula -->
+            <div class="search-box">
+                <input type="text"
+                       id="txtBusca"
+                       placeholder="Buscar por O.S., Setor ou Executante..."
+                       autocomplete="off"
+                       spellcheck="false" />
+            </div>
+
+            <!-- Filtro de Datas lado a lado -->
+            <div class="date-filters">
+                <div class="input-group">
+                    <label for="dpDataInicio">Data Início</label>
+                    <div class="input-box-sm">
+                        <input type="date" id="dpDataInicio" />
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="dpDataFim">Data Fim</label>
+                    <div class="input-box-sm">
+                        <input type="date" id="dpDataFim" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtro por Grupo / Especialidade -->
+            <div class="input-group">
+                <label for="pkrGrupo">Grupo / Especialidade</label>
+                <div class="input-box-sm">
+                    <select id="pkrGrupo">
+                        <option value="Todos os Grupos">Todos os Grupos</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Contador de Registros -->
+        <div class="counter-bar">
+            <span class="counter-label">APONTAMENTOS ENCONTRADOS</span>
+            <span class="counter-value" id="lblTotalRegistros">0 registro(s)</span>
+        </div>
+
+        <div id="refreshIndicator" class="refresh-status">Atualizando registros...</div>
+
+        <!-- 4. Lista dos Apontamentos com Scroll Ativo -->
+        <main class="list-container" id="cvApontamentos">
+            <!-- Renderizado dinamicamente -->
+        </main>
+
+    </div>
+
+    <!-- Modal Customizado -->
+    <div id="modalAviso" class="modal-overlay">
+        <div class="modal-card">
+            <div id="modalIcone" class="modal-icon-badge success">✓</div>
+            <h3 id="modalTitulo">Relatório</h3>
+            <p id="modalMensagem">Mensagem informativa...</p>
+            <div class="modal-buttons-row">
+                <button id="btnModalCancelar" class="modal-btn secondary" style="display: none;">Cancelar</button>
+                <button id="btnModalOk" class="modal-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================================
+        // 0. DIÁLOGOS CUSTOMIZADOS
+        // =========================================================================
+        function exibirAviso(titulo, mensagem, tipo = 'success') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('modalAviso');
+                const lblTitulo = document.getElementById('modalTitulo');
+                const lblMensagem = document.getElementById('modalMensagem');
+                const icone = document.getElementById('modalIcone');
+                const btnOk = document.getElementById('btnModalOk');
+                const btnCancelar = document.getElementById('btnModalCancelar');
+
+                lblTitulo.textContent = titulo;
+                lblMensagem.textContent = mensagem;
+                btnCancelar.style.display = 'none';
+                btnOk.textContent = 'OK';
+
+                if (tipo === 'success') {
+                    icone.className = 'modal-icon-badge success';
+                    icone.textContent = '✓';
+                    btnOk.style.backgroundColor = '#FF7A00';
+                } else if (tipo === 'error') {
+                    icone.className = 'modal-icon-badge error';
+                    icone.textContent = '✕';
+                    btnOk.style.backgroundColor = '#FF3B30';
+                } else {
+                    icone.className = 'modal-icon-badge warning';
+                    icone.textContent = '⚠️';
+                    btnOk.style.backgroundColor = '#FF7A00';
+                }
+
+                modal.style.display = 'flex';
+
+                btnOk.onclick = () => {
+                    modal.style.display = 'none';
+                    resolve();
+                };
+            });
+        }
+
+        // =========================================================================
+        // 1. CONFIGURAÇÕES SUPABASE
+        // =========================================================================
+        function obterClienteSupabase() {
+            if (window.supabaseClient) return window.supabaseClient;
+            if (window.supabase && typeof window.SUPABASE_URL !== 'undefined') {
+                return window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+            }
+            return null;
+        }
+
+        const NOME_TABELA = 'apontamentos';
+        let _listaOriginal = [];
+        let _filtroTimer = null;
+
+        // Elementos da UI
+        const txtBusca = document.getElementById('txtBusca');
+        const dpDataInicio = document.getElementById('dpDataInicio');
+        const dpDataFim = document.getElementById('dpDataFim');
+        const pkrGrupo = document.getElementById('pkrGrupo');
+        const lblTotalRegistros = document.getElementById('lblTotalRegistros');
+        const listContainer = document.getElementById('cvApontamentos');
+        const refreshIndicator = document.getElementById('refreshIndicator');
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            configurarValoresPadrao();
+            if (typeof LocalDB !== 'undefined' && LocalDB.abrirConexao) {
+                try { await LocalDB.abrirConexao(); } catch (_) { }
+            }
+            await carregarGruposFiltroAsync();
+            await onAppearing();
+        });
+
+        // Configura intervalo inicial para os últimos 7 dias até hoje
+        function configurarValoresPadrao() {
+            const agora = new Date();
+            const seteDiasAtras = new Date();
+            seteDiasAtras.setDate(agora.getDate() - 7);
+
+            const formatarIso = (d) => {
+                const ano = d.getFullYear();
+                const mes = String(d.getMonth() + 1).padStart(2, '0');
+                const dia = String(d.getDate()).padStart(2, '0');
+                return `${ano}-${mes}-${dia}`;
+            };
+
+            dpDataInicio.value = formatarIso(seteDiasAtras);
+            dpDataFim.value = formatarIso(agora);
+        }
+
+        // =========================================================================
+        // CARREGA GRUPOS DINAMICAMENTE PARA O FILTRO
+        // =========================================================================
+        async function carregarGruposFiltroAsync() {
+            let lista = [];
+
+            if (typeof LocalDB !== 'undefined' && LocalDB.obterGrupos) {
+                try {
+                    const locais = await LocalDB.obterGrupos();
+                    lista = locais.map(g => (g.grupo || g.nome || '').trim()).filter(Boolean);
+                } catch (_) { }
+            }
+
+            if (lista.length === 0) {
+                const cache = localStorage.getItem("GruposCache");
+                if (cache) lista = JSON.parse(cache);
+            }
+
+            const supabase = obterClienteSupabase();
+            if (navigator.onLine && supabase) {
+                try {
+                    const { data, error } = await supabase
+                        .from('grupos')
+                        .select('grupo')
+                        .order('grupo', { ascending: true });
+
+                    if (!error && data && data.length > 0) {
+                        lista = data.map(g => (g.grupo || '').trim()).filter(Boolean);
+                    }
+                } catch (_) { }
+            }
+
+            const unicos = [...new Set(lista)].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+            pkrGrupo.innerHTML = '<option value="Todos os Grupos">Todos os Grupos</option>';
+            unicos.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g;
+                opt.textContent = g;
+                pkrGrupo.appendChild(opt);
+            });
+        }
+
+        // =========================================================================
+        // 2. CICLO DE VIDA (OnAppearing)
+        // =========================================================================
+        async function onAppearing() {
+            const supabase = obterClienteSupabase();
+
+            if (navigator.onLine && supabase) {
+                const matriculaLogada = localStorage.getItem("MatriculaUsuario") || "";
+                if (matriculaLogada && matriculaLogada !== "---") {
+                    try {
+                        const { data, error } = await supabase
+                            .from('usuarios')
+                            .select('id')
+                            .eq('matricula', matriculaLogada)
+                            .maybeSingle();
+
+                        if (error || !data) {
+                            await exibirAviso("Acesso Revogado", "Sessão encerrada: usuário não encontrado no servidor.", "error");
+                            localStorage.removeItem("MatriculaUsuario");
+                            localStorage.removeItem("NivelUsuario");
+                            window.location.replace("login.html");
+                            return;
+                        }
+                    } catch (e) {
+                        console.warn("Validação de usuário offline ou indisponível:", e);
+                    }
+                }
+            }
+
+            await carregarApontamentosAsync();
+        }
+
+        // =========================================================================
+        // 3. CONSULTA NA NUVEM
+        // =========================================================================
+        async function carregarApontamentosAsync() {
+            const supabase = obterClienteSupabase();
+            if (!supabase) return;
+
+            try {
+                refreshIndicator.style.display = 'block';
+                lblTotalRegistros.textContent = 'Buscando...';
+
+                const { data, error } = await supabase
+                    .from(NOME_TABELA)
+                    .select('*')
+                    .order('data', { ascending: false })
+                    .order('id', { ascending: false });
+
+                if (error) throw error;
+
+                _listaOriginal = data || [];
+                aplicarFiltrosEmMemoria();
+            } catch (ex) {
+                console.error(ex);
+                await exibirAviso("Erro na Busca", `Falha ao buscar apontamentos: ${ex.message || ex}`, "error");
+                lblTotalRegistros.textContent = 'Erro ao carregar';
+            } finally {
+                refreshIndicator.style.display = 'none';
+            }
+        }
+
+        function normalizarTexto(txt) {
+            if (!txt && txt !== 0) return '';
+            return String(txt)
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim()
+                .toLowerCase();
+        }
+
+        // Extração de OS com substituição de '-' por 'Aguardando OS'
+        function extrairOrdemServico(item) {
+            if (!item) return 'Aguardando OS';
+            const candidatos = [
+                item.ordemservico,
+                item.ordem_servico,
+                item.OrdemServico,
+                item.numero_os,
+                item.num_os,
+                item.os,
+                item.OS
+            ];
+
+            for (const val of candidatos) {
+                if (val !== undefined && val !== null) {
+                    const str = String(val).trim();
+                    if (str !== '' && str !== '-') {
+                        return str;
+                    }
+                }
+            }
+            return 'Aguardando OS';
+        }
+
+        function formatarData(valorData) {
+            if (!valorData) return '';
+            const dataIso = String(valorData).substring(0, 10);
+            const partes = dataIso.split('-');
+            if (partes.length === 3) {
+                return `${partes[2]}/${partes[1]}/${partes[0]}`;
+            }
+            return valorData;
+        }
+
+        function formatarHora(h) {
+            if (!h) return '';
+            const s = String(h).trim();
+            if (!s) return '';
+
+            if (s.includes('T')) {
+                const parteTempo = s.split('T')[1];
+                if (parteTempo && parteTempo.includes(':')) {
+                    const subPartes = parteTempo.split(':');
+                    return `${subPartes[0].padStart(2, '0')}:${subPartes[1].padStart(2, '0')}`;
+                }
+            }
+
+            if (s.includes(':')) {
+                const partes = s.split(':');
+                const hora = partes[0].padStart(2, '0');
+                const minuto = (partes[1] || '00').substring(0, 2).padStart(2, '0');
+                return `${hora}:${minuto}`;
+            }
+
+            const apenasDigitos = s.replace(/\D/g, '');
+            if (apenasDigitos.length >= 4) {
+                return `${apenasDigitos.slice(0, 2)}:${apenasDigitos.slice(2, 4)}`;
+            }
+
+            return s;
+        }
+
+        // =========================================================================
+        // 5. FILTRAGEM EM MEMÓRIA
+        // =========================================================================
+        function aplicarFiltrosEmMemoria() {
+            const dataInicio = dpDataInicio.value;
+            const dataFim = dpDataFim.value;
+            const textoBusca = normalizarTexto(txtBusca.value);
+            const temTextoBusca = textoBusca.length > 0;
+
+            const grupoSelecionado = pkrGrupo.value;
+            const filtrarPorGrupo = grupoSelecionado && grupoSelecionado.toLowerCase() !== 'todos os grupos';
+
+            const filtrados = _listaOriginal.filter(a => {
+                if (filtrarPorGrupo) {
+                    const grupoItem = (a.grupo || a.Grupo || '').trim();
+                    if (grupoItem.toLowerCase() !== grupoSelecionado.toLowerCase()) {
+                        return false;
+                    }
+                }
+
+                if (temTextoBusca) {
+                    const os = normalizarTexto(extrairOrdemServico(a));
+                    const setor = normalizarTexto(a.setor || a.Setor);
+                    const matExec = normalizarTexto(a.matricula_executante || a.MatriculaExecutante);
+                    const matUser = normalizarTexto(a.matricula_usuario || a.MatriculaUsuario);
+                    const obs = normalizarTexto(a.observacoes || a.Observacoes);
+                    const grupo = normalizarTexto(a.grupo || a.Grupo);
+
+                    return os.includes(textoBusca) ||
+                        setor.includes(textoBusca) ||
+                        matExec.includes(textoBusca) ||
+                        matUser.includes(textoBusca) ||
+                        grupo.includes(textoBusca) ||
+                        obs.includes(textoBusca);
+                }
+
+                const rawData = a.data || a.Data;
+                if (!rawData) return true;
+
+                const dataFormatadaIso = String(rawData).substring(0, 10);
+                if (dataInicio && dataFormatadaIso < dataInicio) return false;
+                if (dataFim && dataFormatadaIso > dataFim) return false;
+
+                return true;
+            });
+
+            renderizar(filtrados);
+        }
+
+        // =========================================================================
+        // 6. RENDERIZAÇÃO NA TELA (Apenas Botão Editar)
+        // =========================================================================
+        function renderizar(itens) {
+            lblTotalRegistros.textContent = `${itens.length} registro(s)`;
+
+            if (itens.length === 0) {
+                listContainer.innerHTML = `
+                        <div class="empty-view">
+                            <span class="icon">📋</span>
+                            <p>Nenhum apontamento encontrado</p>
+                        </div>
+                    `;
+                return;
+            }
+
+            listContainer.innerHTML = itens.map(item => {
+                const id = item.id;
+                const os = extrairOrdemServico(item);
+                const setor = item.setor || item.Setor || '-';
+                const grupo = item.grupo || item.Grupo || '-';
+                const dataStr = formatarData(item.data || item.Data);
+                const matricula = item.matricula_executante || item.MatriculaExecutante || '-';
+                const osClasseDestaque = (os === 'Aguardando OS') ? 'badge-os aguardando' : 'badge-os';
+
+                const inicioRaw = item.horainicio
+                    ?? item.hora_inicio
+                    ?? item.HoraInicio
+                    ?? '';
+
+                const fimRaw = item.horafim
+                    ?? item.hora_fim
+                    ?? item.HoraFim
+                    ?? '';
+
+                const inicio = formatarHora(inicioRaw);
+                const fim = formatarHora(fimRaw);
+                const obs = item.observacoes || item.Observacoes || '';
+
+                return `
+                        <div class="swipe-container" id="card-${id}">
+                            <div class="swipe-actions">
+                                <button class="swipe-btn btn-edit" onclick="onEditarItemInvoked('${id}')">Editar</button>
+                            </div>
+                            <div class="item-card" data-open="false">
+                                <!-- Linha 1: O.S e Data/Grupo -->
+                                <div class="card-line-1">
+                                    <div class="os-left-group">
+                                        <span class="${osClasseDestaque}">${os}</span>
+                                    </div>
+                                    <div class="meta-right-group">
+                                        <span class="data-text">${dataStr}</span>
+                                        <span class="badge-grupo-topo">Grupo: ${grupo}</span>
+                                    </div>
+                                </div>
+
+                                <div class="card-divider"></div>
+
+                                <!-- Linha 2: Matrícula e Horários -->
+                                <div class="card-line-2">
+                                    <div class="matricula-group">
+                                        <span class="matricula-label">Matrícula:</span>
+                                        <span class="matricula-value">${matricula}</span>
+                                    </div>
+
+                                    <div class="horarios-wrapper">
+                                        <div class="horarios-group">
+                                            <span style="font-size:12px; color:#8FA3BF;">⏱</span>
+                                            <span class="horario-text">${inicio || '--:--'}</span>
+                                            <span class="ate-text">até</span>
+                                            <span class="horario-text">${fim || '--:--'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Setor -->
+                                <div class="card-setor-row">
+                                    <span class="badge-setor-bloco">Setor: ${setor}</span>
+                                </div>
+
+                                <!-- Tarefa -->
+                                ${obs ? `<div class="card-obs"><strong>Tarefa:</strong> ${obs}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+            }).join('');
+
+            configurarGestosSwipe();
+        }
+
+        // =========================================================================
+        // 7. EDIÇÃO
+        // =========================================================================
+        function onEditarItemInvoked(id) {
+            if (!navigator.onLine) {
+                exibirAviso("Sem Conexão", "Você precisa de conexão à internet para editar registros no Banco de Dados.", "error");
+                return;
+            }
+
+            window.location.href = `novoapontamento.html?remotoId=${id}`;
+        }
+
+        // =========================================================================
+        // 8. GESTOS DE SWIPE UNIFICADOS (70px para o botão Editar)
+        // =========================================================================
+        function configurarGestosSwipe() {
+            const cards = document.querySelectorAll('.item-card');
+            const LARGURA_BOTOES = 70;
+            const GATILHO_ABERTURA = 35;
+
+            let isDragging = false;
+            let startX = 0;
+            let startY = 0;
+            let currentX = 0;
+            let initialOffset = 0;
+            let movendoHorizontal = false;
+            let cardAberto = null;
+            let activePointerId = null;
+
+            cards.forEach(card => {
+                card.addEventListener('pointerdown', (e) => {
+                    if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+                    isDragging = true;
+                    activePointerId = e.pointerId;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    currentX = startX;
+                    movendoHorizontal = false;
+
+                    const isAberto = card.getAttribute('data-open') === 'true';
+                    initialOffset = isAberto ? -LARGURA_BOTOES : 0;
+
+                    if (cardAberto && cardAberto !== card) {
+                        cardAberto.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
+                        cardAberto.style.transform = 'translateX(0px)';
+                        cardAberto.setAttribute('data-open', 'false');
+                        cardAberto = null;
+                    }
+
+                    card.style.transition = 'none';
+                });
+
+                card.addEventListener('pointermove', (e) => {
+                    if (!isDragging || e.pointerId !== activePointerId) return;
+
+                    currentX = e.clientX;
+                    const diffX = currentX - startX;
+                    const diffY = e.clientY - startY;
+
+                    if (!movendoHorizontal && Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 8) {
+                        movendoHorizontal = true;
+                        try {
+                            card.setPointerCapture(e.pointerId);
+                        } catch (_) { }
+                    }
+
+                    if (movendoHorizontal) {
+                        let novaPosicao = initialOffset + diffX;
+                        if (novaPosicao > 0) novaPosicao = 0;
+
+                        if (novaPosicao < -LARGURA_BOTOES) {
+                            novaPosicao = -LARGURA_BOTOES + (novaPosicao + LARGURA_BOTOES) * 0.2;
+                        }
+
+                        card.style.transform = `translateX(${novaPosicao}px)`;
+                    }
+                });
+
+                const finalizarArraste = (e) => {
+                    if (!isDragging || (activePointerId !== null && e.pointerId !== activePointerId)) return;
+
+                    isDragging = false;
+                    try {
+                        card.releasePointerCapture(e.pointerId);
+                    } catch (_) { }
+
+                    card.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)';
+                    const diffX = currentX - startX;
+                    const isAberto = card.getAttribute('data-open') === 'true';
+
+                    if (!movendoHorizontal) {
+                        if (isAberto) {
+                            card.style.transform = 'translateX(0px)';
+                            card.setAttribute('data-open', 'false');
+                            if (cardAberto === card) cardAberto = null;
+                        }
+                        return;
+                    }
+
+                    if (!isAberto) {
+                        if (diffX < -GATILHO_ABERTURA) {
+                            card.style.transform = `translateX(-${LARGURA_BOTOES}px)`;
+                            card.setAttribute('data-open', 'true');
+                            cardAberto = card;
+                        } else {
+                            card.style.transform = 'translateX(0px)';
+                            card.setAttribute('data-open', 'false');
+                        }
+                    } else {
+                        if (diffX > GATILHO_ABERTURA) {
+                            card.style.transform = 'translateX(0px)';
+                            card.setAttribute('data-open', 'false');
+                            if (cardAberto === card) cardAberto = null;
+                        } else {
+                            card.style.transform = `translateX(-${LARGURA_BOTOES}px)`;
+                            card.setAttribute('data-open', 'true');
+                        }
+                    }
+
+                    activePointerId = null;
+                };
+
+                card.addEventListener('pointerup', finalizarArraste);
+                card.addEventListener('pointercancel', finalizarArraste);
+            });
+
+            document.addEventListener('pointerdown', (e) => {
+                if (cardAberto && !e.target.closest('.swipe-container')) {
+                    cardAberto.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
+                    cardAberto.style.transform = 'translateX(0px)';
+                    cardAberto.setAttribute('data-open', 'false');
+                    cardAberto = null;
+                }
+            });
+        }
+
+        // =========================================================================
+        // 9. EVENTOS DE ENTRADA COM DEBOUNCE
+        // =========================================================================
+        txtBusca.addEventListener('input', () => {
+            clearTimeout(_filtroTimer);
+            _filtroTimer = setTimeout(aplicarFiltrosEmMemoria, 300);
+        });
+
+        dpDataInicio.addEventListener('change', aplicarFiltrosEmMemoria);
+        dpDataFim.addEventListener('change', aplicarFiltrosEmMemoria);
+        pkrGrupo.addEventListener('change', aplicarFiltrosEmMemoria);
+
+        function onVoltarTapped() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = "index.html";
+            }
+        }
+    </script>
+</body>
+</html>

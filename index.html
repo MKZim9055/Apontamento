@@ -1,0 +1,985 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <title>Apontamento</title>
+
+    <!-- Configurações PWA para iOS (Apple Web App) -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Apontamento" />
+    <link rel="apple-touch-icon" href="icoapontamento.png" />
+    <link rel="manifest" href="manifest.json" />
+
+    <!-- Cliente Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Guardião de Rota: Apenas valida se está logado -->
+    <script>
+        (function verificarAcessoImediato() {
+            const nivel = localStorage.getItem("NivelUsuario") || localStorage.getItem("UsuarioNivel");
+            const matricula = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula");
+
+            if (!matricula || !nivel) {
+                window.location.replace("login.html");
+            }
+        })();
+    </script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            background: linear-gradient(135deg, #081426 0%, #020912 50%, #0A1D38 100%);
+            color: #FFFFFF;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding-top: calc(15px + env(safe-area-inset-top));
+            padding-bottom: calc(20px + env(safe-area-inset-bottom));
+            padding-left: 24px;
+            padding-right: 24px;
+        }
+
+        /* Banner de ativação de notificações Push */
+        .push-prompt-banner {
+            display: none;
+            background: linear-gradient(90deg, #1C3352 0%, #0E223D 100%);
+            border: 1px solid #2F80ED;
+            border-radius: 14px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .push-prompt-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+            .push-prompt-info .push-icon {
+                font-size: 24px;
+            }
+
+        .push-prompt-text h4 {
+            font-size: 13px;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        .push-prompt-text p {
+            font-size: 11px;
+            color: #CAD8E8;
+        }
+
+        .btn-ativar-push {
+            background-color: #2F80ED;
+            color: #FFFFFF;
+            font-weight: bold;
+            font-size: 11px;
+            padding: 7px 12px;
+            border-radius: 20px;
+            border: none;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+            .btn-ativar-push:active {
+                transform: scale(0.96);
+            }
+
+        /* Banner de instalação no iOS */
+        .ios-tip {
+            display: none;
+            background-color: rgba(14, 34, 61, 0.95);
+            border: 1px solid #1F3A60;
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #CAD8E8;
+            margin-bottom: 12px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+            .ios-tip span strong {
+                color: #00C48C;
+            }
+
+            .ios-tip button {
+                background: transparent;
+                border: none;
+                color: #8FA3BF;
+                font-size: 14px;
+                font-weight: bold;
+                cursor: pointer;
+            }
+
+        /* Card de Destaque para Download do APK Android */
+        .apk-download-banner {
+            display: none;
+            background: linear-gradient(90deg, #103328 0%, #0A221C 100%);
+            border: 1px solid #00C48C;
+            border-radius: 14px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            text-decoration: none;
+            color: #FFFFFF;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.15s ease;
+        }
+
+            .apk-download-banner:active {
+                transform: scale(0.98);
+            }
+
+        .apk-download-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+            .apk-download-info .apk-icon {
+                font-size: 26px;
+            }
+
+        .apk-download-text h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #00E5A3;
+        }
+
+        .apk-download-text p {
+            font-size: 11px;
+            color: #CAD8E8;
+        }
+
+        .btn-download-tag {
+            background-color: #00C48C;
+            color: #020912;
+            font-weight: bold;
+            font-size: 11px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+
+        .main-container {
+            max-width: 480px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            justify-content: space-between;
+        }
+
+        /* 1. Topo: Logo, Título e Subtítulo */
+        .header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 6px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+            .header .logo-container {
+                width: 68px;
+                height: 68px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+                .header .logo-container img {
+                    width: 68px;
+                    height: 68px;
+                    object-fit: contain;
+                }
+
+            .header h1 {
+                font-size: 26px;
+                font-weight: 700;
+                color: #FFFFFF;
+                margin-top: 2px;
+            }
+
+            .header p {
+                font-size: 13px;
+                color: #8FA3BF;
+            }
+
+        /* 2. Meio: Lista de Cards de Ação */
+        .cards-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin: auto 0;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+
+            .cards-list::-webkit-scrollbar {
+                display: none;
+            }
+
+        .card {
+            height: 84px;
+            border-radius: 18px;
+            padding: 0 16px;
+            display: grid;
+            grid-template-columns: 54px 1fr auto;
+            column-gap: 14px;
+            align-items: center;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.15s ease, filter 0.15s ease;
+            position: relative;
+        }
+
+            .card:active {
+                transform: scale(0.97);
+                filter: brightness(1.1);
+            }
+
+        .icon-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+
+        .card-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+            .card-text .title {
+                font-size: 16px;
+                font-weight: 700;
+                color: #FFFFFF;
+            }
+
+        .card-chevron-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-chevron {
+            font-size: 28px;
+            color: #FFFFFF;
+            margin-right: 6px;
+            line-height: 1;
+        }
+
+        /* Badge indicador de novas mensagens */
+        .badge-direct {
+            display: none;
+            background-color: #FF3B30;
+            color: #FFFFFF;
+            font-size: 11px;
+            font-weight: 800;
+            min-width: 22px;
+            height: 22px;
+            border-radius: 11px;
+            align-items: center;
+            justify-content: center;
+            padding: 0 6px;
+            box-shadow: 0 2px 8px rgba(255, 59, 48, 0.4);
+            animation: pulseBadge 1.8s infinite;
+        }
+
+        @keyframes pulseBadge {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.08);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        /* Cores dos Cartões */
+        .card-configuracoes {
+            background-color: #0D3559;
+        }
+
+            .card-configuracoes .icon-box {
+                background-color: #2F80ED;
+            }
+
+            .card-configuracoes .subtitle {
+                font-size: 12px;
+                color: #B0C4DE;
+            }
+
+        .card-relatorios {
+            background-color: #0B4242;
+        }
+
+            .card-relatorios .icon-box {
+                background-color: #00C48C;
+            }
+
+            .card-relatorios .subtitle {
+                font-size: 12px;
+                color: #A3D9C9;
+            }
+
+        .card-apontamento {
+            background-color: #5A3518;
+        }
+
+            .card-apontamento .icon-box {
+                background-color: #FF7A00;
+            }
+
+            .card-apontamento .subtitle {
+                font-size: 12px;
+                color: #E2BA9D;
+            }
+
+        .card-direct {
+            background-color: #351C5E;
+        }
+
+            .card-direct .icon-box {
+                background-color: #8A2BE2;
+            }
+
+            .card-direct .subtitle {
+                font-size: 12px;
+                color: #D1B3FF;
+            }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* 3. Rodapé */
+        .footer {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            margin-top: 20px;
+        }
+
+            .footer .divider {
+                flex: 1;
+                height: 1px;
+                background-color: #1F3249;
+            }
+
+            .footer span {
+                font-size: 11px;
+                color: #5A718F;
+                white-space: nowrap;
+            }
+
+        .btn-logout {
+            background: transparent;
+            border: none;
+            color: #5A718F;
+            font-size: 11px;
+            cursor: pointer;
+            text-decoration: underline;
+            padding: 0 4px;
+        }
+
+        /* Modal Customizado de Alerta */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 9, 18, 0.78);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 24px;
+        }
+
+        .modal-card {
+            background-color: #0B1C33;
+            border: 1px solid #1B3352;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 340px;
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 12px;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+            animation: modalFadeIn 0.18s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.92);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-icon-badge {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            margin-bottom: 2px;
+        }
+
+            .modal-icon-badge.success {
+                background-color: rgba(0, 196, 140, 0.15);
+                border: 1px solid #00C48C;
+            }
+
+            .modal-icon-badge.error {
+                background-color: rgba(255, 59, 48, 0.15);
+                border: 1px solid #FF3B30;
+            }
+
+            .modal-icon-badge.warning {
+                background-color: rgba(255, 152, 56, 0.15);
+                border: 1px solid #FF9838;
+            }
+
+        .modal-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #FFFFFF;
+            line-height: 1.2;
+        }
+
+        .modal-card p {
+            font-size: 13px;
+            color: #CAD8E8;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        .modal-buttons-row {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            margin-top: 6px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            height: 48px;
+            border-radius: 12px;
+            border: none;
+            background-color: #FF7A00;
+            color: #FFFFFF;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+
+            .modal-btn:active {
+                transform: scale(0.97);
+            }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+
+        <!-- Banner para Solicitar/Ativar Push Notifications -->
+        <div id="pushPrompt" class="push-prompt-banner">
+            <div class="push-prompt-info">
+                <span class="push-icon">🔔</span>
+                <div class="push-prompt-text">
+                    <h4>Ativar Notificações</h4>
+                    <p>Receba avisos e directs no celular</p>
+                </div>
+            </div>
+            <button class="btn-ativar-push" onclick="ativarNotificacoesPush(true)">Ativar</button>
+        </div>
+
+        <!-- Banner com instrução para adicionar à tela de início no iOS -->
+        <div id="iosPrompt" class="ios-tip">
+            <span>Toque em ⎋ (Compartilhar) e depois em <strong>"Adicionar à Tela de Início"</strong> para instalar o app.</span>
+            <button onclick="document.getElementById('iosPrompt').style.display='none'">✕</button>
+        </div>
+
+        <!-- Banner de Download do APK Android -->
+        <a href="distribuicao/com.companyname.apontamento-Signed.apk" id="apkDownloadPrompt" class="apk-download-banner" download>
+            <div class="apk-download-info">
+                <span class="apk-icon">🤖</span>
+                <div class="apk-download-text">
+                    <h4>Instalar App Android (.apk)</h4>
+                    <p>Versão oficial assinada v1.0.5</p>
+                </div>
+            </div>
+            <span class="btn-download-tag">Baixar</span>
+        </a>
+
+        <!-- 1. Topo -->
+        <header class="header">
+            <div class="logo-container">
+                <img src="icoapontamento.png" alt="Logo" onerror="this.outerHTML='<span style=\'font-size:42px;\'>📋</span>'" />
+            </div>
+            <h1>Apontamento</h1>
+            <p>Mais organização para o seu dia a dia</p>
+        </header>
+
+        <!-- 2. Meio: Lista de Ações -->
+        <main class="cards-list">
+
+            <!-- Card 1: Configurações -->
+            <a href="configuracoes.html" class="card card-configuracoes hidden" id="cardConfiguracoes">
+                <div class="icon-box">⚙️</div>
+                <div class="card-text">
+                    <span class="title">Configurações</span>
+                    <span class="subtitle">Gerencie usuários, setores e o sistema</span>
+                </div>
+                <span class="card-chevron">›</span>
+            </a>
+
+            <!-- Card 2: Relatórios -->
+            <a href="relatorios.html" class="card card-relatorios hidden" id="cardRelatorios">
+                <div class="icon-box">📊</div>
+                <div class="card-text">
+                    <span class="title">Relatórios</span>
+                    <span class="subtitle">Consulte e visualize os relatórios</span>
+                </div>
+                <span class="card-chevron">›</span>
+            </a>
+
+            <!-- Card 3: Apontamento -->
+            <a href="listaapontamento.html" class="card card-apontamento" id="cardApontamento">
+                <div class="icon-box">📝</div>
+                <div class="card-text">
+                    <span class="title">Apontamento</span>
+                    <span class="subtitle">Registre seus apontamentos</span>
+                </div>
+                <span class="card-chevron">›</span>
+            </a>
+
+            <!-- Card 4: Direct com Badge -->
+            <a href="direct.html" class="card card-direct" id="cardDirect" onclick="aoAbrirDirect()">
+                <div class="icon-box">💬</div>
+                <div class="card-text">
+                    <span class="title">Direct</span>
+                    <span class="subtitle">Mensagens e avisos entre usuários</span>
+                </div>
+                <div class="card-chevron-box">
+                    <span id="badgeDirect" class="badge-direct">0</span>
+                    <span class="card-chevron">›</span>
+                </div>
+            </a>
+
+        </main>
+
+        <!-- 3. Rodapé -->
+        <footer class="footer">
+            <div class="divider"></div>
+            <span id="lblVersaoApp">Versão App: 1.0.7 | by Markinho</span>
+            <button class="btn-logout" onclick="fazerLogout()">[Sair]</button>
+            <div class="divider"></div>
+        </footer>
+
+    </div>
+
+    <!-- Modal Customizado de Alerta -->
+    <div id="modalAviso" class="modal-overlay">
+        <div class="modal-card">
+            <div id="modalIcone" class="modal-icon-badge success">✓</div>
+            <h3 id="modalTitulo">Notificação</h3>
+            <p id="modalMensagem">Mensagem informativa...</p>
+            <div class="modal-buttons-row">
+                <button id="btnModalOk" class="modal-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================================
+        // 0. DIÁLOGO CUSTOMIZADO
+        // =========================================================================
+        function exibirAviso(titulo, mensagem, tipo = 'success') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('modalAviso');
+                const lblTitulo = document.getElementById('modalTitulo');
+                const lblMensagem = document.getElementById('modalMensagem');
+                const icone = document.getElementById('modalIcone');
+                const btnOk = document.getElementById('btnModalOk');
+
+                lblTitulo.textContent = titulo;
+                lblMensagem.textContent = mensagem;
+
+                if (tipo === 'success') {
+                    icone.className = 'modal-icon-badge success';
+                    icone.textContent = '✓';
+                    btnOk.style.backgroundColor = '#00C48C';
+                    btnOk.style.color = '#020912';
+                } else if (tipo === 'error') {
+                    icone.className = 'modal-icon-badge error';
+                    icone.textContent = '✕';
+                    btnOk.style.backgroundColor = '#FF3B30';
+                    btnOk.style.color = '#FFFFFF';
+                } else {
+                    icone.className = 'modal-icon-badge warning';
+                    icone.textContent = '⚠️';
+                    btnOk.style.backgroundColor = '#FF7A00';
+                    btnOk.style.color = '#FFFFFF';
+                }
+
+                modal.style.display = 'flex';
+
+                btnOk.onclick = () => {
+                    modal.style.display = 'none';
+                    resolve();
+                };
+            });
+        }
+
+        // Configurações do Supabase
+        const SUPABASE_URL = "https://mtlbrhmpiwvzjwbzaywi.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_qilTaEWSiDNr1L-N5uE5gA_NYyLkyBt";
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const VAPID_PUBLIC_KEY = "BG-FDvOBBsvlcRJP991vAMGqBrLRY-N_HPUfjq71K0b63TipFd1r9tVO6L_mKTCHKvxVCQag_gxgPnkMAYqnCFU";
+
+        // 1. Registro do Service Worker com versionamento forçado
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', async () => {
+                try {
+                    const reg = await navigator.serviceWorker.register('./sw.js?v=10');
+
+                    // Força a checagem por atualizações no arquivo do service worker
+                    if (reg.update) {
+                        await reg.update();
+                    }
+
+                    await verificarStatusInscricaoPush();
+                } catch (e) {
+                    console.error("Falha ao registrar Service Worker:", e);
+                }
+            });
+        }
+
+        // 2. Auxiliar para conversão da chave pública VAPID
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        // 3. Verifica status de permissão e inscrição
+        async function verificarStatusInscricaoPush() {
+            if (!('PushManager' in window) || !('Notification' in window)) return;
+
+            const promptBanner = document.getElementById('pushPrompt');
+
+            if (Notification.permission === 'default') {
+                if (promptBanner) promptBanner.style.display = 'flex';
+            } else if (Notification.permission === 'granted') {
+                try {
+                    const reg = await navigator.serviceWorker.ready;
+                    const sub = await reg.pushManager.getSubscription();
+                    if (sub) {
+                        await salvarSubscriptionNoSupabase(sub);
+                    }
+                } catch (_) { }
+            }
+        }
+
+        // 4. Invocado pelo botão "Ativar" com renovação forçada anti-corrupção
+        async function ativarNotificacoesPush(solicitadoPeloUsuario = false) {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                if (solicitadoPeloUsuario) {
+                    await exibirAviso('Não Suportado', 'Este navegador não suporta notificações Push.', 'warning');
+                }
+                return;
+            }
+
+            try {
+                const permissao = await Notification.requestPermission();
+
+                if (permissao !== 'granted') {
+                    if (solicitadoPeloUsuario) {
+                        await exibirAviso('Permissão Negada', 'Permissão de notificações não concedida nas opções do aparelho.', 'warning');
+                    }
+                    return;
+                }
+
+                const promptBanner = document.getElementById('pushPrompt');
+                if (promptBanner) promptBanner.style.display = 'none';
+
+                const reg = await navigator.serviceWorker.ready;
+
+                // --- FORÇA A LIMPEZA DE TOKEN CORROMPIDO / ANTERIOR ---
+                try {
+                    const subExistente = await reg.pushManager.getSubscription();
+                    if (subExistente) {
+                        await subExistente.unsubscribe();
+                        console.log("Inscrição anterior ou corrompida removida do cache local.");
+                    }
+                } catch (unsubErr) {
+                    console.warn("Aviso ao limpar inscrição anterior:", unsubErr);
+                }
+
+                // Cria uma nova inscrição limpa
+                let sub;
+                try {
+                    sub = await reg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                    });
+                } catch (subscribeErr) {
+                    console.warn("Primeira tentativa de inscrição falhou. Forçando reset do Service Worker...", subscribeErr);
+                    // Segunda tentativa após breve delay caso o FCM/PushManager estivesse ocupado
+                    await new Promise(r => setTimeout(r, 400));
+                    sub = await reg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                    });
+                }
+
+                const salvou = await salvarSubscriptionNoSupabase(sub);
+
+                if (solicitadoPeloUsuario) {
+                    if (salvou) {
+                        await exibirAviso('Notificações Ativas', 'Notificações ativadas e token renovado com sucesso!', 'success');
+                    } else {
+                        await exibirAviso('Aviso', 'Inscrição gerada, mas houve falha ao sincronizar com o banco.', 'warning');
+                    }
+                }
+            } catch (err) {
+                console.error("Falha ao registrar Push Notification:", err);
+                if (solicitadoPeloUsuario) {
+                    let msg = err.message || String(err);
+                    if (msg.includes('push service error') || msg.includes('Push service not available')) {
+                        msg = "Falha no serviço Google Play / Push Service deste aparelho. Verifique se o Google Play Services está ativo ou a conexão com a internet.";
+                    }
+                    await exibirAviso('Erro de Token', msg, 'error');
+                }
+            }
+        }
+
+        // Função isolada para salvar ou atualizar a subscrição no Supabase com validação real
+        async function salvarSubscriptionNoSupabase(sub) {
+            try {
+                if (!sub) return false;
+                const subJson = sub.toJSON();
+                const matricula = (localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "").trim();
+                const grupo = (localStorage.getItem("UsuarioGrupo") || "Geral").trim();
+
+                if (!matricula || !subJson.keys || !subJson.keys.p256dh || !subJson.keys.auth) {
+                    console.warn("Dados de matrícula ou chaves push incompletos:", { matricula, keys: subJson.keys });
+                    return false;
+                }
+
+                const { data, error } = await supabaseClient
+                    .from('pwa_push_subscriptions')
+                    .upsert({
+                        endpoint: subJson.endpoint,
+                        p256dh: subJson.keys.p256dh,
+                        auth: subJson.keys.auth,
+                        matricula: matricula,
+                        grupo: grupo
+                    }, { onConflict: 'endpoint' });
+
+                if (error) {
+                    console.error("Erro retornado pelo Supabase no upsert:", error);
+                    return false;
+                }
+
+                console.log("Token de push salvo com sucesso no Supabase!");
+                return true;
+            } catch (err) {
+                console.warn("Erro ao salvar inscrição no Supabase:", err);
+                return false;
+            }
+        }
+
+        // 5. Detecção de Plataforma (iOS vs Android)
+        const isIos = () => /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+        const isAndroid = () => /android/.test(window.navigator.userAgent.toLowerCase());
+        const isStandalone = () => ('standalone' in window.navigator) || window.matchMedia('(display-mode: standalone)').matches;
+
+        if (isIos() && !isStandalone()) {
+            document.getElementById('iosPrompt').style.display = 'flex';
+        }
+
+        if (isAndroid() && !isStandalone()) {
+            document.getElementById('apkDownloadPrompt').style.display = 'flex';
+        }
+
+        // 6. Aplica regras visuais de acesso e inicia a verificação do Direct
+        document.addEventListener('DOMContentLoaded', async () => {
+            const nivelBruto = localStorage.getItem("NivelUsuario") || localStorage.getItem("UsuarioNivel") || "";
+            const nivel = nivelBruto.trim().toLowerCase();
+
+            const isAdministrador = nivel === "administrador" || nivel === "admin" || nivel === "1";
+            const isSupervisor = nivel === "supervisor" || nivel === "2";
+
+            if (isAdministrador) {
+                document.getElementById('cardConfiguracoes')?.classList.remove('hidden');
+                document.getElementById('cardRelatorios')?.classList.remove('hidden');
+            } else if (isSupervisor) {
+                document.getElementById('cardRelatorios')?.classList.remove('hidden');
+            }
+
+            await verificarNovasMensagensDirect();
+            inscreverRealtimeDirect();
+        });
+
+        // 7. Reavalia o badge quando a aba volta ao foco
+        window.addEventListener('pageshow', () => {
+            verificarNovasMensagensDirect();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                verificarNovasMensagensDirect();
+            }
+        });
+
+        // 8. Checa novas mensagens comparando com o MAIOR ID lido
+        async function verificarNovasMensagensDirect() {
+            const badge = document.getElementById('badgeDirect');
+            if (!badge) return;
+
+            const matricula = (localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "").trim();
+            const grupo = (localStorage.getItem("UsuarioGrupo") || "").trim();
+
+            if (!matricula) {
+                badge.style.display = 'none';
+                return;
+            }
+
+            try {
+                const { data, error } = await supabaseClient.rpc('obter_mensagens_usuario', {
+                    p_matricula: matricula,
+                    p_grupo: grupo
+                });
+
+                if (error || !data || data.length === 0) {
+                    badge.style.display = 'none';
+                    return;
+                }
+
+                let ultimoIdLido = parseInt(localStorage.getItem("UltimoIdDirectLido") || "0", 10);
+                const maiorIdAtual = Math.max(...data.map(m => parseInt(m.id, 10)));
+
+                if (ultimoIdLido > maiorIdAtual) {
+                    ultimoIdLido = 0;
+                    localStorage.setItem("UltimoIdDirectLido", "0");
+                }
+
+                const naoLidas = data.filter(m => {
+                    const idMsg = parseInt(m.id, 10);
+                    const remetente = String(m.remetente_matricula || '').trim().toLowerCase();
+                    return idMsg > ultimoIdLido && remetente !== matricula.toLowerCase();
+                });
+
+                if (naoLidas.length > 0) {
+                    badge.textContent = naoLidas.length > 99 ? "99+" : String(naoLidas.length);
+                    badge.style.display = 'inline-flex';
+                } else {
+                    badge.style.display = 'none';
+                }
+            } catch (e) {
+                console.warn("Falha ao checar badge do direct:", e);
+            }
+        }
+
+        // 9. Atualização em tempo real do badge
+        function inscreverRealtimeDirect() {
+            try {
+                const canalNome = 'canal_index_badge_' + Date.now();
+                supabaseClient
+                    .channel(canalNome)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_mensagens' }, () => {
+                        verificarNovasMensagensDirect();
+                    })
+                    .subscribe();
+            } catch (_) { }
+        }
+
+        function aoAbrirDirect() {
+            // direct.html atualiza UltimoIdDirectLido ao abrir
+        }
+
+        // 10. Logout limpa a sessão e a inscrição de push deste aparelho no Supabase
+        async function fazerLogout() {
+            try {
+                if ('serviceWorker' in navigator) {
+                    const reg = await navigator.serviceWorker.ready;
+                    const sub = await reg.pushManager.getSubscription();
+                    if (sub) {
+                        await supabaseClient
+                            .from('pwa_push_subscriptions')
+                            .delete()
+                            .eq('endpoint', sub.endpoint);
+                        await sub.unsubscribe();
+                    }
+                }
+                if (window.supabaseClient) {
+                    await window.supabaseClient.auth.signOut();
+                }
+            } catch (e) {
+                console.warn("Erro ao desinscrever no logout:", e);
+            }
+
+            localStorage.removeItem("auth_token");
+            localStorage.removeItem("NivelUsuario");
+            localStorage.removeItem("UsuarioNivel");
+            localStorage.removeItem("MatriculaUsuario");
+            localStorage.removeItem("UsuarioMatricula");
+            localStorage.removeItem("UsuarioNome");
+            localStorage.removeItem("UsuarioGrupo");
+            localStorage.removeItem("UltimoIdDirectLido");
+
+            window.location.replace("login.html");
+        }
+    </script>
+</body>
+</html>
