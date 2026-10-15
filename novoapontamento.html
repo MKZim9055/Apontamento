@@ -394,13 +394,15 @@
                     </div>
                 </div>
 
-                <!-- Ordem de Serviço (Opcional) -->
+                <!-- Ordem de Serviço (Opcional - Aceita apenas números) -->
                 <div class="input-group">
                     <label for="txtOrdemServico">Ordem de Serviço</label>
                     <div class="input-box">
                         <input type="text"
                                id="txtOrdemServico"
                                placeholder="Ex: 35000"
+                               inputmode="numeric"
+                               oninput="this.value = this.value.replace(/\D/g, '')"
                                autocomplete="off"
                                spellcheck="false" />
                     </div>
@@ -831,7 +833,7 @@
                 if (item[chave] !== undefined && item[chave] !== null && String(item[chave]).trim() !== '') {
                     const valor = String(item[chave]).trim();
                     if (valor === 'Aguardando OS' || valor === '-') return '';
-                    return valor;
+                    return valor.replace(/\D/g, '');
                 }
             }
             return '';
@@ -1060,8 +1062,9 @@
             const hInicio = document.getElementById('txtHoraInicio').value.trim();
             const hFim = document.getElementById('txtHoraFim').value.trim();
 
-            const osInput = document.getElementById('txtOrdemServico').value.trim();
-            const os = (osInput === '' || osInput === '-') ? 'Aguardando OS' : osInput;
+            // Garante apenas dígitos ou 'Aguardando OS' se estiver vazio
+            const osDigitos = document.getElementById('txtOrdemServico').value.replace(/\D/g, '');
+            const os = osDigitos === '' ? 'Aguardando OS' : osDigitos;
 
             const setor = document.getElementById('pickerSetor').value.trim();
             const obs = document.getElementById('txtObservacoes').value.trim();
