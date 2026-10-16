@@ -173,6 +173,30 @@
                     color: #FFFFFF;
                 }
 
+        /* Botão Atalho Barra Matrícula */
+        .btn-atalho-barra {
+            background-color: #0E223D;
+            border: 1px solid #1F3A60;
+            color: #00C48C;
+            height: 50px;
+            padding: 0 16px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.15s ease, transform 0.1s ease, border-color 0.15s ease;
+            flex-shrink: 0;
+        }
+
+            .btn-atalho-barra:active {
+                transform: scale(0.95);
+                background-color: #173763;
+                border-color: #00C48C;
+            }
+
         /* Grid de Horários */
         .grid-horarios {
             display: grid;
@@ -408,18 +432,26 @@
                     </div>
                 </div>
 
-                <!-- Matrícula Executante -->
+                <!-- Matrícula Executante com Botão Barra -->
                 <div class="input-group">
-                    <label for="txtMatriculaExecutante">Matrícula</label>
-                    <div class="input-box">
-                        <input type="text"
-                               id="txtMatriculaExecutante"
-                               placeholder="Ex: 1024"
-                               inputmode="text"
-                               oninput="formatarMatricula(this)"
-                               autocomplete="off"
-                               spellcheck="false"
-                               required />
+                    <label for="txtMatriculaExecutante">Matrícula (Ex: 1024 ou 1024 / 950)</label>
+                    <div style="display: flex; gap: 8px; width: 100%;">
+                        <div class="input-box" style="flex: 1;">
+                            <input type="text"
+                                   id="txtMatriculaExecutante"
+                                   placeholder="Ex: 1024 / 950"
+                                   inputmode="numeric"
+                                   oninput="formatarMatricula(this)"
+                                   autocomplete="off"
+                                   spellcheck="false"
+                                   required />
+                        </div>
+                        <button type="button"
+                                class="btn-atalho-barra"
+                                onclick="inserirSeparadorMatricula()"
+                                title="Adicionar separador para mais executantes">
+                            + /
+                        </button>
                     </div>
                 </div>
 
@@ -874,6 +906,26 @@
         }
 
         // =========================================================================
+        // ATALHO E FORMATAÇÃO DE MATRÍCULA
+        // =========================================================================
+        function formatarMatricula(input) {
+            // Permite somente números, barras e espaços
+            input.value = input.value.replace(/[^0-9/ ]/g, '');
+        }
+
+        function inserirSeparadorMatricula() {
+            const input = document.getElementById('txtMatriculaExecutante');
+            let valor = input.value.trim();
+
+            // Só insere se houver algo digitado e se o último caractere não for barra
+            if (valor.length > 0 && !valor.endsWith('/')) {
+                input.value = valor + ' / ';
+            }
+            // Devolve o foco para manter o teclado numérico aberto no celular
+            input.focus();
+        }
+
+        // =========================================================================
         // VERIFICAÇÃO DE DUPLICIDADE NO BANCO LOCAL
         // =========================================================================
         async function verificarApontamentoDuplicado(os, data, horaInicio, horaFim, idLocalIgnorar = null, idRemotoIgnorar = null) {
@@ -1181,7 +1233,6 @@
 
                     const remotoId = _apontamentoRemotoEdicao.id;
 
-                    // IMPORTANTE: Não enviamos 'matricula_usuario' aqui para preservar a autoria original do operador
                     const payloadUpdateRemoto = {
                         ordemservico: os,
                         setor: setor,
@@ -1292,11 +1343,6 @@
             } finally {
                 btnSalvar.disabled = false;
             }
-        }
-
-        function formatarMatricula(input) {
-            // Permite apenas números (0-9), barra (/) e espaço ( )
-            input.value = input.value.replace(/[^0-9/ ]/g, '');
         }
 
         function onVoltarTapped() {
