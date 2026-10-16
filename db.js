@@ -101,7 +101,6 @@ const LocalDB = {
             const clearReq = store.clear();
             clearReq.onsuccess = () => {
                 listaGruposNuvem.forEach(g => {
-                    // Pega o valor da coluna 'grupo' do Supabase
                     const valor = typeof g === 'string' ? g.trim() : (g.grupo || g.nome || '').trim();
                     if (valor) {
                         store.add({
@@ -217,7 +216,6 @@ const LocalDB = {
             const clearReq = store.clear();
             clearReq.onsuccess = () => {
                 listaSetoresNuvem.forEach(s => {
-                    // Pega o valor da coluna 'nome' do Supabase
                     const valor = typeof s === 'string' ? s.trim() : (s.nome || '').trim();
                     const nuvemId = typeof s === 'object' ? (s.id || valor) : valor;
                     if (valor) {
@@ -309,7 +307,7 @@ const LocalDB = {
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
         });
-    }
+    },
 
     async obterApontamentosLocais() {
         const db = await this.abrirConexao();
@@ -354,4 +352,6 @@ const LocalDB = {
     }
 };
 
-window.LocalDB = LocalDB;
+if (typeof window !== 'undefined') {
+    window.LocalDB = LocalDB;
+}
