@@ -921,7 +921,6 @@
             if (valor.length > 0 && !valor.endsWith('/')) {
                 input.value = valor + ' / ';
             }
-            // Devolve o foco para manter o teclado numérico aberto no celular
             input.focus();
         }
 
@@ -1020,7 +1019,6 @@
                 try {
                     const item = await LocalDB.obterApontamentoPorId(idNumerico);
                     if (item) {
-                        // REGRA: Se já foi enviado para a nuvem, o usuário comum não edita localmente
                         if (item.data_sincronizado && !_temPermissaoGestor) {
                             await exibirAviso(
                                 "Registro Bloqueado",
@@ -1118,7 +1116,7 @@
         }
 
         // =========================================================================
-        // SALVAMENTO GARANTIDO
+        // SALVAMENTO GARANTIDO (Sem envio automático)
         // =========================================================================
         async function onSalvarApontamentoClicked(e) {
             e.preventDefault();
@@ -1127,7 +1125,6 @@
             const hInicio = document.getElementById('txtHoraInicio').value.trim();
             const hFim = document.getElementById('txtHoraFim').value.trim();
 
-            // Garante apenas dígitos ou 'Aguardando OS' se estiver vazio
             const osDigitos = document.getElementById('txtOrdemServico').value.replace(/\D/g, '');
             const os = osDigitos === '' ? 'Aguardando OS' : osDigitos;
 
@@ -1212,11 +1209,10 @@
             btnSalvar.disabled = true;
 
             try {
-                const agoraIso = new Date().toISOString();
                 const matriculaLogada = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "---";
 
                 // -----------------------------------------------------------
-                // CENÁRIO 1: EDIÇÃO REMOTA (Somente no Supabase - Nuvem)
+                // CENÁRIO 1: EDIÇÃO REMOTA (Disparada pelo supervisor via relatorios.html)
                 // -----------------------------------------------------------
                 if (_apontamentoRemotoEdicao != null) {
                     if (!_temPermissaoGestor) {
@@ -1264,7 +1260,7 @@
                 }
 
                 if (_apontamentoEdicao == null) {
-                    // Novo apontamento local
+                    // Novo apontamento local (fica como pendente de sincronização)
                     const novoApontamento = {
                         ordemservico: os,
                         ordem_servico: os,
@@ -1281,41 +1277,9 @@
                         data_sincronizado: null
                     };
 
-                    const idLocalGerado = await LocalDB.salvarApontamento(novoApontamento);
-                    novoApontamento.id = Number(idLocalGerado);
+                    await LocalDB.salvarApontamento(novoApontamento);
 
-                    // Envio imediato para a nuvem se online
-                    if (navigator.onLine && supabase) {
-                        try {
-                            const payloadInsertNuvem = {
-                                ordemservico: os,
-                                setor: setor,
-                                grupo: grupoFinal,
-                                matricula_executante: executante,
-                                matricula_usuario: matriculaLogada,
-                                data: dataSql,
-                                horainicio: hInicio,
-                                horafim: hFim,
-                                observacoes: obs
-                            };
-
-                            const { data: retNuvem, error: errNuvem } = await supabase
-                                .from('apontamentos')
-                                .insert([payloadInsertNuvem])
-                                .select();
-
-                            if (!errNuvem && retNuvem && retNuvem.length > 0) {
-                                novoApontamento.remoto_id = Number(retNuvem[0].id);
-                                novoApontamento.id_remoto = Number(retNuvem[0].id);
-                                novoApontamento.data_sincronizado = agoraIso;
-                                await LocalDB.salvarApontamento(novoApontamento);
-                            }
-                        } catch (eEnvio) {
-                            console.warn("Sem conexão com o Supabase. Ficará pendente de sincronização.", eEnvio);
-                        }
-                    }
-
-                    await exibirAviso("Apontamento Gravado!", "Registro realizado com sucesso.", "success");
+                    await exibirAviso("Apontamento Gravado!", "Registro salvo no dispositivo com sucesso. Envie-o pela lista quando desejar.", "success");
                 } else {
                     // Atualização de apontamento local pendente
                     _apontamentoEdicao.id = Number(_apontamentoEdicao.id);
