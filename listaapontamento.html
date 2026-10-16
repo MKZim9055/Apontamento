@@ -497,9 +497,7 @@
             display: none !important;
         }
 
-        /* =========================================================================
-           MODAL DE ALERTA E CONFIRMAÇÃO PERSONALIZADO
-           ========================================================================= */
+        /* Modal Customizado */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -645,7 +643,7 @@
         <!-- 3. Contador de Registros -->
         <div class="counter-bar">
             <span class="counter-label">APONTAMENTOS LOCAIS</span>
-            <span class="counter-value" id="lblTotal">0 registro(s)</span>
+            <span class="counter-value" id="lblTotal">0 registro(s) / 0 pendente(s)</span>
         </div>
 
         <!-- 4. Lista dos Apontamentos com Swipe e Scroll -->
@@ -681,7 +679,7 @@
 
     <script>
         // =========================================================================
-        // 0. DIÁLOGOS CUSTOMIZADOS (Substitui alert e confirm nativos)
+        // 0. DIÁLOGOS CUSTOMIZADOS
         // =========================================================================
         function exibirAviso(titulo, mensagem, tipo = 'success') {
             return new Promise((resolve) => {
@@ -754,7 +752,7 @@
         }
 
         // =========================================================================
-        // 1. CAPTURA ROBUSTA DO CLIENTE SUPABASE
+        // 1. CAPTURA DO CLIENTE SUPABASE
         // =========================================================================
         function obterClienteSupabase() {
             if (window.supabaseClient) return window.supabaseClient;
@@ -847,6 +845,7 @@
                     localStorage.getItem("NivelAcesso") ||
                     localStorage.getItem("UsuarioNivel") ||
                     localStorage.getItem("NivelUsuario") ||
+                    sessionStorage.getItem("NivelAcesso") ||
                     "Usuario"
                 ).toLowerCase();
                 const isUsuario = nivel === "usuario" || nivel === "3";
@@ -856,7 +855,7 @@
                 dados.sort((a, b) => {
                     const diffData = new Date(b.data || 0) - new Date(a.data || 0);
                     if (diffData !== 0) return diffData;
-                    return (b.id || 0) - (a.id || 0);
+                    return (Number(b.id) || 0) - (Number(a.id) || 0);
                 });
 
                 if (isUsuario && matricula) {
@@ -874,6 +873,9 @@
             }
         }
 
+        // =========================================================================
+        // SINCRONIZAÇÃO DESCENDENTE (Nuvem -> Local)
+        // =========================================================================
         async function atualizarEdicoesDoSupervisorAsync() {
             if (!navigator.onLine) return;
             const supabase = obterClienteSupabase();
@@ -884,8 +886,9 @@
 
             try {
                 const locais = await LocalDB.obterApontamentosLocais();
-                if (locais.length === 0) return;
+                if (!locais || locais.length === 0) return;
 
+                // Busca registros onde o usuário logado seja o autor OU o executante
                 const { data: remotos, error } = await supabase
                     .from('apontamentos')
                     .select('*')
@@ -897,24 +900,38 @@
 
                 for (const remoto of remotos) {
                     const remotoId = Number(remoto.id);
+                    if (isNaN(remotoId)) continue;
+
                     const osRemota = extrairOrdemServico(remoto);
                     const dataRemota = String(remoto.data || '').substring(0, 10);
                     const hIniRemota = formatarHora(remoto.horainicio || remoto.hora_inicio);
+                    const hFimRemota = formatarHora(remoto.horafim || remoto.hora_fim);
                     const matExecRemota = String(remoto.matricula_executante || '').trim();
 
+                    // 1º critério mandatário: casar pelo ID da nuvem (remoto_id)
                     let local = locais.find(l => {
                         const idRem = l.remoto_id ?? l.id_remoto ?? l.remotoId;
-                        if (idRem !== undefined && idRem !== null && Number(idRem) === remotoId) return true;
-
-                        const osLoc = extrairOrdemServico(l);
-                        if (osRemota !== 'Aguardando OS' && osLoc !== 'Aguardando OS' && osLoc.toLowerCase() === osRemota.toLowerCase()) return true;
-
-                        const lData = String(l.data || '').substring(0, 10);
-                        const lHora = formatarHora(l.horainicio || l.hora_inicio);
-                        const lExec = String(l.matricula_executante || '').trim();
-
-                        return (lData === dataRemota && lHora === hIniRemota && lExec === matExecRemota);
+                        return idRem !== undefined && idRem !== null && Number(idRem) === remotoId;
                     });
+
+                    // 2º critério de fallback: apontamento local pendente sem remoto_id vinculado
+                    if (!local) {
+                        local = locais.find(l => {
+                            const idRem = l.remoto_id ?? l.id_remoto ?? l.remotoId;
+                            if (idRem) return false;
+
+                            const lData = String(l.data || '').substring(0, 10);
+                            const lHora = formatarHora(l.horainicio || l.hora_inicio);
+                            const lExec = String(l.matricula_executante || '').trim();
+                            const osLoc = extrairOrdemServico(l);
+
+                            if (osRemota !== 'Aguardando OS' && osLoc !== 'Aguardando OS' && osLoc.toLowerCase() === osRemota.toLowerCase()) {
+                                return lData === dataRemota;
+                            }
+
+                            return (lData === dataRemota && lHora === hIniRemota && lExec === matExecRemota);
+                        });
+                    }
 
                     if (local && local.id) {
                         let alterou = false;
@@ -925,7 +942,7 @@
                             alterou = true;
                         }
 
-                        if (osRemota !== 'Aguardando OS' && (local.ordemservico !== osRemota || local.ordem_servico !== osRemota)) {
+                        if (local.ordemservico !== osRemota || local.ordem_servico !== osRemota) {
                             local.ordemservico = osRemota;
                             local.ordem_servico = osRemota;
                             alterou = true;
@@ -941,14 +958,24 @@
                             alterou = true;
                         }
 
+                        if (matExecRemota && String(local.matricula_executante || '').trim() !== matExecRemota) {
+                            local.matricula_executante = matExecRemota;
+                            alterou = true;
+                        }
+
+                        if (dataRemota && String(local.data || '').substring(0, 10) !== dataRemota) {
+                            local.data = dataRemota;
+                            alterou = true;
+                        }
+
                         if (hIniRemota && formatarHora(local.horainicio || local.hora_inicio) !== hIniRemota) {
                             local.horainicio = hIniRemota;
                             local.hora_inicio = hIniRemota;
                             alterou = true;
                         }
 
-                        const hFimRemota = formatarHora(remoto.horafim || remoto.hora_fim);
-                        if (hFimRemota && formatarHora(local.horafim || local.hora_fim) !== hFimRemota) {
+                        const hFimLocal = formatarHora(local.horafim || local.hora_fim);
+                        if (hFimRemota && hFimLocal !== hFimRemota) {
                             local.horafim = hFimRemota;
                             local.hora_fim = hFimRemota;
                             alterou = true;
@@ -982,12 +1009,14 @@
         // Formatadores auxiliares
         function formatarData(valorData) {
             if (!valorData) return '';
-            const dataIso = String(valorData).substring(0, 10);
+            const str = String(valorData).trim();
+            if (str.includes('/')) return str;
+            const dataIso = str.substring(0, 10);
             const partes = dataIso.split('-');
             if (partes.length === 3) {
                 return `${partes[2]}/${partes[1]}/${partes[0]}`;
             }
-            return valorData;
+            return str;
         }
 
         function formatarHora(h) {
@@ -1033,7 +1062,7 @@
             return 'Aguardando OS';
         }
 
-        // 5. Renderização da Lista (Badge de grupo condicional)
+        // 5. Renderização da Lista
         function filtrarLista() {
             const termo = document.getElementById('txtBusca')?.value?.trim().toLowerCase() || "";
             const container = document.getElementById('listaApontamentos');
@@ -1062,7 +1091,7 @@
             emptyView.style.display = "none";
 
             container.innerHTML = filtrados.map(item => {
-                const id = item.id;
+                const id = Number(item.id);
                 const os = extrairOrdemServico(item);
                 const setor = item.setor || '-';
                 const grupo = item.grupo || 'Mantenedor';
@@ -1081,7 +1110,6 @@
                     ? `<button type="button" class="btn-sync-card" onclick="onEnviarItemClicked(${id})" title="Enviar agora para banco dados">Enviar ☁️</button>`
                     : ``;
 
-                // Badge de grupo visível APENAS para Supervisor e Administrador
                 const badgeGrupoHtml = _temPermissaoGestor
                     ? `<span class="badge-grupo-topo">Grupo: ${grupo}</span>`
                     : '';
@@ -1274,7 +1302,7 @@
 
             try {
                 const todos = await LocalDB.obterApontamentosLocais();
-                const item = todos.find(x => x.id === id);
+                const item = todos.find(x => Number(x.id) === Number(id));
 
                 if (!item || item.data_sincronizado) {
                     const osIdent = extrairOrdemServico(item);
@@ -1317,8 +1345,8 @@
 
                 item.data_sincronizado = new Date().toISOString();
                 if (retNuvem && retNuvem.length > 0) {
-                    item.remoto_id = retNuvem[0].id;
-                    item.id_remoto = retNuvem[0].id;
+                    item.remoto_id = Number(retNuvem[0].id);
+                    item.id_remoto = Number(retNuvem[0].id);
                 }
 
                 await LocalDB.salvarApontamento(item);
@@ -1383,8 +1411,8 @@
                     const item = pendentes[i];
                     item.data_sincronizado = agora;
                     if (retNuvem && retNuvem.length > i) {
-                        item.remoto_id = retNuvem[i].id;
-                        item.id_remoto = retNuvem[i].id;
+                        item.remoto_id = Number(retNuvem[i].id);
+                        item.id_remoto = Number(retNuvem[i].id);
                     }
                     await LocalDB.salvarApontamento(item);
                 }
@@ -1408,10 +1436,18 @@
         }
 
         async function editarItem(id) {
-            const todos = await LocalDB.obterApontamentosLocais();
-            const item = todos.find(x => x.id === id);
+            const item = _listaOriginal.find(x => Number(x.id) === Number(id));
+            if (!item) return;
 
-            if (item && item.data_sincronizado) {
+            if (item.data_sincronizado) {
+                if (!_temPermissaoGestor) {
+                    await exibirAviso(
+                        "Registro Bloqueado",
+                        "Este apontamento já foi transmitido para a nuvem e não pode mais ser alterado pelo dispositivo.",
+                        "warning"
+                    );
+                    return;
+                }
                 const remotoId = item.remoto_id || item.id_remoto;
                 if (remotoId) {
                     window.location.href = `novoapontamento.html?remotoId=${remotoId}`;
@@ -1424,14 +1460,14 @@
 
         async function excluirItem(id) {
             const todos = await LocalDB.obterApontamentosLocais();
-            const item = todos.find(x => x.id === id);
+            const item = todos.find(x => Number(x.id) === Number(id));
             const os = item ? extrairOrdemServico(item) : "Sem O.S.";
 
             const confirmou = await exibirConfirmacao("Excluir Apontamento", `Deseja excluir localmente a O.S. "${os}"?`, "Excluir");
             if (!confirmou) return;
 
             try {
-                await LocalDB.excluirApontamento(id);
+                await LocalDB.excluirApontamento(Number(id));
                 await exibirAviso("Excluído", "Registro removido do banco local com sucesso.", "success");
                 await carregarDadosAsync();
             } catch (err) {

@@ -293,13 +293,23 @@ const LocalDB = {
             const store = tx.objectStore('apontamentos');
 
             const itemSalvar = { ...apontamento };
-            if (!itemSalvar.id) delete itemSalvar.id;
+
+            // Se id for nulo, indefinido, vazio ou não numérico válido, remove para autoIncrement gerar
+            if (itemSalvar.id === null || itemSalvar.id === undefined || String(itemSalvar.id).trim() === '') {
+                delete itemSalvar.id;
+            } else {
+                // Garante que o id seja gravado como Number para casar com autoIncrement e store.get(Number(id))
+                const idNum = Number(itemSalvar.id);
+                if (!isNaN(idNum)) {
+                    itemSalvar.id = idNum;
+                }
+            }
 
             const request = store.put(itemSalvar);
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
         });
-    },
+    }
 
     async obterApontamentosLocais() {
         const db = await this.abrirConexao();
@@ -314,23 +324,29 @@ const LocalDB = {
     },
 
     async obterApontamentoPorId(id) {
+        const idNum = Number(id);
+        if (isNaN(idNum)) return null;
+
         const db = await this.abrirConexao();
         return new Promise((resolve, reject) => {
             const tx = db.transaction(['apontamentos'], 'readonly');
             const store = tx.objectStore('apontamentos');
-            const request = store.get(Number(id));
+            const request = store.get(idNum);
 
-            request.onsuccess = () => resolve(request.result);
+            request.onsuccess = () => resolve(request.result || null);
             request.onerror = () => reject(request.error);
         });
     },
 
     async excluirApontamento(id) {
+        const idNum = Number(id);
+        if (isNaN(idNum)) return false;
+
         const db = await this.abrirConexao();
         return new Promise((resolve, reject) => {
             const tx = db.transaction(['apontamentos'], 'readwrite');
             const store = tx.objectStore('apontamentos');
-            const request = store.delete(Number(id));
+            const request = store.delete(idNum);
 
             request.onsuccess = () => resolve(true);
             request.onerror = () => reject(request.error);

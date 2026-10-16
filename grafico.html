@@ -11,6 +11,37 @@
     <script src="supabase-config.js"></script>
     <script src="db.js"></script>
 
+    <!-- Guardião de Autenticação e Permissão de Gestor -->
+    <script>
+        (function verificarAuth() {
+            const token = localStorage.getItem("auth_token");
+            const matricula = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula");
+            if (!token || !matricula) {
+                window.location.replace("login.html");
+                return;
+            }
+
+            const nivel = (
+                localStorage.getItem("NivelAcesso") ||
+                localStorage.getItem("UsuarioNivel") ||
+                localStorage.getItem("NivelUsuario") ||
+                sessionStorage.getItem("NivelAcesso") ||
+                "Usuario"
+            ).toLowerCase();
+
+            const grupo = (localStorage.getItem("UsuarioGrupo") || "").toLowerCase();
+
+            const temPermissao = nivel.includes("admin") || nivel.includes("supervisor") ||
+                grupo.includes("admin") || grupo.includes("supervisor") ||
+                nivel === "1" || nivel === "2";
+
+            if (!temPermissao) {
+                alert("Acesso restrito a Administradores e Supervisores.");
+                window.location.replace("index.html");
+            }
+        })();
+    </script>
+
     <style>
         * {
             box-sizing: border-box;
@@ -65,7 +96,13 @@
             color: #FFFFFF;
             font-size: 20px;
             text-decoration: none;
+            transition: background 0.15s ease, transform 0.12s ease;
         }
+
+            .btn-voltar:active {
+                transform: scale(0.95);
+                background-color: #173763;
+            }
 
         .header-titles h1 {
             font-size: 19px;
@@ -89,7 +126,7 @@
             padding: 4px 10px;
         }
 
-        /* Banner de Diagnóstico / Erro */
+        /* Banner de Diagnóstico */
         .status-banner {
             background-color: #1A2E47;
             border: 1px solid #2B4E7A;
@@ -399,10 +436,31 @@
             recalcularGraficos();
         }
 
+        function formatarHoraPadrao(h) {
+            if (!h) return '';
+            const s = String(h).trim();
+            if (s.includes('T')) {
+                const parteTempo = s.split('T')[1];
+                if (parteTempo && parteTempo.includes(':')) {
+                    const subPartes = parteTempo.split(':');
+                    return `${subPartes[0].padStart(2, '0')}:${subPartes[1].padStart(2, '0')}`;
+                }
+            }
+            if (s.includes(':')) {
+                const partes = s.split(':');
+                return `${partes[0].padStart(2, '0')}:${(partes[1] || '00').substring(0, 2).padStart(2, '0')}`;
+            }
+            const apenasDigitos = s.replace(/\D/g, '');
+            if (apenasDigitos.length >= 4) {
+                return `${apenasDigitos.slice(0, 2)}:${apenasDigitos.slice(2, 4)}`;
+            }
+            return s;
+        }
+
         function calcularDuracaoHoras(hInicio, hFim) {
-            if (!hInicio || !hFim) return 0;
-            const sIni = String(hInicio).trim();
-            const sFim = String(hFim).trim();
+            const sIni = formatarHoraPadrao(hInicio);
+            const sFim = formatarHoraPadrao(hFim);
+            if (!sIni || !sFim) return 0;
 
             const p1 = sIni.split(':').map(Number);
             const p2 = sFim.split(':').map(Number);
@@ -425,7 +483,6 @@
             }
 
             try {
-                // Consulta sem limite para trazer todo o histórico
                 const { data, error } = await supabase
                     .from('apontamentos')
                     .select('*')
@@ -436,7 +493,6 @@
                 _dadosOriginais = data || [];
                 txtStatusBanner.textContent = `Carregados ${_dadosOriginais.length} registros no total da nuvem.`;
 
-                // Carrega grupos existentes na base
                 await popularSelectGrupos();
                 recalcularGraficos();
             } catch (err) {
@@ -449,13 +505,11 @@
         async function popularSelectGrupos() {
             const gruposUnicos = new Set();
 
-            // 1. Grupos cadastrados nos apontamentos retornados
             _dadosOriginais.forEach(item => {
                 const g = (item.grupo || item.Grupo || '').trim();
                 if (g) gruposUnicos.add(g);
             });
 
-            // 2. Grupos da tabela 'grupos' se disponível
             const supabase = obterClienteSupabase();
             if (supabase && navigator.onLine) {
                 try {
@@ -486,8 +540,18 @@
         }
 
         function recalcularGraficos() {
-            const dtIni = dpInicio.value;
-            const dtFim = dpFim.value;
+            let dtIni = dpInicio.value;
+            let dtFim = dpFim.value;
+
+            // Inversão automática caso a data inicial seja maior que a final
+            if (dtIni && dtFim && dtIni > dtFim) {
+                const temp = dtIni;
+                dtIni = dtFim;
+                dtFim = temp;
+                dpInicio.value = dtIni;
+                dpFim.value = dtFim;
+            }
+
             const grupoFiltro = selGrupo.value;
             const filtrarPorGrupo = grupoFiltro && grupoFiltro.toLowerCase() !== 'todos os grupos';
 
@@ -524,8 +588,8 @@
             const horasPorSetor = {};
 
             filtrados.forEach(item => {
-                const hIni = item.horainicio || item.hora_inicio || '';
-                const hFim = item.horafim || item.hora_fim || '';
+                const hIni = item.horainicio ?? item.hora_inicio ?? item.HoraInicio ?? '';
+                const hFim = item.horafim ?? item.hora_fim ?? item.HoraFim ?? '';
                 const duracao = calcularDuracaoHoras(hIni, hFim);
                 totalHoras += duracao;
 
@@ -560,7 +624,14 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { display: false }
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    return `${context.parsed.y}h trabalhadas`;
+                                }
+                            }
+                        }
                     },
                     scales: {
                         x: {
@@ -568,7 +639,11 @@
                             grid: { display: false }
                         },
                         y: {
-                            ticks: { color: '#8FA3BF', font: { size: 11 } },
+                            ticks: {
+                                color: '#8FA3BF',
+                                font: { size: 11 },
+                                callback: function (value) { return value + 'h'; }
+                            },
                             grid: { color: '#162E4E' }
                         }
                     }

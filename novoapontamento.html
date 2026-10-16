@@ -415,7 +415,8 @@
                         <input type="text"
                                id="txtMatriculaExecutante"
                                placeholder="Ex: 1024"
-                               inputmode="numeric"
+                               inputmode="text"
+                               oninput="formatarMatricula(this)"
                                autocomplete="off"
                                spellcheck="false"
                                required />
@@ -888,12 +889,12 @@
                 const hFimBusca = formatarHora(horaFim);
 
                 return registros.some(item => {
-                    if (idLocalIgnorar && item.id !== undefined && item.id !== null && String(item.id) === String(idLocalIgnorar)) {
+                    if (idLocalIgnorar !== null && idLocalIgnorar !== undefined && item.id !== undefined && item.id !== null && String(item.id) === String(idLocalIgnorar)) {
                         return false;
                     }
 
                     const itemRemotoId = item.remoto_id ?? item.id_remoto ?? item.nuvem_id;
-                    if (idRemotoIgnorar && itemRemotoId !== undefined && itemRemotoId !== null && String(itemRemotoId) === String(idRemotoIgnorar)) {
+                    if (idRemotoIgnorar !== null && idRemotoIgnorar !== undefined && itemRemotoId !== undefined && itemRemotoId !== null && String(itemRemotoId) === String(idRemotoIgnorar)) {
                         return false;
                     }
 
@@ -957,8 +958,15 @@
 
             // 2. Edição local disparada pelo próprio aparelho do operador
             if (localId) {
+                const idNumerico = Number(localId);
+                if (isNaN(idNumerico)) {
+                    await exibirAviso("Identificador Inválido", "O ID informado na rota não é válido.", "error");
+                    window.location.replace("listaapontamento.html");
+                    return;
+                }
+
                 try {
-                    const item = await LocalDB.obterApontamentoPorId(localId);
+                    const item = await LocalDB.obterApontamentoPorId(idNumerico);
                     if (item) {
                         // REGRA: Se já foi enviado para a nuvem, o usuário comum não edita localmente
                         if (item.data_sincronizado && !_temPermissaoGestor) {
@@ -973,9 +981,14 @@
 
                         _apontamentoEdicao = item;
                         carregarDadosParaEdicao(item);
+                    } else {
+                        await exibirAviso("Não Encontrado", "Apontamento local não localizado no banco de dados.", "error");
+                        window.location.replace("listaapontamento.html");
                     }
                 } catch (errLocal) {
                     console.error("Erro ao carregar dados locais:", errLocal);
+                    await exibirAviso("Erro Interno", "Falha ao acessar o armazenamento local.", "error");
+                    window.location.replace("listaapontamento.html");
                 }
             }
         }
@@ -1150,17 +1163,6 @@
                 const agoraIso = new Date().toISOString();
                 const matriculaLogada = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "---";
 
-                const payloadSupabase = {
-                    ordemservico: os,
-                    setor: setor,
-                    grupo: grupoFinal,
-                    matricula_executante: executante,
-                    data: dataSql,
-                    horainicio: hInicio,
-                    horafim: hFim,
-                    observacoes: obs
-                };
-
                 // -----------------------------------------------------------
                 // CENÁRIO 1: EDIÇÃO REMOTA (Somente no Supabase - Nuvem)
                 // -----------------------------------------------------------
@@ -1179,9 +1181,21 @@
 
                     const remotoId = _apontamentoRemotoEdicao.id;
 
+                    // IMPORTANTE: Não enviamos 'matricula_usuario' aqui para preservar a autoria original do operador
+                    const payloadUpdateRemoto = {
+                        ordemservico: os,
+                        setor: setor,
+                        grupo: grupoFinal,
+                        matricula_executante: executante,
+                        data: dataSql,
+                        horainicio: hInicio,
+                        horafim: hFim,
+                        observacoes: obs
+                    };
+
                     const { error } = await supabase
                         .from('apontamentos')
-                        .update(payloadSupabase)
+                        .update(payloadUpdateRemoto)
                         .eq('id', remotoId);
 
                     if (error) throw error;
@@ -1217,19 +1231,31 @@
                     };
 
                     const idLocalGerado = await LocalDB.salvarApontamento(novoApontamento);
-                    novoApontamento.id = idLocalGerado;
+                    novoApontamento.id = Number(idLocalGerado);
 
                     // Envio imediato para a nuvem se online
                     if (navigator.onLine && supabase) {
                         try {
+                            const payloadInsertNuvem = {
+                                ordemservico: os,
+                                setor: setor,
+                                grupo: grupoFinal,
+                                matricula_executante: executante,
+                                matricula_usuario: matriculaLogada,
+                                data: dataSql,
+                                horainicio: hInicio,
+                                horafim: hFim,
+                                observacoes: obs
+                            };
+
                             const { data: retNuvem, error: errNuvem } = await supabase
                                 .from('apontamentos')
-                                .insert([payloadSupabase])
+                                .insert([payloadInsertNuvem])
                                 .select();
 
                             if (!errNuvem && retNuvem && retNuvem.length > 0) {
-                                novoApontamento.remoto_id = retNuvem[0].id;
-                                novoApontamento.id_remoto = retNuvem[0].id;
+                                novoApontamento.remoto_id = Number(retNuvem[0].id);
+                                novoApontamento.id_remoto = Number(retNuvem[0].id);
                                 novoApontamento.data_sincronizado = agoraIso;
                                 await LocalDB.salvarApontamento(novoApontamento);
                             }
@@ -1241,6 +1267,7 @@
                     await exibirAviso("Apontamento Gravado!", "Registro realizado com sucesso.", "success");
                 } else {
                     // Atualização de apontamento local pendente
+                    _apontamentoEdicao.id = Number(_apontamentoEdicao.id);
                     _apontamentoEdicao.ordemservico = os;
                     _apontamentoEdicao.ordem_servico = os;
                     _apontamentoEdicao.setor = setor;
@@ -1265,6 +1292,11 @@
             } finally {
                 btnSalvar.disabled = false;
             }
+        }
+
+        function formatarMatricula(input) {
+            // Permite apenas números (0-9), barra (/) e espaço ( )
+            input.value = input.value.replace(/[^0-9/ ]/g, '');
         }
 
         function onVoltarTapped() {
