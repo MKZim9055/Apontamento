@@ -441,6 +441,8 @@
                                    id="txtMatriculaExecutante"
                                    placeholder="Ex: 1024 / 950"
                                    inputmode="numeric"
+                                   onkeydown="onMatriculaKeyDown(event)"
+                                   onbeforeinput="onMatriculaBeforeInput(event)"
                                    oninput="formatarMatricula(this)"
                                    autocomplete="off"
                                    spellcheck="false"
@@ -906,21 +908,114 @@
         }
 
         // =========================================================================
-        // ATALHO E FORMATAÇÃO DE MATRÍCULA
+        // ATALHO E FORMATAÇÃO DE MATRÍCULA (PC + CELULAR + BACKSPACE INTELIGENTE)
         // =========================================================================
+        function tentarApagarSeparadorInteligente(input) {
+            const cursor = input.selectionStart;
+            const cursorFim = input.selectionEnd;
+
+            // Se o usuário selecionou um intervalo de texto, mantém o comportamento padrão
+            if (cursor !== cursorFim || cursor < 3) return false;
+
+            const valor = input.value;
+            const trechoAnterior = valor.slice(cursor - 3, cursor);
+
+            // Se os 3 caracteres anteriores forem exatamente " / "
+            if (trechoAnterior === ' / ') {
+                const antes = valor.slice(0, cursor - 3);
+                const depois = valor.slice(cursor);
+
+                input.value = antes + depois;
+                const novaPosicao = cursor - 3;
+                input.setSelectionRange(novaPosicao, novaPosicao);
+                return true;
+            }
+
+            return false;
+        }
+
+        // 1. Teclados físicos (Desktop / Notebooks)
+        function onMatriculaKeyDown(e) {
+            // Apaga " / " de uma vez no Backspace físico
+            if (e.key === 'Backspace') {
+                if (tentarApagarSeparadorInteligente(e.target)) {
+                    e.preventDefault();
+                    return;
+                }
+            }
+
+            // Inserção automática de " / " com Espaço, Ponto ou Vírgula
+            if (e.key === ' ' || e.code === 'Space' || e.key === '.' || e.key === ',') {
+                e.preventDefault();
+                aplicarSeparadorMatricula(e.target);
+            }
+        }
+
+        // 2. Teclados virtuais mobile (Android / iOS)
+        function onMatriculaBeforeInput(e) {
+            if (e.inputType === 'deleteContentBackward') {
+                if (tentarApagarSeparadorInteligente(e.target)) {
+                    e.preventDefault();
+                }
+            }
+        }
+
+        // 3. Formatação contínua e sanitização
         function formatarMatricula(input) {
-            // Permite somente números, barras e espaços
-            input.value = input.value.replace(/[^0-9/ ]/g, '');
+            let valor = input.value;
+            const posOriginal = input.selectionStart;
+
+            // Converte ponto ou vírgula diretamente em separador com barra se vier após número
+            valor = valor.replace(/(\d)[.,](\d*)/g, '$1 / $2');
+
+            // Substitui pontuações residuais por espaço
+            valor = valor.replace(/[.,]/g, ' ');
+
+            // Permite apenas dígitos, barras e espaços
+            valor = valor.replace(/[^0-9/ ]/g, '');
+
+            // Colapsa repetições excessivas de espaços
+            valor = valor.replace(/ {2,}/g, ' ');
+
+            // Se terminar de digitar um espaço após números e ainda não é " / ", aplica formatação
+            if (/(^|\s|\d)\s$/.test(valor) && !valor.endsWith(' / ')) {
+                const base = valor.trimEnd();
+                if (base.length > 0 && !base.endsWith('/')) {
+                    input.value = base + ' / ';
+                    return;
+                }
+            }
+
+            // Normaliza barras consecutivas
+            valor = valor.replace(/\/{2,}/g, '/');
+
+            if (input.value !== valor) {
+                input.value = valor;
+                if (posOriginal !== null) {
+                    input.setSelectionRange(posOriginal, posOriginal);
+                }
+            }
+        }
+
+        // 4. Utilitário do separador manual/atalho
+        function aplicarSeparadorMatricula(input) {
+            const cursor = input.selectionStart ?? input.value.length;
+            const valorAtual = input.value;
+
+            const antesCursor = valorAtual.slice(0, cursor).trimEnd();
+            const depoisCursor = valorAtual.slice(cursor).trimStart();
+
+            if (antesCursor.length > 0 && !antesCursor.endsWith('/')) {
+                const separador = ' / ';
+                input.value = antesCursor + separador + depoisCursor;
+                const novaPosicao = antesCursor.length + separador.length;
+                input.setSelectionRange(novaPosicao, novaPosicao);
+            }
         }
 
         function inserirSeparadorMatricula() {
             const input = document.getElementById('txtMatriculaExecutante');
-            let valor = input.value.trim();
-
-            // Só insere se houver algo digitado e se o último caractere não for barra
-            if (valor.length > 0 && !valor.endsWith('/')) {
-                input.value = valor + ' / ';
-            }
+            aplicarSeparadorMatricula(input);
             input.focus();
         }
 
