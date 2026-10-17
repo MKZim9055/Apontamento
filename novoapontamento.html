@@ -908,19 +908,17 @@
         }
 
         // =========================================================================
-        // ATALHO E FORMATAÇÃO DE MATRÍCULA (PC + CELULAR + BACKSPACE INTELIGENTE)
+        // ATALHO E FORMATAÇÃO DE MATRÍCULA (PC + CELULAR + CURSOR CORRETO)
         // =========================================================================
         function tentarApagarSeparadorInteligente(input) {
             const cursor = input.selectionStart;
             const cursorFim = input.selectionEnd;
 
-            // Se o usuário selecionou um intervalo de texto, mantém o comportamento padrão
             if (cursor !== cursorFim || cursor < 3) return false;
 
             const valor = input.value;
             const trechoAnterior = valor.slice(cursor - 3, cursor);
 
-            // Se os 3 caracteres anteriores forem exatamente " / "
             if (trechoAnterior === ' / ') {
                 const antes = valor.slice(0, cursor - 3);
                 const depois = valor.slice(cursor);
@@ -934,9 +932,9 @@
             return false;
         }
 
-        // 1. Teclados físicos (Desktop / Notebooks)
+        // 1. Teclados físicos (Desktop)
         function onMatriculaKeyDown(e) {
-            // Apaga " / " de uma vez no Backspace físico
+            // Apaga " / " de uma só vez no Backspace físico
             if (e.key === 'Backspace') {
                 if (tentarApagarSeparadorInteligente(e.target)) {
                     e.preventDefault();
@@ -944,8 +942,8 @@
                 }
             }
 
-            // Inserção automática de " / " com Espaço, Ponto ou Vírgula
-            if (e.key === ' ' || e.code === 'Space' || e.key === '.' || e.key === ',') {
+            // Intercepta Espaço, Ponto, Vírgula ou Traço/Hífen no PC
+            if (e.key === ' ' || e.code === 'Space' || e.key === '.' || e.key === ',' || e.key === '-' || e.code === 'Minus' || e.code === 'NumpadSubtract') {
                 e.preventDefault();
                 aplicarSeparadorMatricula(e.target);
             }
@@ -953,51 +951,69 @@
 
         // 2. Teclados virtuais mobile (Android / iOS)
         function onMatriculaBeforeInput(e) {
+            // Trata Backspace no celular
             if (e.inputType === 'deleteContentBackward') {
                 if (tentarApagarSeparadorInteligente(e.target)) {
                     e.preventDefault();
-                }
-            }
-        }
-
-        // 3. Formatação contínua e sanitização
-        function formatarMatricula(input) {
-            let valor = input.value;
-            const posOriginal = input.selectionStart;
-
-            // Converte ponto ou vírgula diretamente em separador com barra se vier após número
-            valor = valor.replace(/(\d)[.,](\d*)/g, '$1 / $2');
-
-            // Substitui pontuações residuais por espaço
-            valor = valor.replace(/[.,]/g, ' ');
-
-            // Permite apenas dígitos, barras e espaços
-            valor = valor.replace(/[^0-9/ ]/g, '');
-
-            // Colapsa repetições excessivas de espaços
-            valor = valor.replace(/ {2,}/g, ' ');
-
-            // Se terminar de digitar um espaço após números e ainda não é " / ", aplica formatação
-            if (/(^|\s|\d)\s$/.test(valor) && !valor.endsWith(' / ')) {
-                const base = valor.trimEnd();
-                if (base.length > 0 && !base.endsWith('/')) {
-                    input.value = base + ' / ';
                     return;
                 }
             }
 
-            // Normaliza barras consecutivas
+            // Intercepta espaço, ponto, vírgula e traço antes que o caractere seja digitado e posicione o cursor errado
+            if (e.data === ' ' || e.data === '.' || e.data === ',' || e.data === '-') {
+                e.preventDefault();
+                aplicarSeparadorMatricula(e.target);
+            }
+        }
+
+        // 3. Formatação contínua, limpeza e posicionamento seguro do cursor
+        function formatarMatricula(input) {
+            let valor = input.value;
+            const cursorOriginal = input.selectionStart ?? valor.length;
+
+            const continhaSeparadorPendente = /[., -]/.test(valor);
+
+            // Converte ponto, vírgula ou traço entre dígitos diretamente em " / "
+            valor = valor.replace(/(\d)[.,\-](\d*)/g, '$1 / $2');
+
+            // Substitui qualquer ponto, vírgula ou traço isolado por espaço
+            valor = valor.replace(/[.,\-]/g, ' ');
+
+            // Permite somente números, barras e espaços
+            valor = valor.replace(/[^0-9/ ]/g, '');
+
+            // Colapsa repetições de espaços
+            valor = valor.replace(/ {2,}/g, ' ');
+
+            // Se terminar com espaço após dígitos e não tiver a barra, aplica " / "
+            if (/(^|\s|\d)\s$/.test(valor) && !valor.endsWith(' / ')) {
+                const base = valor.trimEnd();
+                if (base.length > 0 && !base.endsWith('/')) {
+                    input.value = base + ' / ';
+                    const fim = input.value.length;
+                    input.setSelectionRange(fim, fim);
+                    return;
+                }
+            }
+
+            // Normaliza barras repetidas
             valor = valor.replace(/\/{2,}/g, '/');
 
             if (input.value !== valor) {
                 input.value = valor;
-                if (posOriginal !== null) {
-                    input.setSelectionRange(posOriginal, posOriginal);
+
+                // Garante que o cursor vá após o espaço final
+                if (continhaSeparadorPendente && valor.endsWith(' / ')) {
+                    const fim = valor.length;
+                    input.setSelectionRange(fim, fim);
+                } else {
+                    const posAjustada = Math.min(cursorOriginal, valor.length);
+                    input.setSelectionRange(posAjustada, posAjustada);
                 }
             }
         }
 
-        // 4. Utilitário do separador manual/atalho
+        // 4. Inserção garantida com cursor posicionado após o espaço do separador
         function aplicarSeparadorMatricula(input) {
             const cursor = input.selectionStart ?? input.value.length;
             const valorAtual = input.value;
@@ -1009,6 +1025,8 @@
                 const separador = ' / ';
                 input.value = antesCursor + separador + depoisCursor;
                 const novaPosicao = antesCursor.length + separador.length;
+
+                // Posiciona o cursor logo após o espaço final de " / "
                 input.setSelectionRange(novaPosicao, novaPosicao);
             }
         }
