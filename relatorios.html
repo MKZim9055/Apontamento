@@ -17,6 +17,37 @@
     <script src="supabase-config.js"></script>
     <script src="db.js"></script>
 
+    <!-- Guardião de Autenticação e Permissão de Gestor -->
+    <script>
+        (function verificarAuth() {
+            const token = localStorage.getItem("auth_token");
+            const matricula = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula");
+            if (!token || !matricula) {
+                window.location.replace("login.html");
+                return;
+            }
+
+            const nivel = (
+                localStorage.getItem("NivelAcesso") ||
+                localStorage.getItem("UsuarioNivel") ||
+                localStorage.getItem("NivelUsuario") ||
+                sessionStorage.getItem("NivelAcesso") ||
+                "Usuario"
+            ).toLowerCase();
+
+            const grupo = (localStorage.getItem("UsuarioGrupo") || "").toLowerCase();
+
+            const temPermissao = nivel.includes("admin") || nivel.includes("supervisor") ||
+                grupo.includes("admin") || grupo.includes("supervisor") ||
+                nivel === "1" || nivel === "2";
+
+            if (!temPermissao) {
+                alert("Acesso restrito a Administradores e Supervisores.");
+                window.location.replace("index.html");
+            }
+        })();
+    </script>
+
     <style>
         * {
             box-sizing: border-box;
@@ -30,7 +61,6 @@
             user-select: text;
         }
 
-        /* Trava a altura da tela inteira para scroll interno limpo */
         html {
             height: 100%;
         }
@@ -96,16 +126,47 @@
             gap: 2px;
         }
 
-            .header-titles h1 {
-                font-size: 20px;
-                font-weight: 700;
-                color: #FFFFFF;
-                line-height: 1.2;
-            }
+        .header-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
 
-            .header-titles p {
-                font-size: 12px;
-                color: #8FA3BF;
+        .header-titles h1 {
+            font-size: 19px;
+            font-weight: 700;
+            color: #FFFFFF;
+            line-height: 1.2;
+        }
+
+        .header-titles p {
+            font-size: 12px;
+            color: #8FA3BF;
+        }
+
+        /* Botão Gráfico */
+        .btn-grafico {
+            background-color: #0E223D;
+            border: 1px solid #1F3A60;
+            color: #00C48C;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 6px 10px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background-color 0.15s ease, transform 0.12s ease, border-color 0.15s ease;
+        }
+
+            .btn-grafico:active {
+                transform: scale(0.95);
+                background-color: #173763;
+                border-color: #00C48C;
             }
 
         /* 2. Painel de Filtros e Busca */
@@ -156,7 +217,6 @@
                     color: #475C75;
                 }
 
-        /* Datas lado a lado */
         .date-filters {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -234,7 +294,7 @@
             color: #00C48C;
         }
 
-        /* 4. Lista e Scroll Ativo */
+        /* 4. Lista e Scroll */
         .list-container {
             flex: 1;
             min-height: 0;
@@ -308,7 +368,6 @@
                 cursor: grabbing;
             }
 
-        /* Linha 1 */
         .card-line-1 {
             display: flex;
             justify-content: space-between;
@@ -361,14 +420,12 @@
             color: #8FA3BF;
         }
 
-        /* Divisor */
         .card-divider {
             height: 1px;
             background-color: #162E4E;
             margin: 2px 0;
         }
 
-        /* Linha 2 */
         .card-line-2 {
             display: flex;
             justify-content: space-between;
@@ -416,7 +473,6 @@
             color: #657D99;
         }
 
-        /* Linha Setor */
         .card-setor-row {
             display: flex;
             align-items: center;
@@ -433,7 +489,6 @@
             width: fit-content;
         }
 
-        /* Linha 3: Observações */
         .card-obs {
             font-size: 14px;
             color: #8FA3BF;
@@ -449,7 +504,6 @@
                 color: #CAD8E8;
             }
 
-        /* EmptyView */
         .empty-view {
             display: flex;
             flex-direction: column;
@@ -468,7 +522,6 @@
                 font-size: 14px;
             }
 
-        /* Indicador de Refresh */
         .refresh-status {
             text-align: center;
             font-size: 11px;
@@ -580,12 +633,6 @@
             transition: transform 0.1s ease;
         }
 
-            .modal-btn.secondary {
-                background-color: #0E223D;
-                border: 1px solid #1F3A60;
-                color: #8FA3BF;
-            }
-
             .modal-btn:active {
                 transform: scale(0.97);
             }
@@ -599,7 +646,13 @@
         <header class="header-top">
             <button type="button" class="btn-voltar" onclick="onVoltarTapped()" title="Voltar">←</button>
             <div class="header-titles">
-                <h1>Relatório de Apontamentos</h1>
+                <div class="header-title-row">
+                    <h1>Relatório de Apontamentos</h1>
+                    <a href="grafico.html" class="btn-grafico" title="Visualizar Gráficos">
+                        <span>📊</span>
+                        <span>Gráfico</span>
+                    </a>
+                </div>
                 <p>Consulta e gerenciamento na nuvem</p>
             </div>
         </header>
@@ -608,7 +661,6 @@
         <section class="filter-panel">
             <div class="filter-title">FILTROS DE PESQUISA</div>
 
-            <!-- Campo de Busca por O.S ou Matrícula -->
             <div class="search-box">
                 <input type="text"
                        id="txtBusca"
@@ -617,7 +669,6 @@
                        spellcheck="false" />
             </div>
 
-            <!-- Filtro de Datas lado a lado -->
             <div class="date-filters">
                 <div class="input-group">
                     <label for="dpDataInicio">Data Início</label>
@@ -633,7 +684,6 @@
                 </div>
             </div>
 
-            <!-- Filtro por Grupo / Especialidade -->
             <div class="input-group">
                 <label for="pkrGrupo">Grupo / Especialidade</label>
                 <div class="input-box-sm">
@@ -652,7 +702,7 @@
 
         <div id="refreshIndicator" class="refresh-status">Atualizando registros...</div>
 
-        <!-- 4. Lista dos Apontamentos com Scroll Ativo -->
+        <!-- 4. Lista dos Apontamentos com Scroll -->
         <main class="list-container" id="cvApontamentos">
             <!-- Renderizado dinamicamente -->
         </main>
@@ -666,7 +716,6 @@
             <h3 id="modalTitulo">Relatório</h3>
             <p id="modalMensagem">Mensagem informativa...</p>
             <div class="modal-buttons-row">
-                <button id="btnModalCancelar" class="modal-btn secondary" style="display: none;">Cancelar</button>
                 <button id="btnModalOk" class="modal-btn">OK</button>
             </div>
         </div>
@@ -683,12 +732,9 @@
                 const lblMensagem = document.getElementById('modalMensagem');
                 const icone = document.getElementById('modalIcone');
                 const btnOk = document.getElementById('btnModalOk');
-                const btnCancelar = document.getElementById('btnModalCancelar');
 
                 lblTitulo.textContent = titulo;
                 lblMensagem.textContent = mensagem;
-                btnCancelar.style.display = 'none';
-                btnOk.textContent = 'OK';
 
                 if (tipo === 'success') {
                     icone.className = 'modal-icon-badge success';
@@ -728,7 +774,6 @@
         let _listaOriginal = [];
         let _filtroTimer = null;
 
-        // Elementos da UI
         const txtBusca = document.getElementById('txtBusca');
         const dpDataInicio = document.getElementById('dpDataInicio');
         const dpDataFim = document.getElementById('dpDataFim');
@@ -746,7 +791,6 @@
             await onAppearing();
         });
 
-        // Configura intervalo inicial para os últimos 7 dias até hoje
         function configurarValoresPadrao() {
             const agora = new Date();
             const seteDiasAtras = new Date();
@@ -824,8 +868,7 @@
 
                         if (error || !data) {
                             await exibirAviso("Acesso Revogado", "Sessão encerrada: usuário não encontrado no servidor.", "error");
-                            localStorage.removeItem("MatriculaUsuario");
-                            localStorage.removeItem("NivelUsuario");
+                            desconectar();
                             window.location.replace("login.html");
                             return;
                         }
@@ -877,7 +920,6 @@
                 .toLowerCase();
         }
 
-        // Extração de OS com substituição de '-' por 'Aguardando OS'
         function extrairOrdemServico(item) {
             if (!item) return 'Aguardando OS';
             const candidatos = [
@@ -903,12 +945,14 @@
 
         function formatarData(valorData) {
             if (!valorData) return '';
-            const dataIso = String(valorData).substring(0, 10);
+            const str = String(valorData).trim();
+            if (str.includes('/')) return str;
+            const dataIso = str.substring(0, 10);
             const partes = dataIso.split('-');
             if (partes.length === 3) {
                 return `${partes[2]}/${partes[1]}/${partes[0]}`;
             }
-            return valorData;
+            return str;
         }
 
         function formatarHora(h) {
@@ -943,8 +987,18 @@
         // 5. FILTRAGEM EM MEMÓRIA
         // =========================================================================
         function aplicarFiltrosEmMemoria() {
-            const dataInicio = dpDataInicio.value;
-            const dataFim = dpDataFim.value;
+            let dataInicio = dpDataInicio.value;
+            let dataFim = dpDataFim.value;
+
+            // Se o usuário selecionou uma data inicial maior que a final, normaliza automaticamente
+            if (dataInicio && dataFim && dataInicio > dataFim) {
+                const temp = dataInicio;
+                dataInicio = dataFim;
+                dataFim = temp;
+                dpDataInicio.value = dataInicio;
+                dpDataFim.value = dataFim;
+            }
+
             const textoBusca = normalizarTexto(txtBusca.value);
             const temTextoBusca = textoBusca.length > 0;
 
@@ -989,7 +1043,7 @@
         }
 
         // =========================================================================
-        // 6. RENDERIZAÇÃO NA TELA (Apenas Botão Editar)
+        // 6. RENDERIZAÇÃO NA TELA
         // =========================================================================
         function renderizar(itens) {
             lblTotalRegistros.textContent = `${itens.length} registro(s)`;
@@ -1005,7 +1059,7 @@
             }
 
             listContainer.innerHTML = itens.map(item => {
-                const id = item.id;
+                const id = Number(item.id);
                 const os = extrairOrdemServico(item);
                 const setor = item.setor || item.Setor || '-';
                 const grupo = item.grupo || item.Grupo || '-';
@@ -1030,10 +1084,9 @@
                 return `
                         <div class="swipe-container" id="card-${id}">
                             <div class="swipe-actions">
-                                <button class="swipe-btn btn-edit" onclick="onEditarItemInvoked('${id}')">Editar</button>
+                                <button class="swipe-btn btn-edit" onclick="onEditarItemInvoked(${id})">Editar</button>
                             </div>
                             <div class="item-card" data-open="false">
-                                <!-- Linha 1: O.S e Data/Grupo -->
                                 <div class="card-line-1">
                                     <div class="os-left-group">
                                         <span class="${osClasseDestaque}">${os}</span>
@@ -1046,7 +1099,6 @@
 
                                 <div class="card-divider"></div>
 
-                                <!-- Linha 2: Matrícula e Horários -->
                                 <div class="card-line-2">
                                     <div class="matricula-group">
                                         <span class="matricula-label">Matrícula:</span>
@@ -1063,12 +1115,10 @@
                                     </div>
                                 </div>
 
-                                <!-- Setor -->
                                 <div class="card-setor-row">
                                     <span class="badge-setor-bloco">Setor: ${setor}</span>
                                 </div>
 
-                                <!-- Tarefa -->
                                 ${obs ? `<div class="card-obs"><strong>Tarefa:</strong> ${obs}</div>` : ''}
                             </div>
                         </div>
@@ -1087,7 +1137,7 @@
                 return;
             }
 
-            window.location.href = `novoapontamento.html?remotoId=${id}`;
+            window.location.href = `novoapontamento.html?remotoId=${Number(id)}`;
         }
 
         // =========================================================================
@@ -1228,11 +1278,18 @@
         pkrGrupo.addEventListener('change', aplicarFiltrosEmMemoria);
 
         function onVoltarTapped() {
-            if (window.history.length > 1) {
-                window.history.back();
-            } else {
-                window.location.href = "index.html";
-            }
+            window.location.href = "index.html";
+        }
+
+        function desconectar() {
+            localStorage.removeItem("auth_token");
+            localStorage.removeItem("UsuarioMatricula");
+            localStorage.removeItem("MatriculaUsuario");
+            localStorage.removeItem("UsuarioNome");
+            localStorage.removeItem("UsuarioGrupo");
+            localStorage.removeItem("UsuarioNivel");
+            localStorage.removeItem("NivelUsuario");
+            localStorage.removeItem("NivelAcesso");
         }
     </script>
 </body>

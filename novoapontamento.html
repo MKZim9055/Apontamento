@@ -173,6 +173,30 @@
                     color: #FFFFFF;
                 }
 
+        /* Botão Atalho Barra Matrícula */
+        .btn-atalho-barra {
+            background-color: #0E223D;
+            border: 1px solid #1F3A60;
+            color: #00C48C;
+            height: 50px;
+            padding: 0 16px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.15s ease, transform 0.1s ease, border-color 0.15s ease;
+            flex-shrink: 0;
+        }
+
+            .btn-atalho-barra:active {
+                transform: scale(0.95);
+                background-color: #173763;
+                border-color: #00C48C;
+            }
+
         /* Grid de Horários */
         .grid-horarios {
             display: grid;
@@ -394,29 +418,42 @@
                     </div>
                 </div>
 
-                <!-- Ordem de Serviço (Opcional) -->
+                <!-- Ordem de Serviço (Opcional - Aceita apenas números) -->
                 <div class="input-group">
                     <label for="txtOrdemServico">Ordem de Serviço</label>
                     <div class="input-box">
                         <input type="text"
                                id="txtOrdemServico"
                                placeholder="Ex: 35000"
+                               inputmode="numeric"
+                               oninput="this.value = this.value.replace(/\D/g, '')"
                                autocomplete="off"
                                spellcheck="false" />
                     </div>
                 </div>
 
-                <!-- Matrícula Executante -->
+                <!-- Matrícula Executante com Botão Barra -->
                 <div class="input-group">
-                    <label for="txtMatriculaExecutante">Matrícula</label>
-                    <div class="input-box">
-                        <input type="text"
-                               id="txtMatriculaExecutante"
-                               placeholder="Ex: 1024"
-                               inputmode="numeric"
-                               autocomplete="off"
-                               spellcheck="false"
-                               required />
+                    <label for="txtMatriculaExecutante">Matrícula (Ex: 1024 ou 1024 / 950)</label>
+                    <div style="display: flex; gap: 8px; width: 100%;">
+                        <div class="input-box" style="flex: 1;">
+                            <input type="text"
+                                   id="txtMatriculaExecutante"
+                                   placeholder="Ex: 1024 / 950"
+                                   inputmode="numeric"
+                                   onkeydown="onMatriculaKeyDown(event)"
+                                   onbeforeinput="onMatriculaBeforeInput(event)"
+                                   oninput="formatarMatricula(this)"
+                                   autocomplete="off"
+                                   spellcheck="false"
+                                   required />
+                        </div>
+                        <button type="button"
+                                class="btn-atalho-barra"
+                                onclick="inserirSeparadorMatricula()"
+                                title="Adicionar separador para mais executantes">
+                            + /
+                        </button>
                     </div>
                 </div>
 
@@ -831,7 +868,7 @@
                 if (item[chave] !== undefined && item[chave] !== null && String(item[chave]).trim() !== '') {
                     const valor = String(item[chave]).trim();
                     if (valor === 'Aguardando OS' || valor === '-') return '';
-                    return valor;
+                    return valor.replace(/\D/g, '');
                 }
             }
             return '';
@@ -871,6 +908,120 @@
         }
 
         // =========================================================================
+        // ATALHO E FORMATAÇÃO DE MATRÍCULA (PC + CELULAR + CURSOR CORRETO)
+        // =========================================================================
+        function tentarApagarSeparadorInteligente(input) {
+            const cursor = input.selectionStart;
+            const cursorFim = input.selectionEnd;
+
+            if (cursor !== cursorFim || cursor < 3) return false;
+
+            const valor = input.value;
+            const trechoAnterior = valor.slice(cursor - 3, cursor);
+
+            if (trechoAnterior === ' / ') {
+                const antes = valor.slice(0, cursor - 3);
+                const depois = valor.slice(cursor);
+
+                input.value = antes + depois;
+                const novaPosicao = cursor - 3;
+                input.setSelectionRange(novaPosicao, novaPosicao);
+                return true;
+            }
+
+            return false;
+        }
+
+        // 1. Teclados físicos (Desktop)
+        function onMatriculaKeyDown(e) {
+            if (e.key === 'Backspace') {
+                if (tentarApagarSeparadorInteligente(e.target)) {
+                    e.preventDefault();
+                    return;
+                }
+            }
+
+            if (e.key === ' ' || e.code === 'Space' || e.key === '.' || e.key === ',' || e.key === '-' || e.code === 'Minus' || e.code === 'NumpadSubtract') {
+                e.preventDefault();
+                aplicarSeparadorMatricula(e.target);
+            }
+        }
+
+        // 2. Teclados virtuais mobile (Android / iOS)
+        function onMatriculaBeforeInput(e) {
+            if (e.inputType === 'deleteContentBackward') {
+                if (tentarApagarSeparadorInteligente(e.target)) {
+                    e.preventDefault();
+                    return;
+                }
+            }
+
+            if (e.data === ' ' || e.data === '.' || e.data === ',' || e.data === '-') {
+                e.preventDefault();
+                aplicarSeparadorMatricula(e.target);
+            }
+        }
+
+        // 3. Formatação contínua, limpeza e posicionamento seguro do cursor
+        function formatarMatricula(input) {
+            let valor = input.value;
+            const cursorOriginal = input.selectionStart ?? valor.length;
+
+            const continhaSeparadorPendente = /[., -]/.test(valor);
+
+            valor = valor.replace(/(\d)[.,\-](\d*)/g, '$1 / $2');
+            valor = valor.replace(/[.,\-]/g, ' ');
+            valor = valor.replace(/[^0-9/ ]/g, '');
+            valor = valor.replace(/ {2,}/g, ' ');
+
+            if (/(^|\s|\d)\s$/.test(valor) && !valor.endsWith(' / ')) {
+                const base = valor.trimEnd();
+                if (base.length > 0 && !base.endsWith('/')) {
+                    input.value = base + ' / ';
+                    const fim = input.value.length;
+                    input.setSelectionRange(fim, fim);
+                    return;
+                }
+            }
+
+            valor = valor.replace(/\/{2,}/g, '/');
+
+            if (input.value !== valor) {
+                input.value = valor;
+
+                if (continhaSeparadorPendente && valor.endsWith(' / ')) {
+                    const fim = valor.length;
+                    input.setSelectionRange(fim, fim);
+                } else {
+                    const posAjustada = Math.min(cursorOriginal, valor.length);
+                    input.setSelectionRange(posAjustada, posAjustada);
+                }
+            }
+        }
+
+        // 4. Inserção garantida com cursor posicionado após o espaço do separador
+        function aplicarSeparadorMatricula(input) {
+            const cursor = input.selectionStart ?? input.value.length;
+            const valorAtual = input.value;
+
+            const antesCursor = valorAtual.slice(0, cursor).trimEnd();
+            const depoisCursor = valorAtual.slice(cursor).trimStart();
+
+            if (antesCursor.length > 0 && !antesCursor.endsWith('/')) {
+                const separador = ' / ';
+                input.value = antesCursor + separador + depoisCursor;
+                const novaPosicao = antesCursor.length + separador.length;
+                input.setSelectionRange(novaPosicao, novaPosicao);
+            }
+        }
+
+        function inserirSeparadorMatricula() {
+            const input = document.getElementById('txtMatriculaExecutante');
+            aplicarSeparadorMatricula(input);
+            input.focus();
+        }
+
+        // =========================================================================
         // VERIFICAÇÃO DE DUPLICIDADE NO BANCO LOCAL
         // =========================================================================
         async function verificarApontamentoDuplicado(os, data, horaInicio, horaFim, idLocalIgnorar = null, idRemotoIgnorar = null) {
@@ -886,12 +1037,12 @@
                 const hFimBusca = formatarHora(horaFim);
 
                 return registros.some(item => {
-                    if (idLocalIgnorar && item.id !== undefined && item.id !== null && String(item.id) === String(idLocalIgnorar)) {
+                    if (idLocalIgnorar !== null && idLocalIgnorar !== undefined && item.id !== undefined && item.id !== null && String(item.id) === String(idLocalIgnorar)) {
                         return false;
                     }
 
                     const itemRemotoId = item.remoto_id ?? item.id_remoto ?? item.nuvem_id;
-                    if (idRemotoIgnorar && itemRemotoId !== undefined && itemRemotoId !== null && String(itemRemotoId) === String(idRemotoIgnorar)) {
+                    if (idRemotoIgnorar !== null && idRemotoIgnorar !== undefined && itemRemotoId !== undefined && itemRemotoId !== null && String(itemRemotoId) === String(idRemotoIgnorar)) {
                         return false;
                     }
 
@@ -914,12 +1065,29 @@
         }
 
         // =========================================================================
-        // VERIFICAÇÃO DE ROTA E PREENCHIMENTO EM EDIÇÃO
+        // VERIFICAÇÃO DE ROTA E PREENCHIMENTO EM EDIÇÃO / REPLICAÇÃO
         // =========================================================================
         async function verificarParametrosRota() {
             const params = new URLSearchParams(window.location.search);
             const localId = params.get('id');
             const remotoId = params.get('remotoId');
+            const replicarId = params.get('replicarId');
+
+            // 0. Replicação de Apontamento Local (Mantém dados, data atual e aguarda gravação)
+            if (replicarId) {
+                const idNumerico = Number(replicarId);
+                if (!isNaN(idNumerico)) {
+                    try {
+                        const item = await LocalDB.obterApontamentoPorId(idNumerico);
+                        if (item) {
+                            carregarDadosParaReplicacao(item);
+                            return;
+                        }
+                    } catch (errRep) {
+                        console.warn("[Replicar] Falha ao carregar item para replicação:", errRep);
+                    }
+                }
+            }
 
             // 1. Edição remota disparada pelo painel de relatórios
             if (remotoId) {
@@ -955,10 +1123,16 @@
 
             // 2. Edição local disparada pelo próprio aparelho do operador
             if (localId) {
+                const idNumerico = Number(localId);
+                if (isNaN(idNumerico)) {
+                    await exibirAviso("Identificador Inválido", "O ID informado na rota não é válido.", "error");
+                    window.location.replace("listaapontamento.html");
+                    return;
+                }
+
                 try {
-                    const item = await LocalDB.obterApontamentoPorId(localId);
+                    const item = await LocalDB.obterApontamentoPorId(idNumerico);
                     if (item) {
-                        // REGRA: Se já foi enviado para a nuvem, o usuário comum não edita localmente
                         if (item.data_sincronizado && !_temPermissaoGestor) {
                             await exibirAviso(
                                 "Registro Bloqueado",
@@ -971,11 +1145,53 @@
 
                         _apontamentoEdicao = item;
                         carregarDadosParaEdicao(item);
+                    } else {
+                        await exibirAviso("Não Encontrado", "Apontamento local não localizado no banco de dados.", "error");
+                        window.location.replace("listaapontamento.html");
                     }
                 } catch (errLocal) {
                     console.error("Erro ao carregar dados locais:", errLocal);
+                    await exibirAviso("Erro Interno", "Falha ao acessar o armazenamento local.", "error");
+                    window.location.replace("listaapontamento.html");
                 }
             }
+        }
+
+        // Preenche com os dados do apontamento selecionado, mas força a data de hoje e deixa pronto como NOVO apontamento
+        function carregarDadosParaReplicacao(item) {
+            _apontamentoEdicao = null;
+            _apontamentoRemotoEdicao = null;
+
+            document.title = "Replicar Apontamento";
+            document.getElementById('lblTitulo').textContent = "Replicar Apontamento";
+            document.getElementById('btnSalvar').textContent = "Gravar Apontamento";
+
+            // Garante a data atual do dia
+            const agora = new Date();
+            const ano = agora.getFullYear();
+            const mes = String(agora.getMonth() + 1).padStart(2, '0');
+            const dia = String(agora.getDate()).padStart(2, '0');
+            document.getElementById('dpData').value = `${ano}-${mes}-${dia}`;
+
+            document.getElementById('txtOrdemServico').value = extrairOrdemServicoDoObjeto(item);
+            document.getElementById('txtMatriculaExecutante').value = item.matricula_executante || item.MatriculaExecutante || '';
+
+            const hInicio = formatarHora(item.horainicio || item.hora_inicio || '');
+            const hFim = formatarHora(item.horafim || item.hora_fim || '');
+
+            document.getElementById('txtHoraInicio').value = hInicio;
+            document.getElementById('txtHoraFim').value = hFim;
+            document.getElementById('tpNativoInicio').value = hInicio;
+            document.getElementById('tpNativoFim').value = hFim;
+
+            if (_temPermissaoGestor) {
+                definirGrupoSelecionado(item.grupo || item.Grupo || '');
+            }
+            definirSetorSelecionado(item.setor || item.Setor || '');
+            document.getElementById('txtObservacoes').value = item.observacoes || item.Observacoes || item.descricao || '';
+
+            const matriculaLogada = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "---";
+            document.getElementById('lblMatriculaOperador').textContent = `Replicando Base #${item.id} • Op: ${matriculaLogada}`;
         }
 
         function carregarDadosParaEdicao(item) {
@@ -1051,7 +1267,7 @@
         }
 
         // =========================================================================
-        // SALVAMENTO GARANTIDO
+        // SALVAMENTO GARANTIDO (Sem envio automático)
         // =========================================================================
         async function onSalvarApontamentoClicked(e) {
             e.preventDefault();
@@ -1060,8 +1276,8 @@
             const hInicio = document.getElementById('txtHoraInicio').value.trim();
             const hFim = document.getElementById('txtHoraFim').value.trim();
 
-            const osInput = document.getElementById('txtOrdemServico').value.trim();
-            const os = (osInput === '' || osInput === '-') ? 'Aguardando OS' : osInput;
+            const osDigitos = document.getElementById('txtOrdemServico').value.replace(/\D/g, '');
+            const os = osDigitos === '' ? 'Aguardando OS' : osDigitos;
 
             const setor = document.getElementById('pickerSetor').value.trim();
             const obs = document.getElementById('txtObservacoes').value.trim();
@@ -1144,22 +1360,10 @@
             btnSalvar.disabled = true;
 
             try {
-                const agoraIso = new Date().toISOString();
                 const matriculaLogada = localStorage.getItem("MatriculaUsuario") || localStorage.getItem("UsuarioMatricula") || "---";
 
-                const payloadSupabase = {
-                    ordemservico: os,
-                    setor: setor,
-                    grupo: grupoFinal,
-                    matricula_executante: executante,
-                    data: dataSql,
-                    horainicio: hInicio,
-                    horafim: hFim,
-                    observacoes: obs
-                };
-
                 // -----------------------------------------------------------
-                // CENÁRIO 1: EDIÇÃO REMOTA (Somente no Supabase - Nuvem)
+                // CENÁRIO 1: EDIÇÃO REMOTA (Disparada pelo supervisor via relatorios.html)
                 // -----------------------------------------------------------
                 if (_apontamentoRemotoEdicao != null) {
                     if (!_temPermissaoGestor) {
@@ -1176,9 +1380,20 @@
 
                     const remotoId = _apontamentoRemotoEdicao.id;
 
+                    const payloadUpdateRemoto = {
+                        ordemservico: os,
+                        setor: setor,
+                        grupo: grupoFinal,
+                        matricula_executante: executante,
+                        data: dataSql,
+                        horainicio: hInicio,
+                        horafim: hFim,
+                        observacoes: obs
+                    };
+
                     const { error } = await supabase
                         .from('apontamentos')
-                        .update(payloadSupabase)
+                        .update(payloadUpdateRemoto)
                         .eq('id', remotoId);
 
                     if (error) throw error;
@@ -1189,14 +1404,14 @@
                 }
 
                 // -----------------------------------------------------------
-                // CENÁRIO 2: SALVAMENTO LOCAL DO OPERADOR (Novo ou Edição)
+                // CENÁRIO 2: SALVAMENTO LOCAL DO OPERADOR (Novo, Replicado ou Edição)
                 // -----------------------------------------------------------
                 if (typeof LocalDB === 'undefined') {
                     throw new Error("LocalDB indisponível em db.js.");
                 }
 
                 if (_apontamentoEdicao == null) {
-                    // Novo apontamento local
+                    // Novo apontamento local (inclui apontamentos replicados)
                     const novoApontamento = {
                         ordemservico: os,
                         ordem_servico: os,
@@ -1213,31 +1428,12 @@
                         data_sincronizado: null
                     };
 
-                    const idLocalGerado = await LocalDB.salvarApontamento(novoApontamento);
-                    novoApontamento.id = idLocalGerado;
+                    await LocalDB.salvarApontamento(novoApontamento);
 
-                    // Envio imediato para a nuvem se online
-                    if (navigator.onLine && supabase) {
-                        try {
-                            const { data: retNuvem, error: errNuvem } = await supabase
-                                .from('apontamentos')
-                                .insert([payloadSupabase])
-                                .select();
-
-                            if (!errNuvem && retNuvem && retNuvem.length > 0) {
-                                novoApontamento.remoto_id = retNuvem[0].id;
-                                novoApontamento.id_remoto = retNuvem[0].id;
-                                novoApontamento.data_sincronizado = agoraIso;
-                                await LocalDB.salvarApontamento(novoApontamento);
-                            }
-                        } catch (eEnvio) {
-                            console.warn("Sem conexão com o Supabase. Ficará pendente de sincronização.", eEnvio);
-                        }
-                    }
-
-                    await exibirAviso("Apontamento Gravado!", "Registro realizado com sucesso.", "success");
+                    await exibirAviso("Apontamento Gravado!", "Registro salvo no dispositivo com sucesso. Envie-o pela lista quando desejar.", "success");
                 } else {
                     // Atualização de apontamento local pendente
+                    _apontamentoEdicao.id = Number(_apontamentoEdicao.id);
                     _apontamentoEdicao.ordemservico = os;
                     _apontamentoEdicao.ordem_servico = os;
                     _apontamentoEdicao.setor = setor;

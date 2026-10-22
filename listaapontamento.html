@@ -233,6 +233,11 @@
             background-color: #DA3633;
         }
 
+        .btn-replicate {
+            background-color: #00C48C;
+            color: #020912;
+        }
+
         .item-card {
             position: relative;
             background-color: #0D2542;
@@ -497,9 +502,7 @@
             display: none !important;
         }
 
-        /* =========================================================================
-           MODAL DE ALERTA E CONFIRMAÇÃO PERSONALIZADO
-           ========================================================================= */
+        /* Modal Customizado */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -645,7 +648,7 @@
         <!-- 3. Contador de Registros -->
         <div class="counter-bar">
             <span class="counter-label">APONTAMENTOS LOCAIS</span>
-            <span class="counter-value" id="lblTotal">0 registro(s)</span>
+            <span class="counter-value" id="lblTotal">0 registro(s) / 0 pendente(s)</span>
         </div>
 
         <!-- 4. Lista dos Apontamentos com Swipe e Scroll -->
@@ -681,7 +684,7 @@
 
     <script>
         // =========================================================================
-        // 0. DIÁLOGOS CUSTOMIZADOS (Substitui alert e confirm nativos)
+        // 0. DIÁLOGOS CUSTOMIZADOS
         // =========================================================================
         function exibirAviso(titulo, mensagem, tipo = 'success') {
             return new Promise((resolve) => {
@@ -754,7 +757,7 @@
         }
 
         // =========================================================================
-        // 1. CAPTURA ROBUSTA DO CLIENTE SUPABASE
+        // 1. CAPTURA DO CLIENTE SUPABASE
         // =========================================================================
         function obterClienteSupabase() {
             if (window.supabaseClient) return window.supabaseClient;
@@ -847,6 +850,7 @@
                     localStorage.getItem("NivelAcesso") ||
                     localStorage.getItem("UsuarioNivel") ||
                     localStorage.getItem("NivelUsuario") ||
+                    sessionStorage.getItem("NivelAcesso") ||
                     "Usuario"
                 ).toLowerCase();
                 const isUsuario = nivel === "usuario" || nivel === "3";
@@ -856,7 +860,7 @@
                 dados.sort((a, b) => {
                     const diffData = new Date(b.data || 0) - new Date(a.data || 0);
                     if (diffData !== 0) return diffData;
-                    return (b.id || 0) - (a.id || 0);
+                    return (Number(b.id) || 0) - (Number(a.id) || 0);
                 });
 
                 if (isUsuario && matricula) {
@@ -874,6 +878,9 @@
             }
         }
 
+        // =========================================================================
+        // SINCRONIZAÇÃO DESCENDENTE (Nuvem -> Local)
+        // =========================================================================
         async function atualizarEdicoesDoSupervisorAsync() {
             if (!navigator.onLine) return;
             const supabase = obterClienteSupabase();
@@ -884,7 +891,7 @@
 
             try {
                 const locais = await LocalDB.obterApontamentosLocais();
-                if (locais.length === 0) return;
+                if (!locais || locais.length === 0) return;
 
                 const { data: remotos, error } = await supabase
                     .from('apontamentos')
@@ -897,24 +904,36 @@
 
                 for (const remoto of remotos) {
                     const remotoId = Number(remoto.id);
+                    if (isNaN(remotoId)) continue;
+
                     const osRemota = extrairOrdemServico(remoto);
                     const dataRemota = String(remoto.data || '').substring(0, 10);
                     const hIniRemota = formatarHora(remoto.horainicio || remoto.hora_inicio);
+                    const hFimRemota = formatarHora(remoto.horafim || remoto.hora_fim);
                     const matExecRemota = String(remoto.matricula_executante || '').trim();
 
                     let local = locais.find(l => {
                         const idRem = l.remoto_id ?? l.id_remoto ?? l.remotoId;
-                        if (idRem !== undefined && idRem !== null && Number(idRem) === remotoId) return true;
-
-                        const osLoc = extrairOrdemServico(l);
-                        if (osRemota !== 'Aguardando OS' && osLoc !== 'Aguardando OS' && osLoc.toLowerCase() === osRemota.toLowerCase()) return true;
-
-                        const lData = String(l.data || '').substring(0, 10);
-                        const lHora = formatarHora(l.horainicio || l.hora_inicio);
-                        const lExec = String(l.matricula_executante || '').trim();
-
-                        return (lData === dataRemota && lHora === hIniRemota && lExec === matExecRemota);
+                        return idRem !== undefined && idRem !== null && Number(idRem) === remotoId;
                     });
+
+                    if (!local) {
+                        local = locais.find(l => {
+                            const idRem = l.remoto_id ?? l.id_remoto ?? l.remotoId;
+                            if (idRem) return false;
+
+                            const lData = String(l.data || '').substring(0, 10);
+                            const lHora = formatarHora(l.horainicio || l.hora_inicio);
+                            const lExec = String(l.matricula_executante || '').trim();
+                            const osLoc = extrairOrdemServico(l);
+
+                            if (osRemota !== 'Aguardando OS' && osLoc !== 'Aguardando OS' && osLoc.toLowerCase() === osRemota.toLowerCase()) {
+                                return lData === dataRemota;
+                            }
+
+                            return (lData === dataRemota && lHora === hIniRemota && lExec === matExecRemota);
+                        });
+                    }
 
                     if (local && local.id) {
                         let alterou = false;
@@ -925,7 +944,7 @@
                             alterou = true;
                         }
 
-                        if (osRemota !== 'Aguardando OS' && (local.ordemservico !== osRemota || local.ordem_servico !== osRemota)) {
+                        if (local.ordemservico !== osRemota || local.ordem_servico !== osRemota) {
                             local.ordemservico = osRemota;
                             local.ordem_servico = osRemota;
                             alterou = true;
@@ -941,14 +960,24 @@
                             alterou = true;
                         }
 
+                        if (matExecRemota && String(local.matricula_executante || '').trim() !== matExecRemota) {
+                            local.matricula_executante = matExecRemota;
+                            alterou = true;
+                        }
+
+                        if (dataRemota && String(local.data || '').substring(0, 10) !== dataRemota) {
+                            local.data = dataRemota;
+                            alterou = true;
+                        }
+
                         if (hIniRemota && formatarHora(local.horainicio || local.hora_inicio) !== hIniRemota) {
                             local.horainicio = hIniRemota;
                             local.hora_inicio = hIniRemota;
                             alterou = true;
                         }
 
-                        const hFimRemota = formatarHora(remoto.horafim || remoto.hora_fim);
-                        if (hFimRemota && formatarHora(local.horafim || local.hora_fim) !== hFimRemota) {
+                        const hFimLocal = formatarHora(local.horafim || local.hora_fim);
+                        if (hFimRemota && hFimLocal !== hFimRemota) {
                             local.horafim = hFimRemota;
                             local.hora_fim = hFimRemota;
                             alterou = true;
@@ -979,15 +1008,16 @@
             }
         }
 
-        // Formatadores auxiliares
         function formatarData(valorData) {
             if (!valorData) return '';
-            const dataIso = String(valorData).substring(0, 10);
+            const str = String(valorData).trim();
+            if (str.includes('/')) return str;
+            const dataIso = str.substring(0, 10);
             const partes = dataIso.split('-');
             if (partes.length === 3) {
                 return `${partes[2]}/${partes[1]}/${partes[0]}`;
             }
-            return valorData;
+            return str;
         }
 
         function formatarHora(h) {
@@ -1033,7 +1063,7 @@
             return 'Aguardando OS';
         }
 
-        // 5. Renderização da Lista (Badge de grupo condicional)
+        // 5. Renderização da Lista
         function filtrarLista() {
             const termo = document.getElementById('txtBusca')?.value?.trim().toLowerCase() || "";
             const container = document.getElementById('listaApontamentos');
@@ -1051,7 +1081,7 @@
                 );
 
             const pendentes = _listaOriginal.filter(a => !a.data_sincronizado).length;
-            lblTotal.textContent = `${filtrados.length} registro(s) /${pendentes} pendente(s)`;
+            lblTotal.textContent = `${filtrados.length} registro(s) / ${pendentes} pendente(s)`;
 
             if (filtrados.length === 0) {
                 container.innerHTML = "";
@@ -1062,7 +1092,7 @@
             emptyView.style.display = "none";
 
             container.innerHTML = filtrados.map(item => {
-                const id = item.id;
+                const id = Number(item.id);
                 const os = extrairOrdemServico(item);
                 const setor = item.setor || '-';
                 const grupo = item.grupo || 'Mantenedor';
@@ -1081,16 +1111,16 @@
                     ? `<button type="button" class="btn-sync-card" onclick="onEnviarItemClicked(${id})" title="Enviar agora para banco dados">Enviar ☁️</button>`
                     : ``;
 
-                // Badge de grupo visível APENAS para Supervisor e Administrador
                 const badgeGrupoHtml = _temPermissaoGestor
                     ? `<span class="badge-grupo-topo">Grupo: ${grupo}</span>`
                     : '';
 
                 return `
                         <div class="swipe-container" id="card-${id}">
-                            <div class="swipe-actions" data-buttons="2">
+                            <div class="swipe-actions" data-buttons="3">
                                 <button class="swipe-btn btn-edit" onclick="editarItem(${id})">Editar</button>
                                 <button class="swipe-btn btn-delete" onclick="excluirItem(${id})">Excluir</button>
+                                <button class="swipe-btn btn-replicate" onclick="replicarItem(${id})">Replicar</button>
                             </div>
                             <div class="item-card" data-open="false">
                                 <div class="card-line-1">
@@ -1139,7 +1169,7 @@
         }
 
         // =========================================================================
-        // 6. GESTOS DE SWIPE
+        // 6. GESTOS DE SWIPE (Largura ajustada para 220px com 3 botões)
         // =========================================================================
         function configurarGestosSwipe() {
             const cards = document.querySelectorAll('.item-card');
@@ -1150,7 +1180,7 @@
             let startY = 0;
             let currentX = 0;
             let initialOffset = 0;
-            let larguraPainel = 140;
+            let larguraPainel = 220;
             let movendoHorizontal = false;
             let cardAberto = null;
             let activePointerId = null;
@@ -1166,7 +1196,7 @@
                     startY = e.clientY;
                     currentX = startX;
                     movendoHorizontal = false;
-                    larguraPainel = 140;
+                    larguraPainel = 220;
 
                     const isAberto = card.getAttribute('data-open') === 'true';
                     initialOffset = isAberto ? -larguraPainel : 0;
@@ -1274,7 +1304,7 @@
 
             try {
                 const todos = await LocalDB.obterApontamentosLocais();
-                const item = todos.find(x => x.id === id);
+                const item = todos.find(x => Number(x.id) === Number(id));
 
                 if (!item || item.data_sincronizado) {
                     const osIdent = extrairOrdemServico(item);
@@ -1317,8 +1347,8 @@
 
                 item.data_sincronizado = new Date().toISOString();
                 if (retNuvem && retNuvem.length > 0) {
-                    item.remoto_id = retNuvem[0].id;
-                    item.id_remoto = retNuvem[0].id;
+                    item.remoto_id = Number(retNuvem[0].id);
+                    item.id_remoto = Number(retNuvem[0].id);
                 }
 
                 await LocalDB.salvarApontamento(item);
@@ -1383,8 +1413,8 @@
                     const item = pendentes[i];
                     item.data_sincronizado = agora;
                     if (retNuvem && retNuvem.length > i) {
-                        item.remoto_id = retNuvem[i].id;
-                        item.id_remoto = retNuvem[i].id;
+                        item.remoto_id = Number(retNuvem[i].id);
+                        item.id_remoto = Number(retNuvem[i].id);
                     }
                     await LocalDB.salvarApontamento(item);
                 }
@@ -1407,11 +1437,23 @@
             window.location.href = "novoapontamento.html";
         }
 
-        async function editarItem(id) {
-            const todos = await LocalDB.obterApontamentosLocais();
-            const item = todos.find(x => x.id === id);
+        function replicarItem(id) {
+            window.location.href = `novoapontamento.html?replicarId=${id}`;
+        }
 
-            if (item && item.data_sincronizado) {
+        async function editarItem(id) {
+            const item = _listaOriginal.find(x => Number(x.id) === Number(id));
+            if (!item) return;
+
+            if (item.data_sincronizado) {
+                if (!_temPermissaoGestor) {
+                    await exibirAviso(
+                        "Registro Bloqueado",
+                        "Este apontamento já foi transmitido para a nuvem e não pode mais ser alterado pelo dispositivo.",
+                        "warning"
+                    );
+                    return;
+                }
                 const remotoId = item.remoto_id || item.id_remoto;
                 if (remotoId) {
                     window.location.href = `novoapontamento.html?remotoId=${remotoId}`;
@@ -1424,14 +1466,14 @@
 
         async function excluirItem(id) {
             const todos = await LocalDB.obterApontamentosLocais();
-            const item = todos.find(x => x.id === id);
+            const item = todos.find(x => Number(x.id) === Number(id));
             const os = item ? extrairOrdemServico(item) : "Sem O.S.";
 
             const confirmou = await exibirConfirmacao("Excluir Apontamento", `Deseja excluir localmente a O.S. "${os}"?`, "Excluir");
             if (!confirmou) return;
 
             try {
-                await LocalDB.excluirApontamento(id);
+                await LocalDB.excluirApontamento(Number(id));
                 await exibirAviso("Excluído", "Registro removido do banco local com sucesso.", "success");
                 await carregarDadosAsync();
             } catch (err) {

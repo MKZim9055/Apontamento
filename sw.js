@@ -16,6 +16,7 @@ const ASSETS = [
     './db.js',
     './manifest.json',
     './icoapontamento.png',
+    './grafico.html',
     'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
 ];
 
